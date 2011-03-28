@@ -22,14 +22,17 @@ import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.workflow.CategoryFunction;
+import com.google.gerrit.server.workflow.MaxWithBlock;
 import com.google.gerrit.server.workflow.FunctionState;
 import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -151,11 +154,16 @@ public class ChangeControl {
   /** Can this user abandon this change? */
   public boolean canAbandon() {
     if (change.getTopicId() != null) return false;
-    return isOwner() // owner (aka creator) of the change can abandon
+    boolean userCan = isOwner() // owner (aka creator) of the change can abandon
         || getRefControl().isOwner() // branch owner can abandon
         || getProjectControl().isOwner() // project owner can abandon
         || getCurrentUser().isAdministrator() // site administers are god
     ;
+
+    // Cannot abandon changes that are already processed by the continuous
+    // integration system.
+    return userCan
+      && (change.getStatus() != Change.Status.INTEGRATING);
   }
 
   /** Can this user restore this change? */
@@ -268,5 +276,107 @@ public class ChangeControl {
     }
 
     return CanSubmitResult.OK;
+  }
+
+  /**
+   * Checks if patch set can be merged to a staging branch.
+   * @param patchSetId Patch set ID.
+   * @param db Review database.
+   * @param approvalTypes Approval types for this patch set.
+   * @param functionStateFactory Factory for creating check functions for
+   *        different approval categories.
+   * @return Result indicating if the patch set can be merged or not.
+   * @throws OrmException Thrown if review database cannot accessed.
+   */
+  public CanSubmitResult canMergeToStaging(final PatchSet.Id patchSetId,
+      final ReviewDb db, final ApprovalTypes approvalTypes,
+      FunctionState.Factory functionStateFactory)
+        throws OrmException {
+    // Check that the state of the patch set and its parent change are valid.
+    CanSubmitResult result = canMergeToStaging(patchSetId);
+    if (result != CanSubmitResult.OK) {
+      return result;
+    }
+
+    // List all approvals for this patch set.
+    final List<PatchSetApproval> allApprovals =
+        new ArrayList<PatchSetApproval>(db.patchSetApprovals().byPatchSet(
+            patchSetId).toList());
+
+    // Create function for staging approval category and run it.
+    final FunctionState fs =
+        functionStateFactory.create(change, patchSetId, allApprovals);
+    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
+      CategoryFunction.forCategory(c.getCategory()).run(c, fs);
+    }
+
+    // There is nothing preventing the merge. Return OK result.
+    return CanSubmitResult.OK;
+  }
+
+  /**
+   * Checks if the patch set and its parent change are in correct state for
+   * merge to staging.
+   *
+   * @param patchSetId Patch set ID.
+   * @return CanSubmitResult.OK if patch set can be merged to staging.
+   */
+  public CanSubmitResult canMergeToStaging(final PatchSet.Id patchSetId) {
+    if (change.getStatus() != Change.Status.NEW) {
+      return new CanSubmitResult("Change " + change.currPatchSetId().getParentKey() + " is not NEW");
+    }
+    if (!patchSetId.equals(change.currentPatchSetId())) {
+      return new CanSubmitResult("Patch set " + patchSetId + " is not current");
+    }
+    if (!getRefControl().canBranchToStaging()) {
+      return new CanSubmitResult("User does not have permission to submit");
+    }
+    if (!(getCurrentUser() instanceof IdentifiedUser)) {
+      return new CanSubmitResult("User is not signed-in");
+    }
+    return CanSubmitResult.OK;
+  }
+
+  /**
+   * Checks if change has valid approval in categories that are using
+   * MaxWithBlock function. This function is used by categories like code
+   * review or verified.
+   *
+   * @param patchSetId Patch set ID.
+   * @param db Review database.
+   * @param approvalTypes Configured approval types.
+   * @param functionStateFactory Function state factory.
+   * @return True if there is max score available in all MaxWithBlock
+   *         categories.
+   * @throws OrmException Thrown, if datbase access fails.
+   */
+  public boolean hasValidCategoryFunctions(final PatchSet.Id patchSetId,
+      final ReviewDb db, final ApprovalTypes approvalTypes,
+      FunctionState.Factory functionStateFactory) throws OrmException {
+    // List all approvals for this patch set.
+    final List<PatchSetApproval> allApprovals =
+        new ArrayList<PatchSetApproval>(db.patchSetApprovals().byPatchSet(
+            patchSetId).toList());
+
+    // Create function for staging approval category and run it.
+    final FunctionState fs =
+        functionStateFactory.create(change, patchSetId, allApprovals);
+
+    // Flag to summarize category approvals.
+    boolean succeeded = true;
+
+    // Loop through all configured approval types.
+    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
+      // Only check categoriess using MaxWithBlock function.
+      if (c.getCategory().getFunctionName().equals(MaxWithBlock.NAME)) {
+        // Run the function and check status from Function State object.
+        CategoryFunction.forCategory(c.getCategory()).run(c, fs);
+        if (!fs.isValid(c)) {
+          succeeded = false;
+        }
+      }
+    }
+
+    return succeeded;
   }
 }

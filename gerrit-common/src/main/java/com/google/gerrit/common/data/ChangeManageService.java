@@ -37,4 +37,11 @@ public interface ChangeManageService extends RemoteJsonService {
   @SignInRequired
   void restoreChange(PatchSet.Id patchSetId, String message,
       AsyncCallback<ChangeDetail> callback);
+
+  @SignInRequired
+  void stage(PatchSet.Id patchSetId, AsyncCallback<ChangeDetail> callback);
+
+  @SignInRequired
+  void unstageChange(PatchSet.Id patchSetId,
+      AsyncCallback<ChangeDetail> callback);
 }

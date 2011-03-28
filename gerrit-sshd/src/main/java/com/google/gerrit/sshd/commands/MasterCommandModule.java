@@ -34,5 +34,9 @@ public class MasterCommandModule extends CommandModule {
     command(gerrit, "replicate").to(AdminReplicate.class);
     command(gerrit, "set-project-parent").to(AdminSetParent.class);
     command(gerrit, "review").to(ReviewCommand.class);
+    command(gerrit, "staging-new-build").to(StagingNewBuild.class);
+    command(gerrit, "staging-ls").to(StagingListChanges.class);
+    command(gerrit, "staging-approve").to(StagingApprove.class);
+    command(gerrit, "staging-rebuild").to(StagingRebuild.class);
   }
 }

@@ -98,6 +98,12 @@ public abstract class AbstractEntity {
   protected static final char STATUS_NEW = 'n';
   /** Database constant for {@link Status#SUBMITTED}. */
   protected static final char STATUS_SUBMITTED = 's';
+  /** Database constant for {@link Status#STAGING}. */
+  protected static final char STATUS_STAGING = 'q';
+  /** Database constant for {@link Status#STAGED}. */
+  protected static final char STATUS_STAGED = 'r';
+  /** Database constant for {@link Status#INTEGRATING}. */
+  protected static final char STATUS_INTEGRATING = 'i';
   /** Maximum database status constant for an open change. */
   private static final char MAX_OPEN = 'z';
 
@@ -168,6 +174,22 @@ public abstract class AbstractEntity {
      * supporting a post-submit review.
      */
     MERGED(STATUS_MERGED),
+
+    /**
+     * Changes is open and ready to be merged into staging the branch.
+     */
+    STAGING(STATUS_STAGING),
+
+    /**
+     * Change is merged into the staging branch.
+     */
+    STAGED(STATUS_STAGED),
+
+    /**
+     * Change is in build branch under refs/builds and is being build
+     * and tested by continuous integration system.
+     */
+    INTEGRATING(STATUS_INTEGRATING),
 
     /**
      * Change/topic is closed, but was not submitted to its destination branch.

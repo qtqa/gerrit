@@ -31,6 +31,7 @@ public class Permission implements Comparable<Permission> {
   public static final String PUSH_TAG = "pushTag";
   public static final String READ = "read";
   public static final String SUBMIT = "submit";
+  public static final String STAGE = "stage";
 
   private static final List<String> NAMES_LC;
 
@@ -47,6 +48,7 @@ public class Permission implements Comparable<Permission> {
     NAMES_LC.add(PUSH_TAG.toLowerCase());
     NAMES_LC.add(LABEL.toLowerCase());
     NAMES_LC.add(SUBMIT.toLowerCase());
+    NAMES_LC.add(STAGE.toLowerCase());
   }
 
   /** @return true if the name is recognized as a permission name. */

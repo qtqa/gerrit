@@ -1,0 +1,166 @@
+// Copyright (C) 2011 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+package com.google.gerrit.sshd.commands;
+
+import com.google.gerrit.reviewdb.Branch;
+import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.PatchSet;
+import com.google.gerrit.reviewdb.PatchSetAccess;
+import com.google.gerrit.reviewdb.Project;
+import com.google.gerrit.reviewdb.RevId;
+import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gwtorm.client.OrmException;
+
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.revwalk.FooterKey;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevWalk;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+/**
+ * Constants and utility methods for staging commands.
+ *
+ */
+public class StagingCommand {
+  public static class BranchNotFoundException extends Exception {
+    private static final long serialVersionUID = 1L;
+    public BranchNotFoundException(final String message) {
+      super(message);
+    }
+  }
+
+  public static class UpdateRefException extends Exception {
+    private static final long serialVersionUID = 1L;
+    public UpdateRefException(final String message) {
+      super(message);
+    }
+  }
+
+  /** Prefix for head refs. */
+  public static final String R_HEADS = "refs/heads/";
+  /** Prefix for build refs. */
+  public static final String R_BUILDS = "refs/builds/";
+  /** Prefix for staging refs. */
+  public static final String R_STAGING = "refs/staging/";
+
+  /** Private constructor. This class should not be instantiated. */
+  private StagingCommand() {
+
+  }
+
+  /**
+   * Creates a branch key including ref prefix.
+   * @param project Project for the branch key.
+   * @param prefix Expected prefix.
+   * @param branch Branch name with or without prefix.
+   * @return Branch name key with prefix.
+   */
+  public static Branch.NameKey getNameKey(final String project,
+      final String prefix, final String branch) {
+    final Project.NameKey projectKey = new Project.NameKey(project);
+    if (branch.startsWith(prefix)) {
+      return new Branch.NameKey(projectKey, branch);
+    } else {
+      return new Branch.NameKey(projectKey, prefix + branch);
+    }
+  }
+
+  /**
+   * Creates a branch key without any prefix.
+   * @param project Project for the branch key.
+   * @param prefix Prefix to remove.
+   * @param branch Branch name with or without prefix.
+   * @return Branch name key without prefix.
+   */
+  public static Branch.NameKey getShortNameKey(final String project,
+      final String prefix, final String branch) {
+    final Project.NameKey projectKey = new Project.NameKey(project);
+    if (branch.startsWith(prefix)) {
+      return new Branch.NameKey(projectKey, branch.substring(prefix.length()));
+    } else {
+      return new Branch.NameKey(projectKey, branch);
+    }
+  }
+
+  /**
+   * Lists open changes in a branch.
+   * @param git jGit Repository. Must be open.
+   * @param db ReviewDb of a Gerrit site.
+   * @param branch Branch to search for open changes-
+   * @return List of open changes.
+   * @throws IOException Thrown by Repository or RevWalk if repository is not
+   *         accessible.
+   * @throws OrmException Thrown if ReviewDb is not accessible.
+   */
+  public static List<PatchSet> openChanges(Repository git, ReviewDb db,
+      final String branch) throws IOException, OrmException,
+      BranchNotFoundException {
+    List<PatchSet> open = new ArrayList<PatchSet>();
+    PatchSetAccess patchSetAccess = db.patchSets();
+
+    RevWalk revWalk = new RevWalk(git);
+
+    try {
+      Ref ref = git.getRef(branch);
+      if (ref == null) {
+        throw new BranchNotFoundException("No such branch: " + branch);
+      }
+      RevCommit firstCommit = revWalk.parseCommit(ref.getObjectId());
+      revWalk.markStart(firstCommit);
+      Iterator<RevCommit> i = revWalk.iterator();
+
+      final String changeIdFooter = "Change-Id";
+      FooterKey changeIdKey = new FooterKey(changeIdFooter);
+      while (i.hasNext()) {
+        RevCommit commit = i.next();
+        RevId revId = new RevId(ObjectId.toString(commit));
+        List<String> changeIds = commit.getFooterLines(changeIdKey);
+
+        if (changeIds.isEmpty()) {
+          // No Change-Id footer available. Search by patch set revision.
+          List<PatchSet> patchSets = patchSetAccess.byRevision(revId).toList();
+          for (PatchSet patchSet : patchSets) {
+            Change.Id changeId = patchSet.getId().getParentKey();
+            Change change = db.changes().get(changeId);
+            if (change.getStatus().isOpen()) {
+              open.add(patchSet);
+              break;
+            }
+          }
+        } else {
+          // Change-Id footer found in commit message. Search by Change-Id
+          // value.  Usually, there is only 1 Change-Id footer.
+          for (String changeId : changeIds) {
+            List<Change> changes =
+              db.changes().byKey(Change.Key.parse(changeId)).toList();
+            for (Change change : changes) {
+              if (change.getStatus().isOpen()) {
+                open.add(patchSetAccess.get(change.currentPatchSetId()));
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      revWalk.dispose();
+    }
+    return open;
+  }
+}

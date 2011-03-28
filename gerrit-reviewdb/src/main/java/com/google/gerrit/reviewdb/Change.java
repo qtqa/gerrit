@@ -117,6 +117,7 @@ public final class Change extends AbstractEntity {
       return PatchSet.Id.fromRef(ref).getParentKey();
     }
   }
+
   /** Locally assigned unique identifier of the change */
   @Column(id = 1)
   protected Id changeId;

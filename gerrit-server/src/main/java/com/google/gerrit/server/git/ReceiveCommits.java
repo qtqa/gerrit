@@ -59,6 +59,7 @@ import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.ProjectCache;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.server.project.ProjectState;
 import com.google.gerrit.server.project.RefControl;
@@ -159,6 +160,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   private final String canonicalWebUrl;
   private final PersonIdent gerritIdent;
   private final TrackingFooters trackingFooters;
+  private final MergeOp.Factory mergeFactory;
+  private final MergeQueue merger;
 
   private final ProjectControl projectControl;
   private final Project project;
@@ -197,6 +200,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       @CanonicalWebUrl @Nullable final String canonicalWebUrl,
       @GerritPersonIdent final PersonIdent gerritIdent,
       final TrackingFooters trackingFooters,
+      final MergeOp.Factory mergeFactory,
+      final MergeQueue merger,
 
       @Assisted final ProjectControl projectControl,
       @Assisted final Repository repo) throws IOException {
@@ -216,6 +221,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     this.canonicalWebUrl = canonicalWebUrl;
     this.gerritIdent = gerritIdent;
     this.trackingFooters = trackingFooters;
+    this.mergeFactory = mergeFactory;
+    this.merger = merger;
 
     this.projectControl = projectControl;
     this.project = projectControl.getProject();
@@ -1562,6 +1569,10 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       reject(request.cmd, "change " + request.ontoChange + " closed");
       return null;
     }
+    if (change.getStatus() == Change.Status.INTEGRATING) {
+        reject(request.cmd, "change " + request.ontoChange + " is already INTEGRATING");
+        return null;
+    }
     if (change.getStatus().equals(AbstractEntity.Status.ABANDONED)) {
       // It is needed a special behavior in case we are working with topics
       //
@@ -1759,6 +1770,10 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     db.changeMessages().insert(Collections.singleton(msg));
     result.msg = msg;
 
+    // Check staging status before change status is updated.
+    boolean inStaging = (change.getStatus() == Change.Status.STAGED
+        || change.getStatus() == Change.Status.STAGING);
+
     if (result.mergedIntoRef != null) {
       // Change was already submitted to a branch, close it.
       //
@@ -1840,6 +1855,14 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
 
     ChangeUtil.updateTrackingIds(db, change, trackingFooters, footerLines);
     sendMergedEmail(result);
+    if (inStaging) {
+      try {
+        ChangeUtil.rebuildStaging(change.getDest(), currentUser, db,
+            repo, mergeFactory, merger, hooks);
+      } catch (NoSuchRefException e) {
+        // Destination branch not available.
+      }
+    }
     return result != null ? result.info.getKey() : null;
   }
 

@@ -123,8 +123,10 @@ public interface ChangeConstants extends Constants {
   String buttonPublishCommentsSend();
   String buttonPublishSubmitSend();
   String buttonPublishCommentsCancel();
+  String buttonPublishStagingSend();
   String headingCoverMessage();
   String headingPatchComments();
+  String buttonUnstagingChange();
 
   String buttonRestoreChangeBegin();
   String restoreChangeTitle();

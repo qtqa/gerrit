@@ -36,6 +36,8 @@ public class ChangeModule extends RpcServletModule {
         factory(PatchSetDetailFactory.Factory.class);
         factory(PatchSetPublishDetailFactory.Factory.class);
         factory(SubmitAction.Factory.class);
+        factory(StagingAction.Factory.class);
+        factory(UnstageChange.Factory.class);
       }
     });
     rpc(ChangeDetailServiceImpl.class);

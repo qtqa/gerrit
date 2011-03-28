@@ -15,9 +15,11 @@
 package com.google.gerrit.server;
 
 import static com.google.gerrit.reviewdb.ApprovalCategory.SUBMIT;
+import static com.google.gerrit.reviewdb.ApprovalCategory.STAGING;
 
 import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.reviewdb.Account;
+import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeMessage;
@@ -38,6 +40,8 @@ import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.git.ReplicationQueue;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
+import com.google.gerrit.server.git.StagingUtil;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
@@ -48,7 +52,9 @@ import com.google.gwtorm.client.AtomicUpdate;
 import com.google.gwtorm.client.OrmConcurrencyException;
 import com.google.gwtorm.client.OrmException;
 
-
+import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -181,7 +187,10 @@ public class ChangeUtil {
         new AtomicUpdate<Change>() {
       @Override
       public Change update(Change change) {
-        if (change.getStatus() == Change.Status.NEW) {
+        if (change.getStatus() == Change.Status.NEW
+            || change.getStatus() == Change.Status.STAGED
+            || change.getStatus() == Change.Status.STAGING
+            || change.getStatus() == Change.Status.INTEGRATING) {
           change.setStatus(Change.Status.SUBMITTED);
           ChangeUtil.updated(change);
         }
@@ -511,6 +520,67 @@ public class ChangeUtil {
         reviewerId, addReviewerCategoryId), (short) 0);
   }
 
+  public static PatchSetApproval createStagingApproval(PatchSet.Id patchSetId,
+      IdentifiedUser user, ReviewDb db)
+  throws OrmException {
+    // Get all existing approvals for this patch set.
+    final List<PatchSetApproval> allApprovals =
+        new ArrayList<PatchSetApproval>(db.patchSetApprovals().byPatchSet(
+            patchSetId).toList());
+
+    // Key for staging approval.
+    final PatchSetApproval.Key akey =
+        new PatchSetApproval.Key(patchSetId, user.getAccountId(), STAGING);
+
+    // Search existing approvals for a staging approval.
+    for (final PatchSetApproval approval : allApprovals) {
+      if (akey.equals(approval.getKey())) {
+        // Existing approval found.
+        approval.setValue((short) 1);
+        approval.setGranted();
+        return approval;
+      }
+    }
+
+    // Create a new approval.
+    return new PatchSetApproval(akey, (short) 1);
+  }
+
+  /**
+   * Creates a staging removing PatchSetApproval. Caller of this method needs
+   * to update the database to remove tha staging approval.
+   *
+   * @param patchSetId Patch set ID.
+   * @param user User taking this action.
+   * @param db Review database.
+   * @return Existing patch set approval or null if the patch set does not
+   *         have a staging approval.
+   * @throws OrmException
+   */
+  public static PatchSetApproval removeStagingApproval(PatchSet.Id patchSetId,
+      IdentifiedUser user, ReviewDb db) throws OrmException {
+    // Get current approvals.
+    final List<PatchSetApproval> allApprovals =
+      new ArrayList<PatchSetApproval>(db.patchSetApprovals().byPatchSet(
+          patchSetId).toList());
+
+    // Key for staging approvals.
+    final PatchSetApproval.Key akey =
+        new PatchSetApproval.Key(patchSetId, user.getAccountId(), STAGING);
+
+    // Find existing staging approval. If there are several, first one is
+    // enough.
+    for (final PatchSetApproval approval : allApprovals) {
+      if (akey.equals(approval.getKey())) {
+        approval.setValue((short) 0);
+        approval.setGranted();
+        return approval;
+      }
+    }
+
+    return null;
+  }
+
   public static String sortKey(long lastUpdated, int id){
     // The encoding uses minutes since Wed Oct 1 00:00:00 2008 UTC.
     // We overrun approximately 4,085 years later, so ~6093.
@@ -527,6 +597,211 @@ public class ChangeUtil {
     long lastUpdated = c.getLastUpdatedOn().getTime();
     int id = c.getId().get();
     c.setSortKey(sortKey(lastUpdated, id));
+  }
+
+  /**
+   * Moves a change to staging branch.
+   *
+   * @param mergeFactory Merge factory for creating merge operators.
+   * @param patchSetId Id of the patch set that is to be merged.
+   * @param user User taking this action.
+   * @param db Review database.
+   * @param merger Merge queue.
+   * @param git Git repository.
+   * @throws OrmException Thrown if access to Review Db fails.
+   * @throws IOException Thrown if access to Git repository fails.
+   * @throws NoSuchRefException Thrown if source branch does not exist.
+   */
+  public static void moveToStaging(MergeOp.Factory mergeFactory,
+      PatchSet.Id patchSetId, IdentifiedUser user, ReviewDb db,
+      MergeQueue merger, Repository git, ChangeHookRunner hooks)
+        throws OrmException, IOException, NoSuchRefException {
+    // Create and insert staging approval to the database.
+    final PatchSetApproval approval =
+      createStagingApproval(patchSetId, user, db);
+    db.patchSetApprovals().upsert(Collections.singleton(approval));
+
+    // Change change state from NEW to STAGING.
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      getUpdateToState(Change.Status.NEW, Change.Status.STAGING);
+    final Change change = db.changes().atomicUpdate(changeId, atomicUpdate);
+
+    // Check if staging branch exists. Create the staging branch if it does not
+    // exist.
+    final Branch.NameKey stagingBranch =
+      StagingUtil.getStagingBranch(change.getDest());
+    if (!StagingUtil.branchExists(git, stagingBranch)) {
+      StagingUtil.createStagingBranch(git, change.getDest());
+    }
+
+    // Activate the merge queue.
+    merger.merge(mergeFactory, stagingBranch);
+  }
+
+  /**
+   * Removes a commit from staging branch. Status of the change in reset to
+   * NEW.
+   *
+   * @param patchSetId Patch set to be removed from staging.
+   * @param user User taking this action.
+   * @param db Review database.
+   * @throws OrmException If review database cannot be accessed.
+   */
+  public static void rejectStagedChange(PatchSet.Id patchSetId,
+      IdentifiedUser user, ReviewDb db) throws OrmException {
+    // Delete all STAGING approvals for the patch set.
+    final PatchSetApproval.Key stagingKey =
+      new PatchSetApproval.Key(patchSetId, user.getAccountId(), STAGING);
+    db.patchSetApprovals().deleteKeys(Collections.singleton(stagingKey));
+
+    // Set change state to NEW.
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      new AtomicUpdate<Change>() {
+      @Override
+      public Change update(Change change) {
+        if (change.getStatus() == Change.Status.INTEGRATING
+            || change.getStatus() == Change.Status.STAGED) {
+          change.setStatus(Change.Status.NEW);
+          ChangeUtil.updated(change);
+        }
+        return change;
+      }
+    };
+    db.changes().atomicUpdate(changeId, atomicUpdate);
+  }
+
+  /**
+   * Moves change from integrating to merged. Only database is updated.
+   *
+   * @param patchSetId Patch set id for accessing the change.
+   * @param user User taking the action.
+   * @param db Review database.
+   * @throws OrmException Thrown, if access to review database fails.
+   */
+  public static void setIntegratingToMerged(PatchSet.Id patchSetId, IdentifiedUser user,
+      ReviewDb db) throws OrmException {
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      getUpdateToState(Change.Status.INTEGRATING, Change.Status.MERGED);
+    db.changes().atomicUpdate(changeId, atomicUpdate);
+  }
+
+  /**
+   * Merges an already merged change once more to staging. This method should
+   * be used when an update in main branch causes the staging branch to be
+   * updated.
+   *
+   * @param mergeFactory Merge operator.
+   * @param patchSetId Patch set ID.
+   * @param user User taking the action.
+   * @param db Review database.
+   * @param merger Merge queue.
+   * @param git Git repository.
+   * @throws OrmException Thrown, if review database cannot be accessed.
+   * @throws IOException Thrown, if Git repository cannot be accessed.
+   * @throws NoSuchRefException Thrown, if source branch is not available.
+   */
+  public static void restage(MergeOp.Factory mergeFactory,
+      PatchSet.Id patchSetId, IdentifiedUser user, ReviewDb db,
+      MergeQueue merger, Repository git) throws OrmException, IOException,
+      NoSuchRefException {
+    // In order to make the patch set visible to merge queue, move it from
+    // STAGED to STAGING state.
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      getUpdateToState(Change.Status.STAGED, Change.Status.STAGING);
+    final Change change = db.changes().atomicUpdate(changeId, atomicUpdate);
+
+    // Check if staging branch exists. Create a new staging branch if it does
+    // not exist.
+    final Branch.NameKey stagingBranch =
+      StagingUtil.getStagingBranch(change.getDest());
+    if (!StagingUtil.branchExists(git, stagingBranch)) {
+      StagingUtil.createStagingBranch(git, change.getDest());
+    }
+
+    // Activate the merge queue.
+    merger.merge(mergeFactory, stagingBranch);
+  }
+
+  /**
+   * Reset the staging branch. This method should be called if some change
+   * is removed from staging branch. For example, this method is called after
+   * abandoning a change.
+   *
+   * @param branch Destination branch. E.g. refs/heads/master
+   * @param user User taking this action.
+   * @param db Review database.
+   * @param git Git repository.
+   * @param mergeFactory Merge operator factory.
+   * @param merger Merge queue.
+   * @param ChangeHookRunner Hooks runner. Ref update will be send as part
+   *        the rebuild.
+   * @throws OrmException Thrown, if review database cannot be accessed.
+   * @throws IOException Thrown, if Git repository cannot be accessed.
+   * @throws NoSuchRefException Thrown, if destination branch is not available.
+   */
+  public static void rebuildStaging(Branch.NameKey branch, IdentifiedUser user,
+      ReviewDb db, Repository git, MergeOp.Factory mergeFactory,
+      MergeQueue merger, ChangeHookRunner hooks)
+      throws OrmException, IOException, NoSuchRefException {
+    final Branch.NameKey stagingBranch = StagingUtil.getStagingBranch(branch);
+
+    // Start staging branch from scratch.
+    Ref ref = git.getRef(stagingBranch.get());
+    ObjectId oldTip = null;
+    if (ref != null) {
+      oldTip = ref.getObjectId();
+    }
+    StagingUtil.createStagingBranch(git, branch);
+    ref = git.getRef(branch.get());
+    ObjectId newTip = null;
+    if (ref != null) {
+      newTip = ref.getObjectId();
+    }
+
+    if (oldTip != null && newTip != null && !oldTip.equals(newTip)) {
+      hooks.doRefUpdatedHook(branch, oldTip, newTip, user.getAccount());
+    }
+
+    // Loop through all changes with status STAGED.
+    List<Change> staged = db.changes().staged(branch).toList();
+    for (Change change : staged) {
+      final PatchSet.Id currentPatchSet = change.currentPatchSetId();
+      final Change.Id changeId = currentPatchSet.getParentKey();
+
+      // Reset status to STAGING.
+      AtomicUpdate<Change> atomicUpdate =
+        getUpdateToState(Change.Status.STAGED, Change.Status.STAGING);
+      db.changes().atomicUpdate(changeId, atomicUpdate);
+    }
+
+    // Merge all changes.
+    merger.merge(mergeFactory, stagingBranch);
+  }
+
+  public static void setIntegrating(PatchSet.Id patchSetId, ReviewDb db)
+      throws OrmException {
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate = getUpdateToState(Change.Status.STAGED,
+        Change.Status.INTEGRATING);
+    db.changes().atomicUpdate(changeId, atomicUpdate);
+  }
+
+  private static AtomicUpdate<Change> getUpdateToState(final Change.Status from,
+      final Change.Status to) {
+    return new AtomicUpdate<Change>() {
+      @Override
+      public Change update(Change change) {
+        if (change.getStatus() == from) {
+          change.setStatus(to);
+          ChangeUtil.updated(change);
+        }
+        return change;
+      }
+    };
   }
 
   private static final char[] hexchar =

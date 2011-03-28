@@ -102,4 +102,15 @@ public interface ChangeAccess extends Access<Change, Change.Id> {
 
   @Query
   ResultSet<Change> all() throws OrmException;
+
+  @Query("WHERE dest = ? AND status = '" + Change.STATUS_STAGING
+      + "' ORDER BY lastUpdatedOn")
+  ResultSet<Change> staging(Branch.NameKey dest) throws OrmException;
+
+  @Query("WHERE dest = ? AND status = '" + Change.STATUS_STAGED
+      + "' ORDER BY lastUpdatedOn")
+  ResultSet<Change> staged(Branch.NameKey dest) throws OrmException;
+
+  @Query("WHERE status = '" + Change.STATUS_STAGING + "'")
+  ResultSet<Change> allStaging() throws OrmException;
 }

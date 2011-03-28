@@ -25,16 +25,22 @@ class ChangeManageServiceImpl implements ChangeManageService {
   private final AbandonChange.Factory abandonChangeFactory;
   private final RestoreChange.Factory restoreChangeFactory;
   private final RevertChange.Factory revertChangeFactory;
+  private final StagingAction.Factory stagingActionFactory;
+  private final UnstageChange.Factory unstageChangeFactory;
 
   @Inject
   ChangeManageServiceImpl(final SubmitAction.Factory patchSetAction,
       final AbandonChange.Factory abandonChangeFactory,
       final RestoreChange.Factory restoreChangeFactory,
-      final RevertChange.Factory revertChangeFactory) {
+      final RevertChange.Factory revertChangeFactory,
+      final StagingAction.Factory stagingActionFactory,
+      final UnstageChange.Factory unstageChangeFactory) {
     this.submitAction = patchSetAction;
     this.abandonChangeFactory = abandonChangeFactory;
     this.restoreChangeFactory = restoreChangeFactory;
     this.revertChangeFactory = revertChangeFactory;
+    this.stagingActionFactory = stagingActionFactory;
+    this.unstageChangeFactory = unstageChangeFactory;
   }
 
   public void submit(final PatchSet.Id patchSetId,
@@ -55,5 +61,16 @@ class ChangeManageServiceImpl implements ChangeManageService {
   public void restoreChange(final PatchSet.Id patchSetId, final String message,
       final AsyncCallback<ChangeDetail> callback) {
     restoreChangeFactory.create(patchSetId, message).to(callback);
+  }
+
+  public void stage(final PatchSet.Id patchSetId,
+      final AsyncCallback<ChangeDetail> callback) {
+    // Forward call to StagingAction implementation.
+    stagingActionFactory.create(patchSetId).to(callback);
+  }
+
+  public void unstageChange(final PatchSet.Id patchSetId,
+      final AsyncCallback<ChangeDetail> callback) {
+    unstageChangeFactory.create(patchSetId).to(callback);
   }
 }

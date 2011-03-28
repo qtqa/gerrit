@@ -23,12 +23,15 @@ import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.PatchSetApproval;
+import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.RevId;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
+import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
+import com.google.gerrit.server.git.StagingUtil;
 import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.patch.PublishComments;
@@ -36,6 +39,7 @@ import com.google.gerrit.server.project.CanSubmitResult;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.server.workflow.FunctionState;
 import com.google.gerrit.sshd.BaseCommand;
@@ -45,6 +49,8 @@ import com.google.gwtorm.client.ResultSet;
 import com.google.inject.Inject;
 
 import org.apache.sshd.server.Environment;
+import org.eclipse.jgit.errors.RepositoryNotFoundException;
+import org.eclipse.jgit.lib.Repository;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
@@ -99,6 +105,9 @@ public class ReviewCommand extends BaseCommand {
   @Option(name = "--submit", aliases = "-s", usage = "submit the patch set")
   private boolean submitChange;
 
+  @Option(name = "--staging", aliases ="t", usage = "merge patch set to staging")
+  private boolean staging;
+
   @Inject
   private ReviewDb db;
 
@@ -127,11 +136,23 @@ public class ReviewCommand extends BaseCommand {
   private PublishComments.Factory publishCommentsFactory;
 
   @Inject
+  private MergeQueue stagingQueue;
+
+  @Inject
   private ChangeHookRunner hooks;
+
+  @Inject
+  private GitRepositoryManager gitManager;
 
   private List<ApproveOption> optionList;
 
+  private Repository git;
+
   private Set<PatchSet.Id> toSubmit = new HashSet<PatchSet.Id>();
+
+  private Set<PatchSet.Id> toStaging = new HashSet<PatchSet.Id>();
+
+  private Project.NameKey currentProject;
 
   @Override
   public final void start(final Environment env) {
@@ -199,13 +220,62 @@ public class ReviewCommand extends BaseCommand {
             throw new Failure(1, "one or more submits failed", updateError);
           }
         }
+
+        if (!toStaging.isEmpty()) {
+          final Set<Branch.NameKey> toMerge = new HashSet<Branch.NameKey>();
+          try {
+            for (PatchSet.Id patchSetId : toStaging) {
+              final Change change = db.changes().get(patchSetId.getParentKey());
+              openRepository(change.getProject());
+              ChangeUtil.moveToStaging(opFactory, patchSetId, currentUser, db,
+                new MergeQueue() {
+                  @Override
+                  public void schedule(Branch.NameKey branch) {
+                    toMerge.add(branch);
+                  }
+
+                  @Override
+                  public void recheckAfter(Branch.NameKey branch, long delay,
+                      TimeUnit delayUnit) {
+                    toMerge.add(branch);
+                  }
+
+                  @Override
+                  public void merge(MergeOp.Factory mof, Branch.NameKey branch) {
+                    toMerge.add(branch);
+                  }
+                }, git, hooks);
+            }
+
+            for (Branch.NameKey stagingBranch : toMerge) {
+              Branch.NameKey branch =
+                 StagingUtil.getSourceBranch(stagingBranch);
+              if (!StagingUtil.branchExists(git, stagingBranch)) {
+                StagingUtil.createStagingBranch(git, branch);
+              }
+
+              stagingQueue.merge(opFactory, stagingBranch);
+            }
+          } catch (OrmException e) {
+            throw new Failure(1, "one or more staging merges failed", e);
+          } catch (IOException e) {
+            throw new Failure(1, "Failed to access git repository", e);
+          } catch (NoSuchRefException e) {
+            throw new Failure(1, "Invalid destination branch", e);
+          } finally {
+            if (git != null) {
+              git.close();
+            }
+          }
+        }
       }
     });
   }
 
   private void approveOne(final PatchSet.Id patchSetId) throws
-      NoSuchChangeException, UnloggedFailure, OrmException, EmailException {
-
+      NoSuchChangeException, UnloggedFailure, OrmException,
+      NoSuchRefException, IOException, EmailException, Failure,
+      InvalidChangeOperationException {
     final Change.Id changeId = patchSetId.getParentKey();
     ChangeControl changeControl = changeControlFactory.validateFor(changeId);
 
@@ -255,6 +325,14 @@ public class ReviewCommand extends BaseCommand {
               functionStateFactory);
       if (result == CanSubmitResult.OK) {
         toSubmit.add(patchSetId);
+      } else {
+        throw error(result.getMessage());
+      }
+    } else if (staging) {
+      CanSubmitResult result = changeControl.canMergeToStaging(patchSetId,
+          db, approvalTypes, functionStateFactory);
+      if (result == CanSubmitResult.OK) {
+        toStaging.add(patchSetId);
       } else {
         throw error(result.getMessage());
       }
@@ -368,5 +446,21 @@ public class ReviewCommand extends BaseCommand {
 
   private static UnloggedFailure error(final String msg) {
     return new UnloggedFailure(1, msg);
+  }
+
+  private void openRepository(final Project.NameKey project) throws RepositoryNotFoundException {
+    try {
+      if (git == null) {
+        // Open git repository, for the first time.
+        git = gitManager.openRepository(project);
+      } else if (!currentProject.equals(project)) {
+        // Another repository is already open. Close current repository
+        // and open a new one.
+        git.close();
+        git = gitManager.openRepository(project);
+      }
+    } finally {
+      currentProject = project;
+    }
   }
 }

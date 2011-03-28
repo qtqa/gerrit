@@ -27,19 +27,26 @@ import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
+import com.google.gerrit.server.git.GitRepositoryManager;
+import com.google.gerrit.server.git.MergeOp;
+import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.mail.CommentSender;
 import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.project.ChangeControl;
+import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.workflow.FunctionState;
 import com.google.gwtjsonrpc.client.VoidResult;
 import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
+import org.eclipse.jgit.lib.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -67,6 +74,9 @@ public class PublishComments implements Callable<VoidResult> {
   private final ChangeControl.Factory changeControlFactory;
   private final FunctionState.Factory functionStateFactory;
   private final ChangeHookRunner hooks;
+  private final GitRepositoryManager gitManager;
+  private final MergeOp.Factory mergeFactory;
+  private final MergeQueue merger;
 
   private final PatchSet.Id patchSetId;
   private final String messageText;
@@ -85,6 +95,9 @@ public class PublishComments implements Callable<VoidResult> {
       final ChangeControl.Factory changeControlFactory,
       final FunctionState.Factory functionStateFactory,
       final ChangeHookRunner hooks,
+      final GitRepositoryManager gitManager,
+      final MergeOp.Factory mergeFactory,
+      final MergeQueue merger,
 
       @Assisted final PatchSet.Id patchSetId,
       @Assisted final String messageText,
@@ -97,6 +110,9 @@ public class PublishComments implements Callable<VoidResult> {
     this.changeControlFactory = changeControlFactory;
     this.functionStateFactory = functionStateFactory;
     this.hooks = hooks;
+    this.gitManager = gitManager;
+    this.mergeFactory = mergeFactory;
+    this.merger = merger;
 
     this.patchSetId = patchSetId;
     this.messageText = messageText;
@@ -104,7 +120,8 @@ public class PublishComments implements Callable<VoidResult> {
   }
 
   @Override
-  public VoidResult call() throws NoSuchChangeException, OrmException {
+  public VoidResult call() throws NoSuchChangeException, OrmException,
+      InvalidChangeOperationException, NoSuchRefException, IOException {
     final Change.Id changeId = patchSetId.getParentKey();
     final ChangeControl ctl = changeControlFactory.validateFor(changeId);
     change = ctl.getChange();
@@ -117,8 +134,17 @@ public class PublishComments implements Callable<VoidResult> {
     publishDrafts();
 
     final boolean isCurrent = patchSetId.equals(change.currentPatchSetId());
-    if (isCurrent && change.getStatus().isOpen()) {
+    // Only message will be published for changes with status INTEGRATING.
+    if (isCurrent && change.getStatus().isOpen()
+        && change.getStatus() != Change.Status.INTEGRATING) {
       publishApprovals();
+       // Update staging, if score required for staging was removed.
+      // E.g. Existing +2 code review changed to +1 or -2 score was added.
+      if (change.getStatus() == Change.Status.STAGED && !canRemainInStaging()) {
+        removeChangeFromStaging();
+      }
+    } else if (!change.getStatus().isOpen() && !approvals.isEmpty()) {
+      throw new InvalidChangeOperationException("Change is closed");
     } else {
       publishMessageOnly();
     }
@@ -315,5 +341,26 @@ public class PublishComments implements Callable<VoidResult> {
         in.append("(" + drafts.size() + " inline comments)");
       }
     }
+  }
+
+  private void removeChangeFromStaging() throws NoSuchChangeException,
+      OrmException, IOException, NoSuchRefException {
+    ChangeUtil.rejectStagedChange(patchSetId, user, db);
+    Repository git = gitManager.openRepository(change.getProject());
+    try {
+      ChangeUtil.rebuildStaging(change.getDest(), user, db, git,
+          mergeFactory, merger, hooks);
+    } finally {
+      if (git != null) {
+        git.close();
+      }
+    }
+  }
+
+  private boolean canRemainInStaging() throws OrmException,
+      NoSuchChangeException {
+    final ChangeControl control = changeControlFactory.controlFor(change);
+    return control.hasValidCategoryFunctions(patchSet.getId(), db, types,
+          functionStateFactory);
   }
 }

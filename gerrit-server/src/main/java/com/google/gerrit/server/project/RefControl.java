@@ -14,6 +14,8 @@
 
 package com.google.gerrit.server.project;
 
+import static com.google.gerrit.reviewdb.ApprovalCategory.STAGING;
+
 import com.google.gerrit.common.CollectionsUtil;
 import com.google.gerrit.common.data.AccessSection;
 import com.google.gerrit.common.data.ParamertizedString;
@@ -302,6 +304,10 @@ public class RefControl {
   /** @return true if this user can forge the server on the committer line. */
   public boolean canForgeGerritServerIdentity() {
     return canPerform(Permission.FORGE_SERVER);
+  }
+
+  public boolean canBranchToStaging() {
+    return canPerform(Permission.STAGE);
   }
 
   /** All value ranges of any allowed label permission. */

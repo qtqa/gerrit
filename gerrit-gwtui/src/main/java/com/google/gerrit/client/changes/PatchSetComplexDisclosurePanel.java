@@ -192,6 +192,38 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
   private void populateActions(final PatchSetDetail detail) {
     final boolean isOpen = changeDetail.getChange().getStatus().isOpen();
 
+    final boolean isNew =
+      changeDetail.getChange().getStatus() == Change.Status.NEW;
+
+    // Staging is allowed only for NEW changes. User is required to have
+    // STAGING approval category.
+    if (isNew && changeDetail.canStage()) {
+      // Create button new button and add click handler.
+      final Button stagingButton = new Button(Util.M.mergeToStagingPatchSet(detail.getPatchSet().getPatchSetId()));
+      stagingButton.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(final ClickEvent event) {
+          // Disable the button until this click is handled.
+          stagingButton.setEnabled(false);
+
+          // Move change to staging.
+          Util.MANAGE_SVC.stage(patchSet.getId(), new GerritCallback<ChangeDetail>() {
+            public void onSuccess(ChangeDetail result) {
+              // Borrow submit result function. It works fine for staging.
+              onSubmitResult(result);
+            }
+
+            public void onFailure(Throwable caught) {
+              // Re-enable the button and display error message.
+              stagingButton.setEnabled(true);
+              super.onFailure(caught);
+            }
+          });
+        }
+      });
+      actionsPanel.add(stagingButton);
+    }
+
     if (isOpen && changeDetail.canSubmit()) {
       final Button b =
           new Button(Util.M
@@ -251,6 +283,24 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
                   Util.MANAGE_SVC.abandonChange(getPatchSetId() , getMessageText(), createCallback());
                 }
               }.center();
+        }
+      });
+      actionsPanel.add(b);
+    }
+
+    if (changeDetail.canUnstage()) {
+      final Button b = new Button(Util.C.buttonUnstagingChange());
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          b.setEnabled(false);
+          Util.MANAGE_SVC.unstageChange(patchSet.getId(),
+              new GerritCallback<ChangeDetail>() {
+                @Override
+                public void onSuccess(ChangeDetail result) {
+                  changeScreen.update(result);
+                }
+          });
         }
       });
       actionsPanel.add(b);

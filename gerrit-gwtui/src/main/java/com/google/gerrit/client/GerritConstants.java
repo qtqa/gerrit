@@ -52,6 +52,8 @@ public interface GerritConstants extends Constants {
 
   String menuAll();
   String menuAllOpen();
+  String menuAllStaged();
+  String menuAllIntegrating();
   String menuAllMerged();
   String menuAllAbandoned();
 

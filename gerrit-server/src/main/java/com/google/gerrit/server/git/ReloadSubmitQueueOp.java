@@ -53,6 +53,10 @@ public class ReloadSubmitQueueOp extends DefaultQueueOp {
         for (final Change change : c.changes().allSubmitted()) {
           pending.add(change.getDest());
         }
+        // Include staging changes.
+        for (final Change change : c.changes().allStaging()) {
+          pending.add(StagingUtil.getStagingBranch(change.getDest()));
+        }
       } finally {
         c.close();
       }

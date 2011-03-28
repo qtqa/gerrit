@@ -43,6 +43,7 @@ import com.google.gerrit.server.mail.MergeFailSender;
 import com.google.gerrit.server.mail.MergedSender;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.ProjectCache;
 import com.google.gerrit.server.project.ProjectState;
 import com.google.gerrit.server.workflow.CategoryFunction;
@@ -55,6 +56,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 
+import org.eclipse.jgit.diff.Sequence;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -67,8 +69,10 @@ import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.merge.MergeResult;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.merge.Merger;
+import org.eclipse.jgit.merge.ResolveMerger;
 import org.eclipse.jgit.merge.ThreeWayMerger;
 import org.eclipse.jgit.revwalk.FooterKey;
 import org.eclipse.jgit.revwalk.FooterLine;
@@ -91,6 +95,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TimeZone;
 
@@ -115,6 +120,51 @@ public class MergeOp {
     MergeOp create(Branch.NameKey branch);
   }
 
+  /**
+   * Merge delegate allows variation of MergeOp behavior. This interface
+   * was added along with staging changes because staging and submit merges
+   * are slightly different. They share most of the functionality.
+   *
+   */
+  public interface MergeDelegate {
+    /**
+     * Returns a list of changes to merge.
+     * @param destBranch Destination branch for this merge request.
+     * @return List of changes to merge.
+     * @throws MergeException Thrown, if listing changes fails.
+     */
+    public List<Change> createMergeList(Branch.NameKey destBranch)
+      throws MergeException;
+
+    /**
+     * Gets the required category to complete this type of merge.
+     * @return Approval category id for the required category.
+     */
+    public ApprovalCategory.Id getRequiredApprovalCategory();
+
+    /**
+     * Customized merge status message.
+     * @param status Merge status.
+     * @param commit Target commit of the merge.
+     * @return Custom message or null. If null is returned, default submit
+     *         messages are used.
+     */
+    public String getMessageForMergeStatus(CommitMergeStatus status,
+        CodeReviewCommit commit);
+
+    /**
+     * The status that the change should be set to after a successful merge.
+     * @return Final status of the change.
+     */
+    public Change.Status getStatus();
+
+    /**
+     * Indicates if staging rebuild is required after a change is merged.
+     * @return True, if staging should be rebuild after successful merge.
+     */
+    public boolean rebuildStaging();
+  }
+
   private static final Logger log = LoggerFactory.getLogger(MergeOp.class);
   private static final String R_HEADS_MASTER =
       Constants.R_HEADS + Constants.MASTER;
@@ -129,6 +179,8 @@ public class MergeOp {
   private static final long DEPENDENCY_DELAY =
       MILLISECONDS.convert(15, MINUTES);
 
+  private static final String R_STAGING = "refs/staging/";
+
   private final GitRepositoryManager repoManager;
   private final SchemaFactory<ReviewDb> schemaFactory;
   private final ProjectCache projectCache;
@@ -141,12 +193,13 @@ public class MergeOp {
   private final PatchSetInfoFactory patchSetInfoFactory;
   private final IdentifiedUser.GenericFactory identifiedUserFactory;
   private final MergeQueue mergeQueue;
+  private final MergeDelegate mergeDelegate;
 
   private final PersonIdent myIdent;
   private final Branch.NameKey destBranch;
   private Project destProject;
   private final List<CodeReviewCommit> toMerge;
-  private List<Change> submitted;
+  private List<Change> changes;
   private final Map<Change.Id, CodeReviewCommit> commits;
   private ReviewDb schema;
   private Repository db;
@@ -160,6 +213,9 @@ public class MergeOp {
   private final ChangeHookRunner hooks;
   private final AccountCache accountCache;
   private final CreateCodeReviewNotes.Factory codeReviewNotesFactory;
+  private final StagingMergeDelegate.Factory stagingFactory;
+  private final SubmitMergeDelegate.Factory submitFactory;
+  private final MergeOp.Factory mergeFactory;
 
   @Inject
   MergeOp(final GitRepositoryManager grm, final SchemaFactory<ReviewDb> sf,
@@ -172,7 +228,10 @@ public class MergeOp {
       @GerritPersonIdent final PersonIdent myIdent,
       final MergeQueue mergeQueue, @Assisted final Branch.NameKey branch,
       final ChangeHookRunner hooks, final AccountCache accountCache,
-      final CreateCodeReviewNotes.Factory crnf) {
+      final CreateCodeReviewNotes.Factory crnf,
+      final StagingMergeDelegate.Factory stagingFactory,
+      final SubmitMergeDelegate.Factory submitFactory,
+      final MergeOp.Factory mergeFactory) {
     repoManager = grm;
     schemaFactory = sf;
     functionState = fs;
@@ -193,6 +252,27 @@ public class MergeOp {
     destBranch = branch;
     toMerge = new ArrayList<CodeReviewCommit>();
     commits = new HashMap<Change.Id, CodeReviewCommit>();
+
+    this.stagingFactory = stagingFactory;
+    this.submitFactory = submitFactory;
+    this.mergeDelegate = getDelegate(destBranch);
+    this.mergeFactory = mergeFactory;
+  }
+
+  /**
+   * Gets a merge delegate for this branch. It is assumed that different
+   * branches are used for different type of merging. E.g. refs/heads is
+   * used for submit and refs/staging for staging branch.
+   *
+   * @param branch Branch to get the delegete fore. E.g. refs/heads/master.
+   * @return Staging delegate.
+   */
+  private MergeDelegate getDelegate(final Branch.NameKey branch) {
+    if (branch.get().startsWith(R_STAGING)) {
+      return stagingFactory.create();
+    } else {
+      return submitFactory.create();
+    }
   }
 
   public void merge() throws MergeException {
@@ -224,7 +304,7 @@ public class MergeOp {
   private void mergeImpl() throws MergeException {
     openRepository();
     openBranch();
-    listPendingSubmits();
+    changes = mergeDelegate.createMergeList(destBranch);
     validateChangeList();
     mergeTip = branchTip;
     switch (destProject.getSubmitType()) {
@@ -293,14 +373,6 @@ public class MergeOp {
     }
   }
 
-  private void listPendingSubmits() throws MergeException {
-    try {
-      submitted = schema.changes().submitted(destBranch).toList();
-    } catch (OrmException e) {
-      throw new MergeException("Cannot query the database", e);
-    }
-  }
-
   private void validateChangeList() throws MergeException {
     final Set<ObjectId> tips = new HashSet<ObjectId>();
     for (final Ref r : db.getAllRefs().values()) {
@@ -308,7 +380,7 @@ public class MergeOp {
     }
 
     int commitOrder = 0;
-    for (final Change chg : submitted) {
+    for (final Change chg : changes) {
       final Change.Id changeId = chg.getId();
       if (chg.currentPatchSetId() == null) {
         commits.put(changeId, CodeReviewCommit
@@ -460,6 +532,9 @@ public class MergeOp {
 
       } else {
         failed(n, CommitMergeStatus.PATH_CONFLICT);
+        if (m instanceof ResolveMerger) {
+          n.mergeResults = ((ResolveMerger) m).getMergeResults();
+        }
       }
     } catch (IOException e) {
       if (e.getMessage().startsWith("Multiple merge bases for")) {
@@ -568,6 +643,13 @@ public class MergeOp {
           identifiedUserFactory.create(submitter.getAccountId());
       Set<String> emails = new HashSet<String>();
       for (RevCommit c : codeReviewCommits) {
+        try {
+          rw.parseBody(c);
+        } catch (MissingObjectException e) {
+          log.error(e.getMessage());
+        } catch (IOException e) {
+          log.error(e.getMessage());
+        }
         emails.add(c.getAuthorIdent().getEmailAddress());
       }
 
@@ -666,6 +748,9 @@ public class MergeOp {
 
           } else {
             n.statusCode = CommitMergeStatus.PATH_CONFLICT;
+            if (m instanceof ResolveMerger) {
+              n.mergeResults = ((ResolveMerger) m).getMergeResults();
+            }
           }
 
         } else {
@@ -772,6 +857,10 @@ public class MergeOp {
               || a.getGranted().compareTo(submitAudit.getGranted()) > 0) {
             submitAudit = a;
           }
+          continue;
+        }
+
+        if (ApprovalCategory.STAGING.equals(a.getCategoryId())) {
           continue;
         }
 
@@ -932,8 +1021,8 @@ public class MergeOp {
 
   private void updateChangeStatus() throws MergeException {
     List<CodeReviewCommit> merged = new ArrayList<CodeReviewCommit>();
+    for (final Change c : changes) {
 
-    for (final Change c : submitted) {
       final CodeReviewCommit commit = commits.get(c.getId());
       final CommitMergeStatus s = commit != null ? commit.statusCode : null;
       if (s == null) {
@@ -943,19 +1032,19 @@ public class MergeOp {
         continue;
       }
 
+      String txt = mergeDelegate.getMessageForMergeStatus(s, commit);
+      if (txt == null) {
+        txt = getDefaultMessage(s, commit);
+      }
+
       switch (s) {
         case CLEAN_MERGE: {
-          final String txt =
-              "Change has been successfully merged into the git repository.";
           setMerged(c, message(c, txt));
           merged.add(commit);
           break;
         }
 
         case CLEAN_PICK: {
-          final String txt =
-              "Change has been successfully cherry-picked as " + commit.name()
-                  + ".";
           setMerged(c, message(c, txt));
           merged.add(commit);
           break;
@@ -967,37 +1056,30 @@ public class MergeOp {
           break;
 
         case PATH_CONFLICT: {
-          final String txt =
-              "Your change could not be merged due to a path conflict.\n"
-                  + "\n"
-                  + "Please merge (or rebase) the change locally and upload the resolution for review.";
+          if (commit.mergeResults != null) {
+            txt += "\n\nConflicting files:";
+            for (Entry<String, MergeResult<? extends Sequence>> entry
+                : commit.mergeResults.entrySet()) {
+              if (entry.getValue().containsConflicts()) {
+                txt += "\n- " + entry.getKey();
+              }
+            }
+          }
           setNew(c, message(c, txt));
           break;
         }
 
         case CRISS_CROSS_MERGE: {
-          final String txt =
-              "Your change requires a recursive merge to resolve.\n"
-                  + "\n"
-                  + "Please merge (or rebase) the change locally and upload the resolution for review.";
           setNew(c, message(c, txt));
           break;
         }
 
         case CANNOT_CHERRY_PICK_ROOT: {
-          final String txt =
-              "Cannot cherry-pick an initial commit onto an existing branch.\n"
-                  + "\n"
-                  + "Please merge the change locally and upload the merge commit for review.";
           setNew(c, message(c, txt));
           break;
         }
 
         case NOT_FAST_FORWARD: {
-          final String txt =
-              "Project policy requires all submissions to be a fast-forward.\n"
-                  + "\n"
-                  + "Please rebase the change locally and upload again for review.";
           setNew(c, message(c, txt));
           break;
         }
@@ -1008,13 +1090,13 @@ public class MergeOp {
         }
 
         default:
-          setNew(c, message(c, "Unspecified merge failure: " + s.name()));
+          setNew(c, message(c, txt));
           break;
       }
     }
 
     CreateCodeReviewNotes codeReviewNotes =
-        codeReviewNotesFactory.create(schema, db);
+      codeReviewNotesFactory.create(schema, db);
     try {
       codeReviewNotes.create(merged, computeAuthor(merged));
     } catch (CodeReviewNoteCreationException e) {
@@ -1022,6 +1104,60 @@ public class MergeOp {
     }
     replication.scheduleUpdate(destBranch.getParentKey(),
         GitRepositoryManager.REFS_NOTES_REVIEW);
+  }
+
+  private String getDefaultMessage(final CommitMergeStatus status,
+      final CodeReviewCommit commit) {
+    switch (status) {
+      case CLEAN_MERGE: {
+        return
+          "Change has been successfully merged into the git repository.";
+      }
+
+      case CLEAN_PICK: {
+        return
+            "Change has been successfully cherry-picked as " + commit.name()
+                + ".";
+      }
+
+      case ALREADY_MERGED:
+        return null;
+
+      case PATH_CONFLICT: {
+        return
+            "Your change could not be merged due to a path conflict.\n"
+                + "\n"
+                + "Please merge (or rebase) the change locally and upload the resolution for review.";
+      }
+
+      case CRISS_CROSS_MERGE: {
+        return
+            "Your change requires a recursive merge to resolve.\n"
+                + "\n"
+                + "Please merge (or rebase) the change locally and upload the resolution for review.";
+      }
+
+      case CANNOT_CHERRY_PICK_ROOT: {
+        return
+            "Cannot cherry-pick an initial commit onto an existing branch.\n"
+                + "\n"
+                + "Please merge the change locally and upload the merge commit for review.";
+      }
+
+      case NOT_FAST_FORWARD: {
+        return
+            "Project policy requires all submissions to be a fast-forward.\n"
+                + "\n"
+                + "Please rebase the change locally and upload again for review.";
+      }
+
+      case MISSING_DEPENDENCY: {
+        dependencyError(commit);
+      }
+
+      default:
+        return "Unspecified merge failure: " + status.name();
+    }
   }
 
   private void dependencyError(final CodeReviewCommit commit) {
@@ -1182,7 +1318,7 @@ public class MergeOp {
           schema.patchSetApprovals().byPatchSet(c).toList();
       for (PatchSetApproval a : approvals) {
         if (a.getValue() > 0
-            && ApprovalCategory.SUBMIT.equals(a.getCategoryId())) {
+            && mergeDelegate.getRequiredApprovalCategory().equals(a.getCategoryId())) {
           if (submitter == null
               || a.getGranted().compareTo(submitter.getGranted()) > 0) {
             submitter = a;
@@ -1198,12 +1334,13 @@ public class MergeOp {
     final Topic.Id topicId = c.getTopicId();
     final Change.Id changeId = c.getId();
     final PatchSet.Id merged = c.currentPatchSetId();
+    final Change.Status newStatus = mergeDelegate.getStatus();
 
     try {
       schema.changes().atomicUpdate(changeId, new AtomicUpdate<Change>() {
         @Override
         public Change update(Change c) {
-          c.setStatus(Change.Status.MERGED);
+          c.setStatus(newStatus);
           if (!merged.equals(c.currentPatchSetId())) {
             // Uncool; the patch set changed after we merged it.
             // Go back to the patch set that was actually merged.
@@ -1263,7 +1400,7 @@ public class MergeOp {
     //
     PatchSetApproval submitter = null;
     try {
-      c.setStatus(Change.Status.MERGED);
+      c.setStatus(newStatus);
       final List<PatchSetApproval> approvals =
           schema.patchSetApprovals().byChange(changeId).toList();
       final FunctionState fs = functionState.create(c, merged, approvals);
@@ -1272,7 +1409,7 @@ public class MergeOp {
       }
       for (PatchSetApproval a : approvals) {
         if (a.getValue() > 0
-            && ApprovalCategory.SUBMIT.equals(a.getCategoryId())
+            && mergeDelegate.getRequiredApprovalCategory().equals(a.getCategoryId())
             && a.getPatchSetId().equals(merged)) {
           if (submitter == null
               || a.getGranted().compareTo(submitter.getGranted()) > 0) {
@@ -1297,17 +1434,20 @@ public class MergeOp {
       }
     }
 
-    try {
-      final MergedSender cm = mergedSenderFactory.create(c);
-      if (submitter != null) {
-        cm.setFrom(submitter.getAccountId());
+    // Send notification e-mail only about merges to refs/heads
+    if (destBranch.get().startsWith(Constants.R_HEADS)) {
+      try {
+        final MergedSender cm = mergedSenderFactory.create(c);
+        if (submitter != null) {
+          cm.setFrom(submitter.getAccountId());
+        }
+        cm.setPatchSet(schema.patchSets().get(c.currentPatchSetId()));
+        cm.send();
+      } catch (OrmException e) {
+        log.error("Cannot send email for submitted patch set " + c.getId(), e);
+      } catch (EmailException e) {
+        log.error("Cannot send email for submitted patch set " + c.getId(), e);
       }
-      cm.setPatchSet(schema.patchSets().get(c.currentPatchSetId()));
-      cm.send();
-    } catch (OrmException e) {
-      log.error("Cannot send email for submitted patch set " + c.getId(), e);
-    } catch (EmailException e) {
-      log.error("Cannot send email for submitted patch set " + c.getId(), e);
     }
 
     try {
@@ -1316,6 +1456,24 @@ public class MergeOp {
           schema.patchSets().get(c.currentPatchSetId()));
     } catch (OrmException ex) {
       log.error("Cannot run hook for submitted patch set " + c.getId(), ex);
+    }
+
+    if (mergeDelegate.rebuildStaging()) {
+      try {
+        IdentifiedUser who =
+          identifiedUserFactory.create(submitter.getAccountId());
+        ChangeUtil.rebuildStaging(c.getDest(), who, schema, db, mergeFactory,
+            mergeQueue, hooks);
+      } catch (OrmException e) {
+        log.error("Cannot rebuild staging after merging patch set "
+            + c.getId(), e);
+      } catch (IOException e) {
+        log.error("Cannot rebuild staging after merging patch set "
+            + c.getId(), e);
+      } catch (NoSuchRefException e) {
+        log.error("Cannot rebuild staging after merging patch set "
+            + c.getId(), e);
+      }
     }
   }
 

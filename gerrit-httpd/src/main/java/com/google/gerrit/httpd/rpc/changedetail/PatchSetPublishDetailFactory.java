@@ -110,7 +110,13 @@ final class PatchSetPublishDetailFactory extends Handler<PatchSetPublishDetail> 
     if (canSubmitResult == CanSubmitResult.OK
           && (change.getTopicId() == null)) {
         detail.setCanSubmit(true);
-      }
+    }
+    
+    final CanSubmitResult canMergeToStaging = control.canMergeToStaging(patchSetId);
+    if (canMergeToStaging == CanSubmitResult.OK
+          && (change.getTopicId() == null)) {
+      detail.setStagingBranchAllowed(true);
+    }
 
     return detail;
   }

@@ -62,6 +62,8 @@ public class PublishCommentScreen extends AccountScreen implements
     ClickHandler, CommentEditorContainer {
   private static SavedState lastState;
 
+  private enum Action { NOOP, SUBMIT, STAGING };
+
   private final PatchSet.Id patchSetId;
   private Collection<ValueRadioButton> approvalButtons;
   private ChangeDescriptionBlock descBlock;
@@ -70,6 +72,7 @@ public class PublishCommentScreen extends AccountScreen implements
   private FlowPanel draftsPanel;
   private Button send;
   private Button submit;
+  private Button staging;
   private Button cancel;
   private boolean saveStateOnUnload = true;
   private List<CommentEditorPanel> commentEditors;
@@ -112,6 +115,10 @@ public class PublishCommentScreen extends AccountScreen implements
     send = new Button(Util.C.buttonPublishCommentsSend());
     send.addClickHandler(this);
     buttonRow.add(send);
+
+    staging = new Button(Util.C.buttonPublishStagingSend());
+    staging.addClickHandler(this);
+    buttonRow.add(staging);
 
     submit = new Button(Util.C.buttonPublishSubmitSend());
     submit.addClickHandler(this);
@@ -163,12 +170,14 @@ public class PublishCommentScreen extends AccountScreen implements
   public void onClick(final ClickEvent event) {
     final Widget sender = (Widget) event.getSource();
     if (send == sender) {
-      onSend(false);
+      onSend(Action.NOOP);
     } else if (submit == sender) {
-      onSend(true);
+      onSend(Action.SUBMIT);
     } else if (cancel == sender) {
       saveStateOnUnload = false;
       goChange();
+    } else if(staging == sender) {
+      onSend(Action.STAGING);
     }
   }
 
@@ -317,11 +326,12 @@ public class PublishCommentScreen extends AccountScreen implements
     }
 
     submit.setVisible(r.canSubmit());
+    staging.setVisible(r.isStagingBranchAllowed());
   }
 
-  private void onSend(final boolean submit) {
+  private void onSend(final Action action) {
     if (commentEditors.isEmpty()) {
-      onSend2(submit);
+      onSend2(action);
     } else {
       final GerritCallback<VoidResult> afterSaveDraft =
           new GerritCallback<VoidResult>() {
@@ -330,7 +340,7 @@ public class PublishCommentScreen extends AccountScreen implements
             @Override
             public void onSuccess(final VoidResult result) {
               if (++done == commentEditors.size()) {
-                onSend2(submit);
+                onSend2(action);
               }
             }
           };
@@ -340,7 +350,7 @@ public class PublishCommentScreen extends AccountScreen implements
     }
   }
 
-  private void onSend2(final boolean submit) {
+  private void onSend2(final Action action) {
     final Map<ApprovalCategory.Id, ApprovalCategoryValue.Id> values =
         new HashMap<ApprovalCategory.Id, ApprovalCategoryValue.Id>();
     for (final ValueRadioButton b : approvalButtons) {
@@ -354,8 +364,10 @@ public class PublishCommentScreen extends AccountScreen implements
         new HashSet<ApprovalCategoryValue.Id>(values.values()),
         new GerritCallback<VoidResult>() {
           public void onSuccess(final VoidResult result) {
-            if(submit) {
+            if(action == Action.SUBMIT) {
               submit();
+            } else if (action == Action.STAGING) {
+              staging();
             } else {
               saveStateOnUnload = false;
               goChange();
@@ -384,6 +396,18 @@ public class PublishCommentScreen extends AccountScreen implements
             super.onFailure(caught);
           }
         });
+  }
+
+  private void staging() {
+    // Move change to staging. onSuccess takes same action for staging and
+    // submit results.
+    Util.MANAGE_SVC.stage(patchSetId, new GerritCallback<ChangeDetail>() {
+      @Override
+      public void onSuccess(ChangeDetail result) {
+        saveStateOnUnload = false;
+        goChange();
+      }
+    });
   }
 
   private void goChange() {

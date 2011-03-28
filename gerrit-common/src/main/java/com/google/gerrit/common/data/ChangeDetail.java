@@ -27,6 +27,8 @@ import java.util.Set;
 
 /** Detail necessary to display a change. */
 public class ChangeDetail extends CommonDetail {
+  protected boolean canStage;
+  protected boolean canUnstage;
   protected Change change;
   protected List<PatchSet> patchSets;
   protected boolean canSubmit;
@@ -37,6 +39,22 @@ public class ChangeDetail extends CommonDetail {
   protected int topicId;
 
   public ChangeDetail() {
+  }
+
+  public boolean canStage() {
+    return canStage;
+  }
+
+  public void setCanStage(final boolean a) {
+    canStage = a;
+  }
+
+  public boolean canUnstage() {
+    return canUnstage;
+  }
+
+  public void setCanUnstage(final boolean a) {
+    canUnstage = a;
   }
 
   public Change getChange() {

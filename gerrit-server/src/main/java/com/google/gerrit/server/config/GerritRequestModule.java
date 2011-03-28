@@ -26,6 +26,8 @@ import com.google.gerrit.server.git.CreateCodeReviewNotes;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.git.ReceiveCommits;
+import com.google.gerrit.server.git.StagingMergeDelegate;
+import com.google.gerrit.server.git.SubmitMergeDelegate;
 import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.AddReviewerSender;
 import com.google.gerrit.server.mail.CommentSender;
@@ -63,6 +65,8 @@ public class GerritRequestModule extends FactoryModule {
     factory(ReceiveCommits.Factory.class);
     factory(MergeOp.Factory.class);
     factory(CreateCodeReviewNotes.Factory.class);
+    factory(StagingMergeDelegate.Factory.class);
+    factory(SubmitMergeDelegate.Factory.class);
 
     // Not really per-request, but dammit, I don't know where else to
     // easily park this stuff.

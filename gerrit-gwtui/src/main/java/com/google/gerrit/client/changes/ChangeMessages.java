@@ -30,6 +30,7 @@ public interface ChangeMessages extends Messages {
   String patchSetHeader(int id);
   String loadingPatchSet(int id);
   String submitPatchSet(int id);
+  String mergeToStagingPatchSet(int id);
 
   String patchTableComments(@PluralCount int count);
   String patchTableDrafts(@PluralCount int count);
