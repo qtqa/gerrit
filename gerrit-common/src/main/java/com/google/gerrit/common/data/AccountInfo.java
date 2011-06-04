@@ -26,7 +26,7 @@ public class AccountInfo {
   }
 
   /**
-   * Create an 'Anonymous Coward' account info, when only the id is known.
+   * Create an 'Anonymous User' account info, when only the id is known.
    * <p>
    * This constructor should only be a last-ditch effort, when the usual account
    * lookup has failed and a stale account id has been discovered in the data

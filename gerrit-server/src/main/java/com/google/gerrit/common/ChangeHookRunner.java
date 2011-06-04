@@ -449,14 +449,14 @@ public class ChangeHookRunner {
      */
     private String getDisplayName(final Account account) {
         if (account != null) {
-            String result = (account.getFullName() == null) ? "Anonymous Coward" : account.getFullName();
+            String result = (account.getFullName() == null) ? "Anonymous User" : account.getFullName();
             if (account.getPreferredEmail() != null) {
                 result += " (" + account.getPreferredEmail() + ")";
             }
             return result;
         }
 
-        return "Anonymous Coward";
+        return "Anonymous User";
     }
 
   /**

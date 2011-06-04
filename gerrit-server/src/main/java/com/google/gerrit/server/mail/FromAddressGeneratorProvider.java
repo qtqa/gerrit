@@ -141,7 +141,7 @@ public class FromAddressGeneratorProvider implements
         final Account account = accountCache.get(fromId).getAccount();
         String fullName = account.getFullName();
         if (fullName == null || "".equals(fullName)) {
-          fullName = "Anonymous Coward";
+          fullName = "Anonymous User";
         }
         senderName = namePattern.replace("user", fullName).toString();
 

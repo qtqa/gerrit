@@ -226,7 +226,7 @@ public abstract class OutgoingEmail {
   /** Lookup a human readable name for an account, usually the "full name". */
   protected String getNameFor(final Account.Id accountId) {
     if (accountId == null) {
-      return "Anonymous Coward";
+      return "Anonymous User";
     }
 
     final Account userAccount = args.accountCache.get(accountId).getAccount();
@@ -235,7 +235,7 @@ public abstract class OutgoingEmail {
       name = userAccount.getPreferredEmail();
     }
     if (name == null) {
-      name = "Anonymous Coward #" + accountId;
+      name = "Anonymous User #" + accountId;
     }
     return name;
   }
@@ -254,7 +254,7 @@ public abstract class OutgoingEmail {
       return email;
 
     } else /* (name == null && email == null) */{
-      return "Anonymous Coward #" + accountId;
+      return "Anonymous User #" + accountId;
     }
   }
 

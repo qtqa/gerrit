@@ -326,7 +326,7 @@ public class IdentifiedUser extends CurrentUser {
       name = ua.getPreferredEmail();
     }
     if (name == null || name.isEmpty()) {
-      name = "Anonymous Coward";
+      name = "Anonymous User";
     }
 
     String user = getUserName();
@@ -386,7 +386,7 @@ public class IdentifiedUser extends CurrentUser {
       if (0 < at) {
         name = email.substring(0, at);
       } else {
-        name = "Anonymous Coward";
+        name = "Anonymous User";
       }
     }
 

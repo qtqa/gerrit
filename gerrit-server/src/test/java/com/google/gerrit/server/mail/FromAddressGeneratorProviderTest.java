@@ -192,7 +192,7 @@ public class FromAddressGeneratorProviderTest extends TestCase {
     replay(accountCache);
     final Address r = create().from(user);
     assertNotNull(r);
-    assertEquals("Anonymous Coward (Code Review)", r.name);
+    assertEquals("Anonymous User (Code Review)", r.name);
     assertEquals(ident.getEmailAddress(), r.email);
     verify(accountCache);
   }
@@ -245,7 +245,7 @@ public class FromAddressGeneratorProviderTest extends TestCase {
     replay(accountCache);
     final Address r = create().from(user);
     assertNotNull(r);
-    assertEquals("A Anonymous Coward B", r.name);
+    assertEquals("A Anonymous User B", r.name);
     assertEquals("my.server@email.address", r.email);
     verify(accountCache);
   }
