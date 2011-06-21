@@ -25,12 +25,17 @@ import com.google.gerrit.common.data.AccountInfoCache;
 import com.google.gerrit.common.data.ApprovalDetail;
 import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ChangeDetail;
+import com.google.gerrit.common.data.ChangeSetApprovalDetail;
+import com.google.gerrit.common.data.PatchSetApprovalDetail;
 import com.google.gerrit.common.data.ReviewerResult;
+import com.google.gerrit.common.data.TopicDetail;
+import com.google.gerrit.common.data.TopicReviewerResult;
 import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.ApprovalCategoryValue;
 import com.google.gerrit.reviewdb.Change;
-import com.google.gerrit.reviewdb.PatchSetApproval;
+import com.google.gerrit.reviewdb.SetApproval;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.DOM;
@@ -58,6 +63,7 @@ public class ApprovalTable extends Composite {
   private final Panel addReviewer;
   private final AddMemberBox addMemberBox;
   private Change.Id changeId;
+  private Topic.Id topicId;
   private AccountInfoCache accountCache = AccountInfoCache.empty();
 
   public ApprovalTable() {
@@ -131,7 +137,6 @@ public class ApprovalTable extends Composite {
   public void display(final Change change, final Set<ApprovalCategory.Id> need,
       final List<ApprovalDetail> rows) {
     changeId = change.getId();
-
     if (rows.isEmpty()) {
       table.setVisible(false);
     } else {
@@ -141,6 +146,13 @@ public class ApprovalTable extends Composite {
       }
       table.setVisible(true);
     }
+    display(detail.getTopic().getStatus().isOpen(), rows, detail.getSubmitRecords());
+  }
+
+  private <T extends SetApproval<?>, U extends ApprovalDetail<T>> void display(
+      final boolean status, final List<U> rows,
+      final List<SubmitRecord> records) {
+    List<String> columns = new ArrayList<String>();
 
     final Element missingList = missing.getElement();
     while (DOM.getChildCount(missingList) > 0) {
@@ -174,74 +186,118 @@ public class ApprovalTable extends Composite {
     final List<String> reviewers = new ArrayList<String>();
     reviewers.add(nameEmail);
 
-    PatchUtil.DETAIL_SVC.addReviewers(changeId, reviewers,
-        new GerritCallback<ReviewerResult>() {
-          public void onSuccess(final ReviewerResult result) {
-            addMemberBox.setEnabled(true);
-            addMemberBox.setText("");
+    // TODO repeated code, try to put together
+    if ((changeId != null) && (topicId == null)) PatchUtil.DETAIL_SVC.addReviewers(changeId, reviewers, new GerritCallback<ReviewerResult>() {
+      public void onSuccess(final ReviewerResult result) {
+        addMemberBox.setEnabled(true);
+        addMemberBox.setText("");
 
-            if (!result.getErrors().isEmpty()) {
-              final SafeHtmlBuilder r = new SafeHtmlBuilder();
-              for (final ReviewerResult.Error e : result.getErrors()) {
-                switch (e.getType()) {
-                  case ACCOUNT_NOT_FOUND:
-                    r.append(Util.M.accountNotFound(e.getName()));
-                    break;
+        if (!result.getErrors().isEmpty()) {
+          final SafeHtmlBuilder r = new SafeHtmlBuilder();
+          for (final ReviewerResult.Error e : result.getErrors()) {
+            switch (e.getType()) {
+              case ACCOUNT_NOT_FOUND:
+                r.append(Util.M.accountNotFound(e.getName()));
+                break;
 
-                  case ACCOUNT_INACTIVE:
-                    r.append(Util.M.accountInactive(e.getName()));
-                    break;
+              case ACCOUNT_INACTIVE:
+                r.append(Util.M.accountInactive(e.getName()));
+                break;
 
-                  case CHANGE_NOT_VISIBLE:
-                    r.append(Util.M.changeNotVisibleTo(e.getName()));
-                    break;
+              case CHANGE_NOT_VISIBLE:
+                r.append(Util.M.changeNotVisibleTo(e.getName()));
+                break;
 
-                  default:
-                    r.append(e.getName());
-                    r.append(" - ");
-                    r.append(e.getType());
-                    r.br();
-                    break;
-                }
-              }
-              new ErrorDialog(r).center();
+              default:
+                r.append(e.getName());
+                r.append(" - ");
+                r.append(e.getType());
+                r.br();
+                break;
             }
+          }
+          new ErrorDialog(r).center();
+        }
 
-            final ChangeDetail r = result.getChange();
-            if (r != null) {
-              setAccountInfoCache(r.getAccounts());
+        final ChangeDetail r = result.getChange();
+        if (r != null) {
+          setAccountInfoCache(r.getAccounts());
               display(r.getChange(), r.getMissingApprovals(), r.getApprovals());
+        }
+      }
+
+      @Override
+      public void onFailure(final Throwable caught) {
+        addMemberBox.setEnabled(true);
+        super.onFailure(caught);
+      }
+    });
+    else if ((topicId != null) && (changeId == null)) Util.T_DETAIL_SVC.addTopicReviewers(topicId, reviewers, new GerritCallback<TopicReviewerResult>() {
+      public void onSuccess(final TopicReviewerResult result) {
+        addMemberBox.setEnabled(true);
+        addMemberBox.setText("");
+
+        if (!result.getErrors().isEmpty()) {
+          final SafeHtmlBuilder r = new SafeHtmlBuilder();
+          for (final ReviewerResult.Error e : result.getErrors()) {
+            switch (e.getType()) {
+              case ACCOUNT_NOT_FOUND:
+                r.append(Util.M.accountNotFound(e.getName()));
+                break;
+
+              case ACCOUNT_INACTIVE:
+                r.append(Util.M.accountInactive(e.getName()));
+                break;
+
+              case CHANGE_NOT_VISIBLE:
+                r.append(Util.M.changeNotVisibleTo(e.getName()));
+                break;
+
+              default:
+                r.append(e.getName());
+                r.append(" - ");
+                r.append(e.getType());
+                r.br();
+                break;
             }
           }
+          new ErrorDialog(r).center();
+        }
 
-          @Override
-          public void onFailure(final Throwable caught) {
-            addMemberBox.setEnabled(true);
-            super.onFailure(caught);
-          }
-        });
+        final TopicDetail r = result.getTopic();
+        if (r != null) {
+          setAccountInfoCache(r.getAccounts());
+          display(r);
+        }
+      }
+      @Override
+      public void onFailure(final Throwable caught) {
+        addMemberBox.setEnabled(true);
+        super.onFailure(caught);
+      }
+    });
   }
 
-  private void displayRow(final int row, final ApprovalDetail ad,
+  private <T extends SetApproval<?>, U extends ApprovalDetail<T>> void displayRow(
       final Change change) {
     final CellFormatter fmt = table.getCellFormatter();
     final Map<ApprovalCategory.Id, PatchSetApproval> am = ad.getApprovalMap();
     final StringBuilder hint = new StringBuilder();
     int col = 0;
 
-    table.setWidget(row, col++, link(ad.getAccount()));
+    table.setWidget(row, col++, link(aId));
 
     if (ad.canRemove()) {
       final PushButton remove = new PushButton( //
           new Image(Util.R.removeReviewerNormal()), //
           new Image(Util.R.removeReviewerPressed()));
       remove.setTitle(Util.M.removeReviewer( //
-          FormatUtil.name(accountCache.get(ad.getAccount()))));
+          FormatUtil.name(accountCache.get(aId))));
       remove.setStyleName(Gerrit.RESOURCES.css().removeReviewer());
       remove.addClickHandler(new ClickHandler() {
         @Override
         public void onClick(ClickEvent event) {
-          doRemove(ad, remove);
+          doRemove(aId, remove);
         }
       });
       table.setWidget(row, col, remove);
@@ -294,25 +350,54 @@ public class ApprovalTable extends Composite {
     col++;
   }
 
-  private void doRemove(final ApprovalDetail ad, final PushButton remove) {
+  private void doRemove(final Account.Id aId, final PushButton remove) {
     remove.setEnabled(false);
-    PatchUtil.DETAIL_SVC.removeReviewer(changeId, ad.getAccount(),
-        new GerritCallback<ReviewerResult>() {
-          @Override
-          public void onSuccess(ReviewerResult result) {
-            if (result.getErrors().isEmpty()) {
-              final ChangeDetail r = result.getChange();
-              display(r.getChange(), r.getMissingApprovals(), r.getApprovals());
-            } else {
-              new ErrorDialog(result.getErrors().get(0).toString()).center();
-            }
-          }
 
-          @Override
-          public void onFailure(final Throwable caught) {
-            remove.setEnabled(true);
-            super.onFailure(caught);
+    // TODO repeated code, try to put together
+    if ((changeId != null) && (topicId == null)) PatchUtil.DETAIL_SVC.removeReviewer(changeId, aId, new GerritCallback<ReviewerResult>() {
+      @Override
+      public void onSuccess(ReviewerResult result) {
+        if (result.getErrors().isEmpty()) {
+          final ChangeDetail r = result.getChange();
+              display(r.getChange(), r.getMissingApprovals(), r.getApprovals());
+        } else {
+              new ErrorDialog(result.getErrors().get(0).toString()).center();
+        }
+      }
+
+      @Override
+      public void onFailure(final Throwable caught) {
+        remove.setEnabled(true);
+        super.onFailure(caught);
+      }
+    });
+    else if ((topicId != null) && (changeId == null)) Util.T_DETAIL_SVC.removeTopicReviewer(topicId, aId, new GerritCallback<TopicReviewerResult>() {
+      @Override
+      public void onSuccess(TopicReviewerResult result) {
+        if (result.getErrors().isEmpty()) {
+          final TopicDetail r = result.getTopic();
+          display(r);
+        } else {
+          final ReviewerResult.Error resultError =
+              result.getErrors().get(0);
+          String message;
+          switch (resultError.getType()) {
+            case REMOVE_NOT_PERMITTED:
+              message = Util.C.approvalTableRemoveNotPermitted();
+              break;
+            case COULD_NOT_REMOVE:
+            default:
+              message = Util.C.approvalTableCouldNotRemove();
           }
-        });
+          new ErrorDialog(message + " " + resultError.getName()).center();
+        }
+      }
+
+      @Override
+      public void onFailure(final Throwable caught) {
+        remove.setEnabled(true);
+        super.onFailure(caught);
+      }
+    });
   }
 }

@@ -27,11 +27,11 @@ import com.google.gerrit.common.data.AccountInfoCache;
 import com.google.gerrit.common.data.ChangeDetail;
 import com.google.gerrit.common.data.ChangeInfo;
 import com.google.gerrit.common.data.ToggleStarRequest;
+import com.google.gerrit.reviewdb.AbstractEntity.Status;
 import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeMessage;
 import com.google.gerrit.reviewdb.PatchSet;
-import com.google.gerrit.reviewdb.Change.Status;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -158,6 +158,9 @@ public class ChangeScreen extends Screen {
         new ScreenLoadCallback<ChangeDetail>(this) {
           @Override
           protected void preDisplay(final ChangeDetail r) {
+            if (r.getTopicId() != -1) {
+              keysNavigation.add(new UpToTopicKeyCommand(0, 't', Util.C.upToTopic(), r.getTopicId()));
+            }
             display(r);
           }
 
@@ -432,6 +435,19 @@ public class ChangeScreen extends Screen {
     @Override
     public void onKeyPress(final KeyPressEvent event) {
       Gerrit.displayLastChangeList();
+    }
+  }
+
+  public class UpToTopicKeyCommand extends KeyCommand {
+    final private int topic;
+    public UpToTopicKeyCommand(int mask, char key, String help, int topic) {
+      super(mask, key, help);
+      this.topic = topic;
+    }
+
+    @Override
+    public void onKeyPress(final KeyPressEvent event) {
+      Gerrit.display("/t/" + topic + "/");
     }
   }
 

@@ -22,18 +22,15 @@ import com.google.gerrit.httpd.rpc.changedetail.ChangeDetailFactory;
 import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Change;
-import com.google.gerrit.reviewdb.PatchSet;
-import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.account.AccountResolver;
 import com.google.gerrit.server.mail.AddReviewerSender;
 import com.google.gerrit.server.project.ChangeControl;
-import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -114,21 +111,8 @@ class AddReviewer extends Handler<ReviewerResult> {
       return result;
     }
 
-    // Add the reviewers to the database
-    //
-    final Set<Account.Id> added = new HashSet<Account.Id>();
-    final List<PatchSetApproval> toInsert = new ArrayList<PatchSetApproval>();
-    final PatchSet.Id psid = control.getChange().currentPatchSetId();
-    for (final Account.Id reviewer : reviewerIds) {
-      if (!exists(psid, reviewer)) {
-        // This reviewer has not entered an approval for this change yet.
-        //
-        final PatchSetApproval myca = dummyApproval(psid, reviewer);
-        toInsert.add(myca);
-        added.add(reviewer);
-      }
-    }
-    db.patchSetApprovals().insert(toInsert);
+    final Set<Account.Id> added = ChangeUtil.addReviewers(reviewerIds, db, control.getChange().currentPatchSetId(),
+        addReviewerCategoryId, currentUser);
 
     // Email the reviewers
     //
@@ -147,15 +131,5 @@ class AddReviewer extends Handler<ReviewerResult> {
     return result;
   }
 
-  private boolean exists(final PatchSet.Id patchSetId,
-      final Account.Id reviewerId) throws OrmException {
-    return db.patchSetApprovals().byPatchSetUser(patchSetId, reviewerId)
-        .iterator().hasNext();
-  }
-
-  private PatchSetApproval dummyApproval(final PatchSet.Id patchSetId,
-      final Account.Id reviewerId) {
-    return new PatchSetApproval(new PatchSetApproval.Key(patchSetId,
-        reviewerId, addReviewerCategoryId), (short) 0);
   }
 }

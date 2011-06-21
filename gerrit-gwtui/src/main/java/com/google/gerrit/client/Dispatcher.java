@@ -53,8 +53,10 @@ import com.google.gerrit.client.auth.openid.OpenIdSignInDialog;
 import com.google.gerrit.client.auth.userpass.UserPassSignInDialog;
 import com.google.gerrit.client.changes.AccountDashboardScreen;
 import com.google.gerrit.client.changes.ChangeScreen;
+import com.google.gerrit.client.changes.TopicScreen;
 import com.google.gerrit.client.changes.PatchTable;
 import com.google.gerrit.client.changes.PublishCommentScreen;
+import com.google.gerrit.client.changes.PublishTopicCommentScreen;
 import com.google.gerrit.client.changes.QueryScreen;
 import com.google.gerrit.client.patches.PatchScreen;
 import com.google.gerrit.client.ui.Screen;
@@ -63,9 +65,11 @@ import com.google.gerrit.common.data.PatchSetDetail;
 import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.AccountGroup;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.Patch;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.Project;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.RunAsyncCallback;
 import com.google.gwtorm.client.KeyUtil;
@@ -81,6 +85,11 @@ public class Dispatcher {
 
   public static String toPatch(final String type, final Patch.Key id) {
     return "patch," + type + "," + id.toString();
+  public static String toPublish(ChangeSet.Id cs) {
+    Topic.Id c = cs.getParentKey();
+    return "/t/" + c + "/" + cs.get() + ",publish";
+  }
+
   }
 
   public static String toAccountGroup(final AccountGroup.Id id) {
@@ -122,8 +131,10 @@ public class Dispatcher {
 
     } else if (token.startsWith("change,publish,")) {
       publish(token);
-
+    } else if (matchPrefix("/t/", token)) {
+      topic(token);
     } else if (MINE.equals(token) || token.startsWith("mine,")) {
+
       Gerrit.display(token, mine(token));
 
     } else if (token.startsWith("all,")) {
@@ -261,6 +272,50 @@ public class Dispatcher {
   }
 
   private static void publish(String token) {
+    String rest = skip(token);
+    int c = rest.lastIndexOf(',');
+    String panel = null;
+    if (0 <= c) {
+      panel = rest.substring(c + 1);
+      rest = rest.substring(0, c);
+    }
+
+    Topic.Id id;
+    int s = rest.indexOf('/');
+    if (0 <= s) {
+      id = Topic.Id.parse(rest.substring(0, s));
+      rest = rest.substring(s + 1);
+    } else {
+      id = Topic.Id.parse(rest);
+      rest = "";
+    }
+
+    if (rest.isEmpty()) {
+      Gerrit.display(token, panel== null //
+          ? new TopicScreen(id) //
+          : new NotFoundScreen());
+      return;
+    }
+
+    String csIdStr;
+    s = rest.indexOf('/');
+    if (0 <= s) {
+      csIdStr = rest.substring(0, s);
+    } else {
+      csIdStr = rest;
+    }
+
+    ChangeSet.Id cs = new ChangeSet.Id(id, Integer.parseInt(csIdStr));
+
+    if (panel == null) {
+      Gerrit.display(token, new TopicScreen(cs));
+    } else if ("publish".equals(panel)) {
+      publish(cs);
+    } else {
+      Gerrit.display(token, new NotFoundScreen());
+    }
+  }
+
     new AsyncSplit(token) {
       public void onSuccess() {
         Gerrit.display(token, select());
@@ -271,6 +326,16 @@ public class Dispatcher {
         if (token.startsWith(p))
           return new PublishCommentScreen(PatchSet.Id.parse(skip(p, token)));
         return new NotFoundScreen();
+
+  private static void publish(final ChangeSet.Id cs) {
+    String token = toPublish(cs);
+    new AsyncSplit(token) {
+      public void onSuccess() {
+        Gerrit.display(token, select());
+      }
+
+      private Screen select() {
+        return new PublishTopicCommentScreen(cs);
       }
     }.onSuccess();
   }

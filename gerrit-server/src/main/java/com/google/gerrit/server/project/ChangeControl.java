@@ -150,6 +150,7 @@ public class ChangeControl {
 
   /** Can this user abandon this change? */
   public boolean canAbandon() {
+    if (change.getTopicId() != null) return false;
     return isOwner() // owner (aka creator) of the change can abandon
         || getRefControl().isOwner() // branch owner can abandon
         || getProjectControl().isOwner() // project owner can abandon
@@ -218,6 +219,10 @@ public class ChangeControl {
 
   /** @return {@link CanSubmitResult#OK}, or a result with an error message. */
   public CanSubmitResult canSubmit(final PatchSet.Id patchSetId) {
+    return canSubmit(db, patchSetId, false);
+  }
+  
+  public CanSubmitResult canSubmit(final PatchSet.Id patchSetId) {
     if (change.getStatus().isClosed()) {
       return new CanSubmitResult("Change " + change.getId() + " is closed");
     }
@@ -226,6 +231,58 @@ public class ChangeControl {
     }
     if (!getRefControl().canSubmit()) {
       return new CanSubmitResult("User does not have permission to submit");
+    }
+    if (!(getCurrentUser() instanceof IdentifiedUser)) {
+      return new CanSubmitResult("User is not signed-in");
+    }
+    return CanSubmitResult.OK;
+  }
+
+  /** @return {@link CanSubmitResult#OK}, or a result with an error message. */
+  public CanSubmitResult canSubmit(final PatchSet.Id patchSetId, final ReviewDb db,
+        final ApprovalTypes approvalTypes,
+        FunctionState.Factory functionStateFactory)
+         throws OrmException {
+
+    CanSubmitResult result = canSubmit(patchSetId);
+    if (result != CanSubmitResult.OK) {
+      return result;
+    }
+
+    final List<PatchSetApproval> all =
+        db.patchSetApprovals().byPatchSet(patchSetId).toList();
+
+    final FunctionState fs =
+        functionStateFactory.create(change, patchSetId, all);
+
+    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
+      CategoryFunction.forCategory(c.getCategory()).run(c, fs);
+    }
+
+    for (ApprovalType type : approvalTypes.getApprovalTypes()) {
+      if (!fs.isValid(type)) {
+        return new CanSubmitResult("Requires " + type.getCategory().getName());
+      }
+    }
+
+    return CanSubmitResult.OK;
+  }
+}
+
+
+  public List<SubmitRecord> canSubmit(ReviewDb db, PatchSet.Id patchSetId,
+      boolean fromTopic) {
+    if (change.getStatus().isClosed()) {
+      return new CanSubmitResult("Change " + change.getId() + " is closed");
+    }
+    if (!patchSetId.equals(change.currentPatchSetId())) {
+      return new CanSubmitResult("Patch set " + patchSetId + " is not current");
+    }
+    if (!getRefControl().canSubmit()) {
+      return new CanSubmitResult("User does not have permission to submit");
+        rec.status = SubmitRecord.Status.NOT_READY;
+
+      } else if ("ok".equals(submitRecord.name())) {
     }
     if (!(getCurrentUser() instanceof IdentifiedUser)) {
       return new CanSubmitResult("User is not signed-in");

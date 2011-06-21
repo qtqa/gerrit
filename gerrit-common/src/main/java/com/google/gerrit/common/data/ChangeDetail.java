@@ -26,73 +26,17 @@ import java.util.List;
 import java.util.Set;
 
 /** Detail necessary to display a change. */
-public class ChangeDetail {
-  protected AccountInfoCache accounts;
-  protected boolean allowsAnonymous;
-  protected boolean canAbandon;
-  protected boolean canRestore;
-  protected boolean canRevert;
+public class ChangeDetail extends CommonDetail {
   protected Change change;
-  protected boolean starred;
-  protected List<ChangeInfo> dependsOn;
-  protected List<ChangeInfo> neededBy;
   protected List<PatchSet> patchSets;
-  protected List<ApprovalDetail> approvals;
-  protected Set<ApprovalCategory.Id> missingApprovals;
   protected boolean canSubmit;
+  protected List<PatchSetApprovalDetail> approvals;
   protected List<ChangeMessage> messages;
   protected PatchSet.Id currentPatchSetId;
   protected PatchSetDetail currentDetail;
+  protected int topicId;
 
   public ChangeDetail() {
-  }
-
-  public AccountInfoCache getAccounts() {
-    return accounts;
-  }
-
-  public void setAccounts(AccountInfoCache aic) {
-    accounts = aic;
-  }
-
-  public boolean isAllowsAnonymous() {
-    return allowsAnonymous;
-  }
-
-  public void setAllowsAnonymous(final boolean anon) {
-    allowsAnonymous = anon;
-  }
-
-  public boolean canAbandon() {
-    return canAbandon;
-  }
-
-  public void setCanAbandon(final boolean a) {
-    canAbandon = a;
-  }
-
-  public boolean canRestore() {
-    return canRestore;
-  }
-
-  public void setCanRestore(final boolean a) {
-    canRestore = a;
-  }
-
-  public boolean canRevert() {
-    return canRevert;
-  }
-
-  public void setCanRevert(boolean a) {
-      canRevert = a;
-  }
-
-  public boolean canSubmit() {
-    return canSubmit;
-  }
-
-  public void setCanSubmit(boolean a) {
-    canSubmit = a;
   }
 
   public Change getChange() {
@@ -102,30 +46,6 @@ public class ChangeDetail {
   public void setChange(final Change change) {
     this.change = change;
     this.currentPatchSetId = change.currentPatchSetId();
-  }
-
-  public boolean isStarred() {
-    return starred;
-  }
-
-  public void setStarred(final boolean s) {
-    starred = s;
-  }
-
-  public List<ChangeInfo> getDependsOn() {
-    return dependsOn;
-  }
-
-  public void setDependsOn(List<ChangeInfo> d) {
-    dependsOn = d;
-  }
-
-  public List<ChangeInfo> getNeededBy() {
-    return neededBy;
-  }
-
-  public void setNeededBy(List<ChangeInfo> d) {
-    neededBy = d;
   }
 
   public List<ChangeMessage> getMessages() {
@@ -144,21 +64,13 @@ public class ChangeDetail {
     patchSets = s;
   }
 
-  public List<ApprovalDetail> getApprovals() {
+  public List<PatchSetApprovalDetail> getApprovals() {
     return approvals;
   }
 
-  public void setApprovals(Collection<ApprovalDetail> list) {
-    approvals = new ArrayList<ApprovalDetail>(list);
-    Collections.sort(approvals, ApprovalDetail.SORT);
-  }
-
-  public Set<ApprovalCategory.Id> getMissingApprovals() {
-    return missingApprovals;
-  }
-
-  public void setMissingApprovals(Set<ApprovalCategory.Id> a) {
-    missingApprovals = a;
+  public void setApprovals(Collection<PatchSetApprovalDetail> list) {
+    approvals = new ArrayList<PatchSetApprovalDetail>(list);
+    Collections.sort(approvals, PatchSetApprovalDetail.SORT);
   }
 
   public boolean isCurrentPatchSet(final PatchSetDetail detail) {
@@ -191,5 +103,13 @@ public class ChangeDetail {
 
   public String getDescription() {
     return currentDetail != null ? currentDetail.getInfo().getMessage() : "";
+  }
+
+  public int getTopicId() {
+    return topicId;
+  }
+
+  public void setTopicId(int tid) {
+    topicId = tid;
   }
 }

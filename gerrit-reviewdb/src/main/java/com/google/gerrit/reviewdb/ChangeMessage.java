@@ -20,7 +20,7 @@ import com.google.gwtorm.client.StringKey;
 import java.sql.Timestamp;
 
 /** A message attached to a {@link Change}. */
-public final class ChangeMessage {
+public final class ChangeMessage extends AbstractMessage {
   public static class Key extends StringKey<Change.Id> {
     private static final long serialVersionUID = 1L;
 
@@ -58,18 +58,6 @@ public final class ChangeMessage {
   @Column(id = 1, name = Column.NONE)
   protected Key key;
 
-  /** Who wrote this comment; null if it was written by the Gerrit system. */
-  @Column(id = 2, name = "author_id", notNull = false)
-  protected Account.Id author;
-
-  /** When this comment was drafted. */
-  @Column(id = 3)
-  protected Timestamp writtenOn;
-
-  /** The text left by the user. */
-  @Column(id = 4, notNull = false, length = Integer.MAX_VALUE)
-  protected String message;
-
   protected ChangeMessage() {
   }
 
@@ -86,29 +74,5 @@ public final class ChangeMessage {
 
   public ChangeMessage.Key getKey() {
     return key;
-  }
-
-  /** If null, the message was written 'by the Gerrit system'. */
-  public Account.Id getAuthor() {
-    return author;
-  }
-
-  public void setAuthor(final Account.Id accountId) {
-    if (author != null) {
-      throw new IllegalStateException("Cannot modify author once assigned");
-    }
-    author = accountId;
-  }
-
-  public Timestamp getWrittenOn() {
-    return writtenOn;
-  }
-
-  public String getMessage() {
-    return message;
-  }
-
-  public void setMessage(final String s) {
-    message = s;
   }
 }

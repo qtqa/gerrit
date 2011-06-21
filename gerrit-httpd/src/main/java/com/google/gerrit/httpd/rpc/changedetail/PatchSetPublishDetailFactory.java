@@ -102,11 +102,15 @@ final class PatchSetPublishDetailFactory extends Handler<PatchSetPublishDetail> 
     detail.setPatchSetInfo(patchSetInfo);
     detail.setChange(change);
     detail.setDrafts(drafts);
+
     detail.setLabels(allowed);
     detail.setGiven(given);
 
     final CanSubmitResult canSubmitResult = control.canSubmit(patchSetId);
-    detail.setCanSubmit(canSubmitResult == CanSubmitResult.OK);
+    if (canSubmitResult == CanSubmitResult.OK
+          && (change.getTopicId() == null)) {
+        detail.setCanSubmit(true);
+      }
 
     return detail;
   }

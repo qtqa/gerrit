@@ -20,7 +20,7 @@ import com.google.gwtorm.client.CompoundKey;
 import java.sql.Timestamp;
 
 /** An approval (or negative approval) on a patch set. */
-public final class PatchSetApproval {
+public final class PatchSetApproval extends SetApproval<PatchSet.Id> {
   public static class Key extends CompoundKey<PatchSet.Id> {
     private static final long serialVersionUID = 1L;
 
@@ -118,14 +118,17 @@ public final class PatchSetApproval {
     return key.accountId;
   }
 
+  @Override
   public ApprovalCategory.Id getCategoryId() {
     return key.categoryId;
   }
 
+  @Override
   public short getValue() {
     return value;
   }
 
+  @Override
   public void setValue(final short v) {
     value = v;
   }
@@ -141,5 +144,10 @@ public final class PatchSetApproval {
   public void cache(final Change c) {
     changeOpen = c.open;
     changeSortKey = c.sortKey;
+  }
+
+  @Override
+  public PatchSet.Id getSetId() {
+    return getPatchSetId();
   }
 }

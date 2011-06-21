@@ -40,6 +40,7 @@ import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.server.query.change.ChangeQueryBuilder;
 import com.google.gerrit.server.query.change.ChangeQueryRewriter;
+import com.google.gerrit.server.topic.PublishTopicComments;
 import com.google.inject.servlet.RequestScoped;
 
 /** Bindings for {@link RequestScoped} entities. */
@@ -69,6 +70,7 @@ public class GerritRequestModule extends FactoryModule {
     factory(AddReviewerSender.Factory.class);
     factory(CreateChangeSender.Factory.class);
     factory(PublishComments.Factory.class);
+    factory(PublishTopicComments.Factory.class);
     factory(ReplacePatchSetSender.Factory.class);
     factory(AbandonedSender.Factory.class);
     factory(RevertedSender.Factory.class);

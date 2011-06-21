@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Result from adding or removing a reviewer from a change.
  */
-public class ReviewerResult {
+public class ReviewerResult extends ReviewerResultError {
   protected List<Error> errors;
   protected ChangeDetail change;
 
@@ -43,45 +43,5 @@ public class ReviewerResult {
 
   public void setChange(final ChangeDetail d) {
     change = d;
-  }
-
-  public static class Error {
-    public static enum Type {
-      /** Name supplied does not match to a registered account. */
-      ACCOUNT_NOT_FOUND,
-
-      /** The account is inactive. */
-      ACCOUNT_INACTIVE,
-
-      /** The account is not permitted to see the change. */
-      CHANGE_NOT_VISIBLE,
-
-      /** Could not remove this reviewer from the change. */
-      COULD_NOT_REMOVE
-    }
-
-    protected Type type;
-    protected String name;
-
-    protected Error() {
-    }
-
-    public Error(final Type type, final String who) {
-      this.type = type;
-      this.name = who;
-    }
-
-    public Type getType() {
-      return type;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String toString() {
-      return type + " " + name;
-    }
   }
 }
