@@ -18,6 +18,7 @@ import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.ui.Hyperlink;
 import com.google.gerrit.client.ui.NavigationTable;
+import com.google.gerrit.client.ui.AbstractKeyNavigation.Action;
 import com.google.gerrit.reviewdb.AccountGroup;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
@@ -40,11 +41,11 @@ public class GroupTable extends NavigationTable<AccountGroup> {
     this.enableLink = enableLink;
 
     setSavePointerId(pointerId);
-    keysNavigation.add(new PrevKeyCommand(0, 'k', Util.C.groupListPrev()));
-    keysNavigation.add(new NextKeyCommand(0, 'j', Util.C.groupListNext()));
-    keysNavigation.add(new OpenKeyCommand(0, 'o', Util.C.groupListOpen()));
-    keysNavigation.add(new OpenKeyCommand(0, KeyCodes.KEY_ENTER, Util.C
-        .groupListOpen()));
+    keyNavigation = new DefaultKeyNavigation(this);
+    keyNavigation.setKeyHelp(Action.NEXT, Util.C.groupListNext());
+    keyNavigation.setKeyHelp(Action.PREV, Util.C.groupListPrev());
+    keyNavigation.setKeyHelp(Action.OPEN, Util.C.groupListOpen());
+    keyNavigation.initializeKeys();
 
     table.setText(0, 1, Util.C.columnGroupName());
     table.setText(0, 2, Util.C.columnGroupDescription());

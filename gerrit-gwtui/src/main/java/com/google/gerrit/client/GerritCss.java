@@ -89,6 +89,7 @@ public interface GerritCss extends CssResource {
   String diffTextHunkHeader();
   String diffTextINSERT();
   String diffTextNoLF();
+  String diffFileName();
   String downloadLink();
   String downloadLink_Active();
   String downloadLinkListCell();

@@ -58,6 +58,8 @@ import com.google.gerrit.client.changes.PatchTable;
 import com.google.gerrit.client.changes.PublishCommentScreen;
 import com.google.gerrit.client.changes.PublishTopicCommentScreen;
 import com.google.gerrit.client.changes.QueryScreen;
+import com.google.gerrit.client.patches.AbstractPatchScreen;
+import com.google.gerrit.client.patches.AllInOnePatchScreen;
 import com.google.gerrit.client.patches.PatchScreen;
 import com.google.gerrit.client.ui.Screen;
 import com.google.gerrit.common.auth.SignInMode;
@@ -75,6 +77,25 @@ import com.google.gwt.core.client.RunAsyncCallback;
 import com.google.gwtorm.client.KeyUtil;
 
 public class Dispatcher {
+  public static String toPatchAll(final AbstractPatchScreen.Type type,
+      final PatchSetDetail detail) {
+    if (type == AbstractPatchScreen.Type.SIDE_BY_SIDE) {
+      return toPatchAllSideBySide(detail);
+    } else {
+      return toPatchAllUnified(detail);
+    }
+  }
+
+  public static String toPatchAllSideBySide(final PatchSetDetail detail) {
+    PatchSet.Id patchSetId = detail.getPatchSet().getId();
+    return "patch,all," + patchSetId.toString();
+  }
+
+  public static String toPatchAllUnified(final PatchSetDetail detail) {
+    PatchSet.Id patchSetId = detail.getPatchSet().getId();
+    return "patch,all_unified," + patchSetId.toString();
+  }
+
   public static String toPatchSideBySide(final Patch.Key id) {
     return toPatch("sidebyside", id);
   }
@@ -85,6 +106,10 @@ public class Dispatcher {
 
   public static String toPatch(final String type, final Patch.Key id) {
     return "patch," + type + "," + id.toString();
+  }
+
+  public static String toPublish(PatchSet.Id id) {
+    return "change,publish," + id;
   }
 
   public static String toPublish(ChangeSet.Id cs) {
@@ -373,10 +398,31 @@ public class Dispatcher {
               patchIndex, //
               patchSetDetail, //
               patchTable //
-          );
+            );
         }
 
-        return new NotFoundScreen();
+        p = "patch,all,";
+        if(token.startsWith(p)) {
+
+          return new AllInOnePatchScreen(
+              id != null ? id.getParentKey() : PatchSet.Id.parse(skip(p, token)),
+              patchSetDetail,
+              patchTable,
+              AbstractPatchScreen.Type.SIDE_BY_SIDE
+           );
+        }
+
+        p = "patch,all_unified,";
+        if(token.startsWith(p)) {
+          return new AllInOnePatchScreen(
+              id != null ? id.getParentKey() : PatchSet.Id.parse(skip(p, token)),
+              patchSetDetail,
+              patchTable,
+              AbstractPatchScreen.Type.UNIFIED
+            );
+        }
+
+        return new NotFoundScreen("Failed to select() patch screen");
       }
     });
   }

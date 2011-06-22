@@ -49,7 +49,7 @@ public abstract class FancyFlexTable<RowItem> extends Composite {
     return new MyFlexTable();
   }
 
-  protected RowItem getRowItem(final int row) {
+  public RowItem getRowItem(final int row) {
     return FancyFlexTable.<RowItem> getRowItem(table.getCellFormatter()
         .getElement(row, 0));
   }

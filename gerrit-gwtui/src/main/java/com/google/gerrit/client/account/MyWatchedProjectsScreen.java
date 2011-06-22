@@ -214,12 +214,6 @@ public class MyWatchedProjectsScreen extends SettingsScreen implements
     });
 
     projectsTab = new ProjectsTable() {
-      {
-        keysNavigation.add(new OpenKeyCommand(0, 'o', Util.C.projectListOpen()));
-        keysNavigation.add(new OpenKeyCommand(0, KeyCodes.KEY_ENTER,
-                                                      Util.C.projectListOpen()));
-      }
-
       @Override
       protected void movePointerTo(final int row, final boolean scroll) {
         super.movePointerTo(row, scroll);

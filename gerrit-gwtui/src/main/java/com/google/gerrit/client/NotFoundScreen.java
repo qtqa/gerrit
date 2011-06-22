@@ -19,11 +19,22 @@ import com.google.gwt.user.client.ui.Label;
 
 /** Displays an error message letting the user know the page doesn't exist. */
 public class NotFoundScreen extends Screen {
+  String text;
+
+  public NotFoundScreen() {
+
+  }
+
+  public NotFoundScreen(final String text) {
+    this.text = text;
+  }
   @Override
   protected void onInitUI() {
     super.onInitUI();
     setPageTitle(Gerrit.C.notFoundTitle());
     add(new Label(Gerrit.C.notFoundBody()));
+    if (text != null)
+      add(new Label(text));
   }
 
   @Override

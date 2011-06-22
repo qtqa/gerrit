@@ -32,10 +32,10 @@ import java.util.List;
  * A table used to specify which two patch sets should be diff'ed.
  */
 class HistoryTable extends FancyFlexTable<Patch> {
-  private final PatchScreen screen;
+  private final AbstractPatchScreen screen;
   final List<HistoryRadio> all = new ArrayList<HistoryRadio>();
 
-  HistoryTable(final PatchScreen parent) {
+  HistoryTable(final AbstractPatchScreen parent) {
     setStyleName(Gerrit.RESOURCES.css().patchHistoryTable());
     screen = parent;
     table.setWidth("auto");
@@ -79,13 +79,13 @@ class HistoryTable extends FancyFlexTable<Patch> {
     {
       final Patch k = new Patch(new Patch.Key(null, ""));
       setRowItem(row, k);
-      installRadio(row, k, 0, screen.idSideA);
+      installRadio(row, k, 0, screen.getSideA());
       row++;
     }
     for (final Patch k : result) {
       setRowItem(row, k);
-      installRadio(row, k, 0, screen.idSideA);
-      installRadio(row, k, 1, screen.idSideB);
+      installRadio(row, k, 0, screen.getSideA());
+      installRadio(row, k, 1, screen.getSideB());
       row++;
     }
   }

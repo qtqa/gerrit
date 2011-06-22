@@ -14,14 +14,13 @@
 
 package com.google.gerrit.client.patches;
 
+import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.changes.PatchTable;
-import com.google.gerrit.client.changes.PublishCommentScreen;
-import com.google.gerrit.client.changes.Util;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.ui.CommentPanel;
+import com.google.gerrit.client.ui.ContentTableKeyNavigation;
 import com.google.gerrit.client.ui.NavigationTable;
-import com.google.gerrit.client.ui.NeedsSignInKeyCommand;
 import com.google.gerrit.common.data.AccountInfo;
 import com.google.gerrit.common.data.AccountInfoCache;
 import com.google.gerrit.common.data.CommentDetail;
@@ -36,9 +35,6 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.FocusEvent;
 import com.google.gwt.event.dom.client.FocusHandler;
-import com.google.gwt.event.dom.client.KeyCodes;
-import com.google.gwt.event.dom.client.KeyPressEvent;
-import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Event;
@@ -48,57 +44,106 @@ import com.google.gwt.user.client.ui.Focusable;
 import com.google.gwt.user.client.ui.UIObject;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
-import com.google.gwtexpui.globalkey.client.GlobalKey;
-import com.google.gwtexpui.globalkey.client.KeyCommand;
-import com.google.gwtexpui.globalkey.client.KeyCommandSet;
-
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     implements CommentEditorContainer, FocusHandler, BlurHandler {
+
+  public interface Delegate {
+    void onClick();
+  }
+
   protected PatchTable fileList;
   protected AccountInfoCache accountCache = AccountInfoCache.empty();
   protected Patch.Key patchKey;
   protected PatchSet.Id idSideA;
   protected PatchSet.Id idSideB;
   protected boolean onlyOneHunk;
+  private Set<Delegate> delegates;
 
-  private final KeyCommandSet keysComment;
-  private HandlerRegistration regComment;
-  private final KeyCommandSet keysOpenByEnter;
-  private HandlerRegistration regOpenByEnter;
-
-  protected AbstractPatchContentTable() {
-    keysNavigation.add(new PrevKeyCommand(0, 'k', PatchUtil.C.linePrev()));
-    keysNavigation.add(new NextKeyCommand(0, 'j', PatchUtil.C.lineNext()));
-    keysNavigation.add(new PrevChunkKeyCmd(0, 'p', PatchUtil.C.chunkPrev()));
-    keysNavigation.add(new NextChunkKeyCmd(0, 'n', PatchUtil.C.chunkNext()));
-    keysNavigation.add(new PrevCommentCmd(0, 'P', PatchUtil.C.commentPrev()));
-    keysNavigation.add(new NextCommentCmd(0, 'N', PatchUtil.C.commentNext()));
-
-    keysAction.add(new OpenKeyCommand(0, 'o', PatchUtil.C.expandComment()));
-    keysOpenByEnter = new KeyCommandSet(Gerrit.C.sectionNavigation());
-    keysOpenByEnter.add(new OpenKeyCommand(0, KeyCodes.KEY_ENTER, PatchUtil.C.expandComment()));
-
-    if (Gerrit.isSignedIn()) {
-      keysAction.add(new InsertCommentCommand(0, 'c', PatchUtil.C
-          .commentInsert()));
-      keysAction.add(new PublishCommentsKeyCommand(0, 'r', Util.C
-          .keyPublishComments()));
-
-      // See CommentEditorPanel
-      //
-      keysComment = new KeyCommandSet(PatchUtil.C.commentEditorSet());
-      keysComment.add(new NoOpKeyCommand(KeyCommand.M_CTRL, 's', PatchUtil.C
-          .commentSaveDraft()));
-      keysComment.add(new NoOpKeyCommand(0, KeyCodes.KEY_ESCAPE, PatchUtil.C
-          .commentCancelEdit()));
-    } else {
-      keysComment = null;
+  private class KeyNavigation extends ContentTableKeyNavigation {
+    public KeyNavigation(Widget parent) {
+      super(parent);
+      initializeKeys();
     }
 
+    @Override
+    protected void onOpen() {
+      ensurePointerVisible();
+      onOpenCurrent();
+    }
+
+    @Override
+    protected void onNext() {
+      ensurePointerVisible();
+      onDown();
+    }
+
+    @Override
+    protected void onPrev() {
+      ensurePointerVisible();
+      onUp();
+    }
+
+    @Override
+    protected void onChunkNext() {
+      ensurePointerVisible();
+      moveToNextChunk(getCurrentRow());
+    }
+
+    @Override
+    protected void onChunkPrev() {
+      ensurePointerVisible();
+      moveToPrevChunk(getCurrentRow());
+    }
+
+    @Override
+    protected void onCommentNext() {
+      ensurePointerVisible();
+      moveToNextComment(getCurrentRow());
+    }
+
+    @Override
+    protected void onCommentPrev() {
+      ensurePointerVisible();
+      moveToPrevComment(getCurrentRow());
+    }
+
+    @Override
+    protected void onInsertComment() {
+      ensurePointerVisible();
+      for (int row = getCurrentRow(); 0 <= row; row--) {
+        final Object item = getRowItem(row);
+        if (item instanceof PatchLine) {
+          AbstractPatchContentTable.this.onInsertComment((PatchLine) item);
+          return;
+        } else if (item instanceof CommentList) {
+          continue;
+        } else {
+          return;
+        }
+      }
+    }
+
+    @Override
+    protected void onPublishComments() {
+      final PatchSet.Id id = patchKey.getParentKey();
+      Gerrit.display(Dispatcher.toPublish(id));
+    }
+  }
+
+  protected AbstractPatchContentTable() {
+    keyNavigation = new KeyNavigation(this);
+    keyNavigation.initializeKeys();
     table.setStyleName(Gerrit.RESOURCES.css().patchContentTable());
+    delegates = new HashSet<Delegate>();
+  }
+
+  public void addDelegate(final Delegate delegate) {
+    delegates.add(delegate);
   }
 
   public void notifyDraftDelta(final int delta) {
@@ -144,24 +189,6 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     }
   }
 
-  @Override
-  public void setRegisterKeys(final boolean on) {
-    super.setRegisterKeys(on);
-    if (on && keysComment != null && regComment == null) {
-      regComment = GlobalKey.add(this, keysComment);
-    } else if (!on && regComment != null) {
-      regComment.removeHandler();
-      regComment = null;
-    }
-
-    if (on && keysOpenByEnter != null && regOpenByEnter == null) {
-      regOpenByEnter = GlobalKey.add(this, keysOpenByEnter);
-    } else if (!on && regOpenByEnter != null) {
-      regOpenByEnter.removeHandler();
-      regOpenByEnter = null;
-    }
-  }
-
   public void display(final Patch.Key k, final PatchSet.Id a,
       final PatchSet.Id b, final PatchScript s) {
     patchKey = k;
@@ -169,6 +196,17 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     idSideB = b;
 
     render(s);
+  }
+
+
+  public boolean isOnFirstRow() {
+    int firstRow = findChunkStart(getCurrentRow());
+    return getCurrentRow() == firstRow || getCurrentRow() == 1 || getRowItem(getCurrentRow() - 1) == null;
+  }
+
+  public boolean isOnLastRow() {
+    int lastRow = findChunkEnd(getCurrentRow());
+    return getCurrentRow() == lastRow || getRowItem(getCurrentRow() + 1) == null;
   }
 
   protected abstract void render(PatchScript script);
@@ -236,7 +274,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     return end + 1 < table.getRowCount() ? end + 1 : end;
   }
 
-  private void moveToPrevChunk(int row) {
+  public void moveToPrevChunk(int row) {
     while (0 <= row && isChunk(row)) {
       row--;
     }
@@ -259,7 +297,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     }
   }
 
-  private void moveToNextChunk(int row) {
+  public void moveToNextChunk(int row) {
     final int max = table.getRowCount();
     while (row < max && isChunk(row)) {
       row++;
@@ -282,7 +320,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     }
   }
 
-  private void moveToPrevComment(int row) {
+  public void moveToPrevComment(int row) {
     while (0 <= row && isComment(row)) {
       row--;
     }
@@ -304,7 +342,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     }
   }
 
-  private void moveToNextComment(int row) {
+  public void moveToNextComment(int row) {
     final int max = table.getRowCount();
     while (row < max && isComment(row)) {
       row++;
@@ -566,10 +604,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     // ENTER that expands/collapses the comment panel, if we don't do this the
     // focused button in the comment panel cannot be triggered by pressing ENTER
     // since ENTER would then be already consumed by this key binding
-    if (regOpenByEnter != null) {
-      regOpenByEnter.removeHandler();
-      regOpenByEnter = null;
-    }
+    keyNavigation.setRegisterEnter(true);
   }
 
   @Override
@@ -577,9 +612,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     // when the comment panel gets blurred (actually when a button inside the
     // comment panel gets blurred) we have to re-register the key binding for
     // ENTER that expands/collapses the comment panel
-    if (keysOpenByEnter != null && regOpenByEnter == null) {
-      regOpenByEnter = GlobalKey.add(this, keysOpenByEnter);
-    }
+    keyNavigation.setRegisterEnter(false);
   }
 
   private void styleCommentRow(final int row) {
@@ -620,6 +653,9 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
           final int row = rowOf(td);
           if (getRowItem(row) != null) {
             movePointerTo(row);
+            for (Delegate delegate : delegates) {
+              delegate.onClick();
+            }
             return;
           }
           break;
@@ -635,99 +671,6 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
         }
       }
       super.onBrowserEvent(event);
-    }
-  }
-
-  public static class NoOpKeyCommand extends NeedsSignInKeyCommand {
-    public NoOpKeyCommand(int mask, int key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-    }
-  }
-
-  public class InsertCommentCommand extends NeedsSignInKeyCommand {
-    public InsertCommentCommand(int mask, int key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-      ensurePointerVisible();
-      for (int row = getCurrentRow(); 0 <= row; row--) {
-        final Object item = getRowItem(row);
-        if (item instanceof PatchLine) {
-          onInsertComment((PatchLine) item);
-          return;
-        } else if (item instanceof CommentList) {
-          continue;
-        } else {
-          return;
-        }
-      }
-    }
-  }
-
-  public class PublishCommentsKeyCommand extends NeedsSignInKeyCommand {
-    public PublishCommentsKeyCommand(int mask, char key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-      final PatchSet.Id id = patchKey.getParentKey();
-      Gerrit.display("change,publish," + id.toString(),
-          new PublishCommentScreen(id));
-    }
-  }
-
-  public class PrevChunkKeyCmd extends KeyCommand {
-    public PrevChunkKeyCmd(int mask, int key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-      ensurePointerVisible();
-      moveToPrevChunk(getCurrentRow());
-    }
-  }
-
-  public class NextChunkKeyCmd extends KeyCommand {
-    public NextChunkKeyCmd(int mask, int key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-      ensurePointerVisible();
-      moveToNextChunk(getCurrentRow());
-    }
-  }
-
-  public class PrevCommentCmd extends KeyCommand {
-    public PrevCommentCmd(int mask, int key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-      ensurePointerVisible();
-      moveToPrevComment(getCurrentRow());
-    }
-  }
-
-  public class NextCommentCmd extends KeyCommand {
-    public NextCommentCmd(int mask, int key, String help) {
-      super(mask, key, help);
-    }
-
-    @Override
-    public void onKeyPress(final KeyPressEvent event) {
-      ensurePointerVisible();
-      moveToNextComment(getCurrentRow());
     }
   }
 

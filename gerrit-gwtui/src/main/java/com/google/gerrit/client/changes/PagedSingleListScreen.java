@@ -73,9 +73,9 @@ public abstract class PagedSingleListScreen extends Screen {
 
     table = new ChangeTable(true) {
       {
-        keysNavigation.add(new DoLinkCommand(0, 'p', Util.C
+        keyNavigation.addNavigationKey(new DoLinkCommand(0, 'p', Util.C
             .changeTablePagePrev(), prev));
-        keysNavigation.add(new DoLinkCommand(0, 'n', Util.C
+        keyNavigation.addNavigationKey(new DoLinkCommand(0, 'n', Util.C
             .changeTablePageNext(), next));
       }
     };

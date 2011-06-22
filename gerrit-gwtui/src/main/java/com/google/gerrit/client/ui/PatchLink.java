@@ -16,6 +16,8 @@ package com.google.gerrit.client.ui;
 
 import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.changes.PatchTable;
+import com.google.gerrit.client.patches.AbstractPatchScreen;
+import com.google.gerrit.client.patches.AllInOnePatchScreen;
 import com.google.gerrit.common.data.PatchSetDetail;
 import com.google.gerrit.reviewdb.Patch;
 
@@ -42,6 +44,19 @@ public abstract class PatchLink extends InlineHyperlink {
     this.patchIndex = patchIndex;
     this.patchSetDetail = patchSetDetail;
     this.parentPatchTable = parentPatchTable;
+  }
+
+  public static class All extends PatchLink {
+    public All(final String text, final AbstractPatchScreen.Type type,
+        final AllInOnePatchScreen patchScreen) {
+      super(text, //
+          patchScreen.getPatchKey(), //
+          0, //
+          Dispatcher.toPatchAll(type, patchScreen.getPatchSetDetail()), //
+          patchScreen.getPatchSetDetail(), //
+          patchScreen.getFileList() //
+          );
+    }
   }
 
   @Override

@@ -17,6 +17,8 @@ package com.google.gerrit.client;
 import com.google.gerrit.client.auth.openid.OpenIdSignInDialog;
 import com.google.gerrit.client.auth.userpass.UserPassSignInDialog;
 import com.google.gerrit.client.changes.ChangeListScreen;
+import com.google.gerrit.client.patches.AbstractPatchScreen;
+import com.google.gerrit.client.patches.AllInOnePatchScreen;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.ui.LinkMenuBar;
 import com.google.gerrit.client.ui.LinkMenuItem;
@@ -31,6 +33,7 @@ import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.AccountDiffPreference;
 import com.google.gerrit.reviewdb.AccountGeneralPreferences;
 import com.google.gerrit.reviewdb.AuthType;
+import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
@@ -83,7 +86,7 @@ public class Gerrit implements EntryPoint {
   private static SearchPanel searchPanel;
   private static final Dispatcher dispatcher = new Dispatcher();
   private static ViewSite<Screen> body;
-
+  private static AbstractPatchScreen patchScreen;
   private static String lastChangeListToken;
 
   static {

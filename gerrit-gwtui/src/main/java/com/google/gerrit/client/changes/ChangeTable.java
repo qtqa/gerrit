@@ -20,6 +20,7 @@ import com.google.gerrit.client.FormatUtil;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.patches.PatchUtil;
 import com.google.gerrit.client.rpc.GerritCallback;
+import com.google.gerrit.client.ui.AbstractKeyNavigation.Action;
 import com.google.gerrit.client.ui.AccountDashboardLink;
 import com.google.gerrit.client.ui.ChangeLink;
 import com.google.gerrit.client.ui.BranchTopicLink;
@@ -43,7 +44,6 @@ import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyPressEvent;
 import com.google.gwt.resources.client.ImageResource;
 import com.google.gwt.user.client.DOM;
@@ -78,6 +78,21 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
   private final List<ApprovalType> approvalTypes;
   private final int columns;
 
+  private class KeyNavigation extends DefaultKeyNavigation {
+
+    public KeyNavigation(Widget parent) {
+      super(parent);
+    }
+
+    @Override
+    public void initializeKeys() {
+      super.initializeKeys();
+      if (Gerrit.isSignedIn()) {
+        keysAction.add(new StarKeyCommand(0, 's', Util.C.changeTableStar()));
+      }
+    }
+  }
+
   public ChangeTable() {
     this(false);
   }
@@ -90,15 +105,11 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
       columns = BASE_COLUMNS;
     }
 
-    keysNavigation.add(new PrevKeyCommand(0, 'k', Util.C.changeTablePrev()));
-    keysNavigation.add(new NextKeyCommand(0, 'j', Util.C.changeTableNext()));
-    keysNavigation.add(new OpenKeyCommand(0, 'o', Util.C.changeTableOpen()));
-    keysNavigation.add(new OpenKeyCommand(0, KeyCodes.KEY_ENTER, Util.C
-        .changeTableOpen()));
-
-    if (Gerrit.isSignedIn()) {
-      keysAction.add(new StarKeyCommand(0, 's', Util.C.changeTableStar()));
-    }
+    keyNavigation = new KeyNavigation(this);
+    keyNavigation.setKeyHelp(Action.NEXT, Util.C.changeTableNext());
+    keyNavigation.setKeyHelp(Action.PREV, Util.C.changeTablePrev());
+    keyNavigation.setKeyHelp(Action.OPEN, Util.C.changeTableOpen());
+    keyNavigation.initializeKeys();
 
     sections = new ArrayList<Section>();
     table.setText(0, C_STAR, "");

@@ -332,10 +332,8 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
 
       @Override
       public void onClick(ClickEvent event) {
-        for (Patch p : detail.getPatches()) {
-          Window.open(Window.Location.getPath() + "#"
-              + Dispatcher.toPatchSideBySide(p.getKey()), "_blank", null);
-        }
+        final String token = Dispatcher.toPatchAllSideBySide(detail);
+        Gerrit.display(token);
       }
     });
     actionsPanel.add(diffAllSideBySide);
@@ -345,10 +343,8 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
 
       @Override
       public void onClick(ClickEvent event) {
-        for (Patch p : detail.getPatches()) {
-          Window.open(Window.Location.getPath() + "#"
-              + Dispatcher.toPatchUnified(p.getKey()), "_blank", null);
-        }
+        final String token = Dispatcher.toPatchAllUnified(detail);
+        Gerrit.display(token);
       }
     });
     actionsPanel.add(diffAllUnified);

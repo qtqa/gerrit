@@ -20,6 +20,7 @@ import com.google.gerrit.client.ui.InlineHyperlink;
 import com.google.gerrit.client.ui.ListenableAccountDiffPreference;
 import com.google.gerrit.client.ui.NavigationTable;
 import com.google.gerrit.client.ui.PatchLink;
+import com.google.gerrit.client.ui.AbstractKeyNavigation.Action;
 import com.google.gerrit.common.data.PatchSetDetail;
 import com.google.gerrit.reviewdb.Patch;
 import com.google.gerrit.reviewdb.PatchSet;
@@ -72,6 +73,10 @@ public class PatchTable extends Composite {
 
   public PatchTable() {
     this(new ListenableAccountDiffPreference());
+  }
+
+  public List<Patch> getPatchList() {
+    return patchList;
   }
 
   public int indexOf(Patch.Key patch) {
@@ -291,13 +296,15 @@ public class PatchTable extends Composite {
     private int activeRow = -1;
 
     MyTable() {
-      keysNavigation.add(new PrevKeyCommand(0, 'k', Util.C.patchTablePrev()));
-      keysNavigation.add(new NextKeyCommand(0, 'j', Util.C.patchTableNext()));
-      keysNavigation.add(new OpenKeyCommand(0, 'o', Util.C.patchTableOpenDiff()));
-      keysNavigation.add(new OpenKeyCommand(0, KeyCodes.KEY_ENTER, Util.C
-          .patchTableOpenDiff()));
-      keysNavigation.add(new OpenUnifiedDiffKeyCommand(0, 'O', Util.C
+      keyNavigation = new DefaultKeyNavigation(this);
+      keyNavigation.setKeyHelp(Action.NEXT, Util.C.patchTableNext());
+      keyNavigation.setKeyHelp(Action.PREV, Util.C.patchTablePrev());
+      keyNavigation.setKeyHelp(Action.OPEN, Util.C.patchTableOpenDiff());
+
+      keyNavigation.addNavigationKey(new OpenUnifiedDiffKeyCommand(0, 'O', Util.C
           .patchTableOpenUnifiedDiff()));
+
+      keyNavigation.initializeKeys();
 
       table.addClickHandler(new ClickHandler() {
         @Override

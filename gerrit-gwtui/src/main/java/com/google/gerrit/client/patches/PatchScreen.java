@@ -18,17 +18,12 @@ import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.ErrorDialog;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.RpcStatus;
-import com.google.gerrit.client.changes.CommitMessageBlock;
 import com.google.gerrit.client.changes.PatchTable;
 import com.google.gerrit.client.changes.Util;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.rpc.ScreenLoadCallback;
-import com.google.gerrit.client.ui.ListenableAccountDiffPreference;
-import com.google.gerrit.client.ui.Screen;
 import com.google.gerrit.common.data.PatchScript;
 import com.google.gerrit.common.data.PatchSetDetail;
-import com.google.gerrit.prettify.client.ClientSideFormatter;
-import com.google.gerrit.prettify.common.PrettyFactory;
 import com.google.gerrit.reviewdb.AccountDiffPreference;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.Patch;
@@ -36,27 +31,16 @@ import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.event.dom.client.KeyPressEvent;
-import com.google.gwt.event.logical.shared.CloseEvent;
-import com.google.gwt.event.logical.shared.CloseHandler;
-import com.google.gwt.event.logical.shared.OpenEvent;
-import com.google.gwt.event.logical.shared.OpenHandler;
-import com.google.gwt.event.logical.shared.ValueChangeEvent;
-import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.rpc.AsyncCallback;
-import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
-import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwtexpui.globalkey.client.GlobalKey;
 import com.google.gwtexpui.globalkey.client.KeyCommand;
 import com.google.gwtexpui.globalkey.client.KeyCommandSet;
 import com.google.gwtjsonrpc.client.VoidResult;
 
-public abstract class PatchScreen extends Screen implements
-    CommentEditorContainer {
-  static final PrettyFactory PRETTY = ClientSideFormatter.FACTORY;
+public abstract class PatchScreen extends AbstractPatchScreen {
 
   public static class SideBySide extends PatchScreen {
     public SideBySide(final Patch.Key id, final int patchIndex,
@@ -70,8 +54,8 @@ public abstract class PatchScreen extends Screen implements
     }
 
     @Override
-    protected PatchScreen.Type getPatchScreenType() {
-      return PatchScreen.Type.SIDE_BY_SIDE;
+    public AbstractPatchScreen.Type getPatchScreenType() {
+      return AbstractPatchScreen.Type.SIDE_BY_SIDE;
     }
   }
 
@@ -87,103 +71,31 @@ public abstract class PatchScreen extends Screen implements
     }
 
     @Override
-    protected PatchScreen.Type getPatchScreenType() {
-      return PatchScreen.Type.UNIFIED;
+    public AbstractPatchScreen.Type getPatchScreenType() {
+      return AbstractPatchScreen.Type.UNIFIED;
     }
   }
 
-  // Which patch set id's are being diff'ed
-  private static PatchSet.Id diffSideA = null;
-  private static PatchSet.Id diffSideB = null;
-
-  private static Boolean historyOpen = null;
-  private static final OpenHandler<DisclosurePanel> cacheOpenState =
-      new OpenHandler<DisclosurePanel>() {
-        @Override
-        public void onOpen(OpenEvent<DisclosurePanel> event) {
-          historyOpen = true;
-        }
-      };
-  private static final CloseHandler<DisclosurePanel> cacheCloseState =
-      new CloseHandler<DisclosurePanel>() {
-        @Override
-        public void onClose(CloseEvent<DisclosurePanel> event) {
-          historyOpen = false;
-        }
-      };
-
-  protected final Patch.Key patchKey;
-  protected PatchSetDetail patchSetDetail;
-  protected PatchTable fileList;
-  protected PatchSet.Id idSideA;
-  protected PatchSet.Id idSideB;
-  protected PatchScriptSettingsPanel settingsPanel;
-
-  private DisclosurePanel historyPanel;
-  private HistoryTable historyTable;
   private FlowPanel contentPanel;
   private Label noDifference;
   private AbstractPatchContentTable contentTable;
-  private CommitMessageBlock commitMessageBlock;
   private NavLinks topNav;
   private NavLinks bottomNav;
 
   private int rpcSequence;
-  private PatchScript lastScript;
 
   /** The index of the file we are currently looking at among the fileList */
   private int patchIndex;
-  private ListenableAccountDiffPreference prefs;
 
   /** Keys that cause an action on this screen */
   private KeyCommandSet keysNavigation;
   private HandlerRegistration regNavigation;
   private boolean intralineFailure;
 
-  /**
-   * How this patch should be displayed in the patch screen.
-   */
-  public static enum Type {
-    UNIFIED, SIDE_BY_SIDE
-  }
-
   protected PatchScreen(final Patch.Key id, final int patchIndex,
       final PatchSetDetail detail, final PatchTable patchTable) {
-    patchKey = id;
-    patchSetDetail = detail;
-    fileList = patchTable;
-
-    if (patchTable != null) {
-      diffSideA = patchTable.getPatchSetIdToCompareWith();
-    } else {
-      diffSideA = null;
-    }
-    if (diffSideA == null) {
-      historyOpen = null;
-    }
-
-    idSideA = diffSideA; // null here means we're diff'ing from the Base
-    idSideB = diffSideB != null ? diffSideB : id.getParentKey();
+    super(id, id.getParentKey(), detail, patchTable);
     this.patchIndex = patchIndex;
-
-    prefs = fileList != null ? fileList.getPreferences() :
-                               new ListenableAccountDiffPreference();
-    prefs.addValueChangeHandler(
-        new ValueChangeHandler<AccountDiffPreference>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<AccountDiffPreference> event) {
-            update(event.getValue());
-          }
-        });
-
-    settingsPanel = new PatchScriptSettingsPanel(prefs);
-    settingsPanel.getReviewedCheckBox().addValueChangeHandler(
-        new ValueChangeHandler<Boolean>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<Boolean> event) {
-            setReviewedByCurrentUser(event.getValue());
-          }
-        });
   }
 
   @Override
@@ -196,7 +108,8 @@ public abstract class PatchScreen extends Screen implements
     lastScript = null;
   }
 
-  private void update(AccountDiffPreference dp) {
+  @Override
+  protected void update(AccountDiffPreference dp) {
     if (lastScript != null && canReuse(dp, lastScript)) {
       lastScript.setDiffPrefs(dp);
       RpcStatus.INSTANCE.onRpcStart(null);
@@ -249,28 +162,6 @@ public abstract class PatchScreen extends Screen implements
     keysNavigation = new KeyCommandSet(Gerrit.C.sectionNavigation());
     keysNavigation.add(new UpToChangeCommand(patchKey.getParentKey(), 0, 'u'));
     keysNavigation.add(new FileListCmd(0, 'f', PatchUtil.C.fileList()));
-
-    historyTable = new HistoryTable(this);
-    historyPanel = new DisclosurePanel(PatchUtil.C.patchHistoryTitle());
-    historyPanel.setContent(historyTable);
-    historyPanel.setVisible(false);
-    // If the user selected a different patch set than the default for either
-    // side, expand the history panel
-    historyPanel.setOpen(diffSideA != null || diffSideB != null
-        || (historyOpen != null && historyOpen));
-    historyPanel.addOpenHandler(cacheOpenState);
-    historyPanel.addCloseHandler(cacheCloseState);
-
-
-    VerticalPanel vp = new VerticalPanel();
-    vp.add(historyPanel);
-    vp.add(settingsPanel);
-    commitMessageBlock = new CommitMessageBlock("6em");
-    HorizontalPanel hp = new HorizontalPanel();
-    hp.setWidth("100%");
-    hp.add(vp);
-    hp.add(commitMessageBlock);
-    add(hp);
 
     noDifference = new Label(PatchUtil.C.noDifference());
     noDifference.setStyleName(Gerrit.RESOURCES.css().patchNoDifference());
@@ -325,6 +216,7 @@ public abstract class PatchScreen extends Screen implements
             @Override
             public void onSuccess(PatchSetDetail result) {
               patchSetDetail = result;
+              setSideB(patchSetDetail.getPatchSet().getId());
               if (fileList == null) {
                 fileList = new PatchTable(prefs);
                 fileList.display(result);
@@ -360,9 +252,7 @@ public abstract class PatchScreen extends Screen implements
 
   protected abstract AbstractPatchContentTable createContentTable();
 
-  protected abstract PatchScreen.Type getPatchScreenType();
-
-  protected void refresh(final boolean isFirst) {
+  public void refresh(final boolean isFirst) {
     final int rpcseq = ++rpcSequence;
     lastScript = null;
     settingsPanel.setEnabled(false);
@@ -414,7 +304,6 @@ public abstract class PatchScreen extends Screen implements
     }
 
     historyTable.display(script.getHistory());
-    historyPanel.setVisible(true);
 
     // True if there are differences between the two patch sets
     boolean hasEdits = !script.getEdits().isEmpty();
@@ -474,19 +363,6 @@ public abstract class PatchScreen extends Screen implements
     noDifference.setVisible(!showPatch);
     contentTable.setVisible(showPatch);
     contentTable.setRegisterKeys(isCurrentView() && showPatch);
-  }
-
-  public void setSideA(PatchSet.Id patchSetId) {
-    idSideA = patchSetId;
-    diffSideA = patchSetId;
-    if (fileList != null) {
-      fileList.setPatchSetIdToCompareWith(patchSetId);
-    }
-  }
-
-  public void setSideB(PatchSet.Id patchSetId) {
-    idSideB = patchSetId;
-    diffSideB = patchSetId;
   }
 
   public class FileListCmd extends KeyCommand {
