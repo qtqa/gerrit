@@ -19,6 +19,7 @@ import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.rpc.ScreenLoadCallback;
 import com.google.gerrit.client.ui.OnEditEnabler;
 import com.google.gerrit.client.ui.SmallHeading;
+import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ProjectDetail;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.Project.SubmitType;
@@ -33,6 +34,10 @@ import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwtexpui.globalkey.client.NpTextArea;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
 public class ProjectInfoScreen extends ProjectScreen {
   private Project project;
 
@@ -45,6 +50,11 @@ public class ProjectInfoScreen extends ProjectScreen {
   private Panel agreementsPanel;
   private CheckBox useContributorAgreements;
   private CheckBox useSignedOffBy;
+
+  private Panel cherryPickPanel;
+  private CheckBox includeReviewedOn;
+  private CheckBox includeOnlyMaxApproval;
+  private Map<String, CheckBox> approvalsInFooter;
 
   private NpTextArea descTxt;
   private Button saveProject;
@@ -69,6 +79,7 @@ public class ProjectInfoScreen extends ProjectScreen {
 
     initDescription();
     initProjectOptions();
+    initcherryPickOptions();
     initAgreements();
     add(saveProject);
   }
@@ -76,6 +87,17 @@ public class ProjectInfoScreen extends ProjectScreen {
   @Override
   protected void onLoad() {
     super.onLoad();
+    for (final ApprovalType t :
+        Gerrit.getConfig().getApprovalTypes().getApprovalTypes()) {
+      final String footer = t.getCategory().getLabelName();
+      if (!approvalsInFooter.containsKey(footer)) {
+        final String title = Util.C.footerPrefix() + " " + footer;
+        CheckBox checkBox = new CheckBox(title, true);
+        approvalsInFooter.put(footer, checkBox);
+        saveEnabler.listenTo(checkBox);
+        cherryPickPanel.add(checkBox);
+      }
+    }
     Util.PROJECT_SVC.projectDetail(getProjectKey(),
         new ScreenLoadCallback<ProjectDetail>(this) {
           public void preDisplay(final ProjectDetail result) {
@@ -126,6 +148,7 @@ public class ProjectInfoScreen extends ProjectScreen {
       @Override
       public void onChange(ChangeEvent event) {
         setEnabledForUseContentMerge();
+        setEnabledForCherryPick();
       }
     });
     saveEnabler.listenTo(submitType);
@@ -162,6 +185,17 @@ public class ProjectInfoScreen extends ProjectScreen {
     }
   }
 
+  private void setEnabledForCherryPick() {
+    final boolean isCherryPickSubmitType =
+      SubmitType.CHERRY_PICK.equals(Project.SubmitType.valueOf(
+          submitType.getValue(submitType.getSelectedIndex())));
+    includeReviewedOn.setEnabled(isCherryPickSubmitType);
+    includeOnlyMaxApproval.setEnabled(isCherryPickSubmitType);
+    for (CheckBox checkBox : approvalsInFooter.values()) {
+      checkBox.setEnabled(isCherryPickSubmitType);
+    }
+  }
+
   private void initAgreements() {
     agreementsPanel = new VerticalPanel();
     agreementsPanel.add(new SmallHeading(Util.C.headingAgreements()));
@@ -177,6 +211,23 @@ public class ProjectInfoScreen extends ProjectScreen {
     add(agreementsPanel);
   }
 
+  private void initcherryPickOptions() {
+    cherryPickPanel = new VerticalPanel();
+    cherryPickPanel.add(new SmallHeading(Util.C.cherryPickOptions()));
+
+    includeOnlyMaxApproval = new CheckBox(Util.C.includeOnlyMaxApprovals(), true);
+    saveEnabler.listenTo(includeOnlyMaxApproval);
+    cherryPickPanel.add(includeOnlyMaxApproval);
+
+    includeReviewedOn = new CheckBox(Util.C.includeReviewedOn(), true);
+    saveEnabler.listenTo(includeReviewedOn);
+    cherryPickPanel.add(includeReviewedOn);
+
+    approvalsInFooter = new HashMap<String, CheckBox>();
+
+    add(cherryPickPanel);
+  }
+
   private void setSubmitType(final Project.SubmitType newSubmitType) {
     int index = -1;
     if (submitType != null) {
@@ -188,6 +239,7 @@ public class ProjectInfoScreen extends ProjectScreen {
       }
       submitType.setSelectedIndex(index);
       setEnabledForUseContentMerge();
+      setEnabledForCherryPick();
     }
   }
 
@@ -209,6 +261,19 @@ public class ProjectInfoScreen extends ProjectScreen {
     allowTopicReview.setValue(project.isAllowTopicReview());
     setSubmitType(project.getSubmitType());
 
+    includeOnlyMaxApproval.setValue(project.isIncludeOnlyMaxApproval());
+    includeReviewedOn.setValue(!project.isHideReviewedOn());
+
+    Map<String, Boolean> hiddenFooters = project.getHiddenFooters();
+    for (Entry<String, CheckBox> entry : approvalsInFooter.entrySet()) {
+      final CheckBox checkBox = entry.getValue();
+      if (hiddenFooters.containsKey(entry.getKey())) {
+        checkBox.setValue(!hiddenFooters.get(entry.getKey()));
+      } else {
+        checkBox.setValue(true);
+      }
+    }
+
     saveProject.setEnabled(false);
   }
 
@@ -224,6 +289,11 @@ public class ProjectInfoScreen extends ProjectScreen {
     if (submitType.getSelectedIndex() >= 0) {
       project.setSubmitType(Project.SubmitType.valueOf(submitType
           .getValue(submitType.getSelectedIndex())));
+    }
+    project.setIncludeOnlyMaxApproval(includeOnlyMaxApproval.getValue());
+    project.setHideReviewedOn(!includeReviewedOn.getValue());
+    for (Entry<String, CheckBox> entry : approvalsInFooter.entrySet()) {
+      project.addHiddenFooter(entry.getKey(), !entry.getValue().getValue());
     }
 
     enableForm(false, false, false);

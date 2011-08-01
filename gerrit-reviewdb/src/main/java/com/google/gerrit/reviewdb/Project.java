@@ -17,6 +17,11 @@ package com.google.gerrit.reviewdb;
 import com.google.gwtorm.client.Column;
 import com.google.gwtorm.client.StringKey;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /** Projects match a source code repository managed by Gerrit */
 public final class Project {
   /** Project name key */
@@ -57,6 +62,27 @@ public final class Project {
     }
   }
 
+  public static class ApprovalFooterValue {
+    String category;
+    boolean hidden;
+
+    protected ApprovalFooterValue() {
+    }
+
+    protected ApprovalFooterValue(final String category, final boolean on) {
+      this.category = category;
+      this.hidden = on;
+    }
+
+    public String getCategory() {
+      return category;
+    }
+
+    public boolean getHidden() {
+      return hidden;
+    }
+  }
+
   public static enum SubmitType {
     FAST_FORWARD_ONLY,
 
@@ -85,12 +111,20 @@ public final class Project {
 
   protected boolean useContentMerge;
 
+  protected boolean hideReviewedOn;
+
+  protected boolean includeOnlyMaximumApprovals;
+
+  protected List<ApprovalFooterValue> hiddenFooters;
+
   protected Project() {
+    hiddenFooters = new ArrayList<Project.ApprovalFooterValue>();
   }
 
   public Project(Project.NameKey nameKey) {
     name = nameKey;
     submitType = SubmitType.MERGE_IF_NECESSARY;
+    hiddenFooters = new ArrayList<Project.ApprovalFooterValue>();
   }
 
   public Project.NameKey getNameKey() {
@@ -133,6 +167,22 @@ public final class Project {
     return allowTopicReview;
   }
 
+  public boolean isHideReviewedOn() {
+    return hideReviewedOn;
+  }
+
+  public boolean isIncludeOnlyMaxApproval() {
+    return includeOnlyMaximumApprovals;
+  }
+
+  public Map<String, Boolean> getHiddenFooters() {
+    HashMap<String, Boolean> footers = new HashMap<String, Boolean>();
+    for (ApprovalFooterValue value : hiddenFooters) {
+      footers.put(value.getCategory(), value.getHidden());
+    }
+    return footers;
+  }
+
   public void setUseSignedOffBy(final boolean sbo) {
     useSignedOffBy = sbo;
   }
@@ -149,12 +199,31 @@ public final class Project {
     allowTopicReview = atr;
   }
 
+  public void setHideReviewedOn(boolean includeReviewedOn) {
+    this.hideReviewedOn = includeReviewedOn;
+  }
+
+  public void setIncludeOnlyMaxApproval(boolean includeOnlyMaxApproval) {
+    this.includeOnlyMaximumApprovals = includeOnlyMaxApproval;
+  }
+
   public SubmitType getSubmitType() {
     return submitType;
   }
 
   public void setSubmitType(final SubmitType type) {
     submitType = type;
+  }
+
+  public void addHiddenFooter(final String category, final boolean on) {
+    for (ApprovalFooterValue value : hiddenFooters) {
+      if (value.category.equals(category)) {
+        value.hidden = on;
+        return;
+      }
+    }
+
+    hiddenFooters.add(new ApprovalFooterValue(category, on));
   }
 
   public void copySettingsFrom(final Project update) {
@@ -165,6 +234,9 @@ public final class Project {
     requireChangeID = update.requireChangeID;
     allowTopicReview = update.allowTopicReview;
     submitType = update.submitType;
+    includeOnlyMaximumApprovals = update.includeOnlyMaximumApprovals;
+    hideReviewedOn = update.hideReviewedOn;
+    hiddenFooters = update.hiddenFooters;
   }
 
   public Project.NameKey getParent() {

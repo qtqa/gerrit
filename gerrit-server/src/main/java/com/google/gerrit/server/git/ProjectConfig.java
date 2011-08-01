@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 public class ProjectConfig extends VersionedMetaData {
@@ -64,6 +65,11 @@ public class ProjectConfig extends VersionedMetaData {
   private static final String SUBMIT = "submit";
   private static final String KEY_ACTION = "action";
   private static final String KEY_MERGE_CONTENT = "mergeContent";
+
+  private static final String CHERRY_PICK = "cherryPick";
+  private static final String CATEGORY_FOOTERS = "categoryFooters";
+  private static final String INCLUDE_ONLY_MAX_APPROVALS = "includeOnlyMaximumApprovals";
+  private static final String HIDE_REVIEWED_ON = "includeReviewedOn";
 
   private static final SubmitType defaultSubmitAction =
       SubmitType.MERGE_IF_NECESSARY;
@@ -192,6 +198,9 @@ public class ProjectConfig extends VersionedMetaData {
 
     p.setSubmitType(rc.getEnum(SUBMIT, null, KEY_ACTION, defaultSubmitAction));
     p.setUseContentMerge(rc.getBoolean(SUBMIT, null, KEY_MERGE_CONTENT, false));
+    
+    p.setIncludeOnlyMaxApproval(rc.getBoolean(CHERRY_PICK, INCLUDE_ONLY_MAX_APPROVALS, false));
+    p.setHideReviewedOn(rc.getBoolean(CHERRY_PICK, HIDE_REVIEWED_ON, false));
 
     accessSections = new HashMap<String, AccessSection>();
     for (String refName : rc.getSubsections(ACCESS)) {
@@ -209,6 +218,11 @@ public class ProjectConfig extends VersionedMetaData {
         for (String varName : rc.getNames(ACCESS, refName)) {
           if (isPermission(varName)) {
             Permission perm = as.getPermission(varName, true);
+    for (String category : rc.getNames(CHERRY_PICK, CATEGORY_FOOTERS)) {
+      final boolean value = rc.getBoolean(CATEGORY_FOOTERS, category, true);
+      p.addHiddenFooter(category, value);
+    }
+
 
             boolean useRange = perm.isLabel();
             for (String ruleString : rc.getStringList(ACCESS, refName, varName)) {
@@ -290,6 +304,9 @@ public class ProjectConfig extends VersionedMetaData {
     set(rc, RECEIVE, null, KEY_REQUIRE_CHANGE_ID, p.isRequireChangeID() || p.isAllowTopicReview());
     set(rc, RECEIVE, null, KEY_ALLOW_TOPIC_REVIEW, p.isAllowTopicReview());
 
+    set(rc, CHERRY_PICK, null, INCLUDE_ONLY_MAX_APPROVALS, p.isIncludeOnlyMaxApproval());
+    set(rc, CHERRY_PICK, null, HIDE_REVIEWED_ON, p.isHideReviewedOn());
+
     set(rc, SUBMIT, null, KEY_ACTION, p.getSubmitType(), defaultSubmitAction);
     set(rc, SUBMIT, null, KEY_MERGE_CONTENT, p.isUseContentMerge());
 
@@ -341,6 +358,15 @@ public class ProjectConfig extends VersionedMetaData {
       }
     }
     groupsByUUID.keySet().retainAll(keepGroups);
+
+    final Map<String, Boolean> footers = p.getHiddenFooters();
+    for (Entry<String, Boolean> entry : footers.entrySet()) {
+      if (!entry.getValue()) {
+        rc.unset(CHERRY_PICK, CATEGORY_FOOTERS, entry.getKey());
+      } else {
+        rc.setBoolean(CHERRY_PICK, CATEGORY_FOOTERS, entry.getKey(), true);
+      }
+    }
 
     saveConfig(PROJECT_CONFIG, rc);
     saveGroupList();

@@ -47,6 +47,10 @@ public interface AdminConstants extends Constants {
   String emailOnlyAuthors();
   String descriptionNotifications();
   String buttonSaveGroupOptions();
+  String cherryPickOptions();
+  String includeReviewedOn();
+  String includeOnlyMaxApprovals();
+  String footerPrefix();
 
   String headingOwner();
   String headingParentProjectName();

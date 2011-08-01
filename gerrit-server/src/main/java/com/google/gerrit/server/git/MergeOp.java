@@ -57,6 +57,7 @@ import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 
 import org.eclipse.jgit.diff.Sequence;
+import org.eclipse.jgit.errors.ConfigInvalidException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -778,6 +779,8 @@ public class MergeOp {
 
       } catch (IOException e) {
         throw new MergeException("Cannot merge " + n.name(), e);
+      } catch (ConfigInvalidException e) {
+        throw new MergeException("Cannot merge " + n.name(), e);
       }
     }
   }
@@ -794,8 +797,12 @@ public class MergeOp {
   }
 
   private void writeCherryPickCommit(final Merger m, final CodeReviewCommit n)
-      throws IOException {
+      throws IOException, ConfigInvalidException {
     rw.parseBody(n);
+
+    final ProjectConfig cfg = new ProjectConfig(destProject.getNameKey());
+    cfg.load(db);
+    final Project project = cfg.getProject();
 
     final List<FooterLine> footers = n.getFooterLines();
     final StringBuilder msgbuf = new StringBuilder();
@@ -823,8 +830,9 @@ public class MergeOp {
       msgbuf.append('\n');
     }
 
+
     final String siteUrl = urlProvider.get();
-    if (siteUrl != null) {
+    if (!project.isHideReviewedOn() && siteUrl != null) {
       final String url = siteUrl + n.patchsetId.getParentKey().get();
       if (!contains(footers, REVIEWED_ON, url)) {
         msgbuf.append(REVIEWED_ON.getName());
@@ -843,6 +851,7 @@ public class MergeOp {
           return a.getGranted().compareTo(b.getGranted());
         }
       });
+      final Map<String, Boolean> hiddenFooters = project.getHiddenFooters();
 
       for (final PatchSetApproval a : approvalList) {
         if (a.getValue() <= 0) {
@@ -905,7 +914,15 @@ public class MergeOp {
           tag = at.getCategory().getName().replace(' ', '-');
         }
 
-        if (!contains(footers, new FooterKey(tag), identbuf.toString())) {
+        if (project.isIncludeOnlyMaxApproval()) {
+          final ApprovalType at = approvalTypes.byId(a.getCategoryId());
+          if (a.getValue() < at.getMax().getValue()) {
+            continue;
+          }
+        }
+
+        if (!hiddenFooters.containsKey(tag)
+            && !contains(footers, new FooterKey(tag), identbuf.toString())) {
           msgbuf.append(tag);
           msgbuf.append(": ");
           msgbuf.append(identbuf);
