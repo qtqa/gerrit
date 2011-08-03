@@ -25,7 +25,7 @@ public class TopicLink extends InlineHyperlink {
   private final Topic.Id topicId;
 
   public static String permalink(final Topic.Id t) {
-    return GWT.getHostPageBaseURL() + "/t/" + t.get() + "/";
+    return GWT.getHostPageBaseURL() + "/topic," + t.get() + "/";
   }
 
   public TopicLink(String topic, Topic.Id topicId) {

@@ -85,11 +85,11 @@ public class Dispatcher {
 
   public static String toPatch(final String type, final Patch.Key id) {
     return "patch," + type + "," + id.toString();
+  }
+
   public static String toPublish(ChangeSet.Id cs) {
     Topic.Id c = cs.getParentKey();
     return "/t/" + c + "/" + cs.get() + ",publish";
-  }
-
   }
 
   public static String toAccountGroup(final AccountGroup.Id id) {
@@ -131,7 +131,7 @@ public class Dispatcher {
 
     } else if (token.startsWith("change,publish,")) {
       publish(token);
-    } else if (matchPrefix("/t/", token)) {
+    } else if (token.startsWith("/t/")) {
       topic(token);
     } else if (MINE.equals(token) || token.startsWith("mine,")) {
 
@@ -271,8 +271,9 @@ public class Dispatcher {
     return new NotFoundScreen();
   }
 
-  private static void publish(String token) {
-    String rest = skip(token);
+  private static void topic(final String token) {
+    final String p = "/t/";
+    String rest = skip(p, token);
     int c = rest.lastIndexOf(',');
     String panel = null;
     if (0 <= c) {
@@ -316,6 +317,7 @@ public class Dispatcher {
     }
   }
 
+  private static void publish(String token) {
     new AsyncSplit(token) {
       public void onSuccess() {
         Gerrit.display(token, select());
@@ -326,6 +328,9 @@ public class Dispatcher {
         if (token.startsWith(p))
           return new PublishCommentScreen(PatchSet.Id.parse(skip(p, token)));
         return new NotFoundScreen();
+      }
+    }.onSuccess();
+  }
 
   private static void publish(final ChangeSet.Id cs) {
     String token = toPublish(cs);

@@ -18,7 +18,6 @@ import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.ChangeSetPublishDetail;
 import com.google.gerrit.common.data.PermissionRange;
-import com.google.gerrit.common.data.SubmitRecord;
 import com.google.gerrit.common.errors.NoSuchEntityException;
 import com.google.gerrit.httpd.rpc.Handler;
 import com.google.gerrit.reviewdb.ChangeSet;
@@ -28,6 +27,7 @@ import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.account.AccountInfoCacheFactory;
+import com.google.gerrit.server.project.CanSubmitResult;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchTopicException;
@@ -103,74 +103,22 @@ final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail
 
     if (topic.getStatus().isOpen()
         && changeSetId.equals(topic.currentChangeSetId())) {
-      Map<String, PermissionRange> rangeByName =
-        new HashMap<String, PermissionRange>();
-      for (PermissionRange r : control.getLabelRanges()) {
-        if (r.isLabel()) {
-          rangeByName.put(r.getLabel(), r);
-        }
-      }
-      allowed = new ArrayList<PermissionRange>();
+      allowed = new ArrayList<PermissionRange>(control.getLabelRanges());
+      Collections.sort(allowed);
 
       given = db.changeSetApprovals() //
           .byChangeSetUser(changeSetId, user.getAccountId()) //
           .toList();
-
-      boolean couldSubmit = false;
-      List<SubmitRecord> submitRecords = control.canSubmit(db, changeSetId,
-          changeControlFactory, approvalTypes, topicFunctionState);
-      for (SubmitRecord rec : submitRecords) {
-        if (rec.status == SubmitRecord.Status.OK) {
-          couldSubmit = true;
-        }
-
-        if (rec.labels != null) {
-          int ok = 0;
-
-          for (SubmitRecord.Label lbl : rec.labels) {
-            boolean canMakeOk = false;
-            PermissionRange range = rangeByName.get(lbl.label);
-            if (range != null) {
-              if (!allowed.contains(range)) {
-                allowed.add(range);
-              }
-
-              ApprovalType at = approvalTypes.byLabel(lbl.label);
-              if (at != null && at.getMax().getValue() == range.getMax()) {
-                canMakeOk = true;
-              } else if (at == null) {
-                canMakeOk = true;
-              }
-            }
-
-            switch (lbl.status) {
-              case OK:
-                ok++;
-                break;
-
-              case NEED:
-                if (canMakeOk) {
-                  ok++;
-                }
-                break;
-            }
-          }
-
-          if (rec.status == SubmitRecord.Status.NOT_READY
-              && ok == rec.labels.size()) {
-            couldSubmit = true;
-          }
-        }
-      }
-
-      if (couldSubmit && control.getRefControl().canSubmit()) {
-        detail.setCanSubmit(true);
-      }
     }
 
     detail.setLabels(allowed);
     detail.setGiven(given);
     detail.setAccounts(aic.create());
+
+    final CanSubmitResult canSubmitResult = control.canSubmit(changeSetId);
+    if (canSubmitResult == CanSubmitResult.OK) {
+        detail.setCanSubmit(true);
+      }
 
     return detail;
   }

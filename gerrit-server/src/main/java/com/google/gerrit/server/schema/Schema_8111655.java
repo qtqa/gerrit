@@ -17,9 +17,9 @@ package com.google.gerrit.server.schema;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 
-public class Schema_99 extends SchemaVersion {
+public class Schema_8111655 extends SchemaVersion {
   @Inject
-  Schema_99(Provider<Schema_58> prior) {
+  Schema_8111655(Provider<Schema_55> prior) {
     super(prior);
   }
 }

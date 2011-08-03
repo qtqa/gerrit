@@ -309,8 +309,7 @@ public class ChangeScreen extends Screen {
         .getCurrentPatchSetDetail().getInfo(), detail.getAccounts());
     dependsOn.display(detail.getDependsOn());
     neededBy.display(detail.getNeededBy());
-    approvals.display(detail.getChange(), detail.getMissingApprovals(), detail
-        .getApprovals());
+    approvals.display(detail);
 
     for (PatchSet pId : detail.getPatchSets()) {
       if (patchesList != null) {

@@ -216,7 +216,7 @@ public class ChangeUtil {
 
   public static void abandon(final PatchSet.Id patchSetId,
       final IdentifiedUser user, final String message, final ReviewDb db,
-      final AbandonedSender.Factory abandonedSenderFactory,
+      final AbandonedSender.Factory senderFactory,
       final ChangeHookRunner hooks) throws NoSuchChangeException,
       InvalidChangeOperationException, EmailException, OrmException {
     abandon(patchSetId, user, message, db, senderFactory, hooks, true);
@@ -274,7 +274,7 @@ public class ChangeUtil {
     db.patchSetApprovals().update(approvals);
 
     // Email the reviewers
-    final AbandonedSender cm = abandonedSenderFactory.create(updatedChange);
+    final AbandonedSender cm = senderFactory.create(updatedChange);
     cm.setFrom(user.getAccountId());
     cm.setChangeMessage(cmsg);
     cm.send();
@@ -412,7 +412,7 @@ public class ChangeUtil {
 
   public static void restore(final PatchSet.Id patchSetId,
       final IdentifiedUser user, final String message, final ReviewDb db,
-      final AbandonedSender.Factory abandonedSenderFactory,
+      final AbandonedSender.Factory senderFactory,
       final ChangeHookRunner hooks) throws NoSuchChangeException,
       InvalidChangeOperationException, EmailException, OrmException {
     restore(patchSetId, user, message, db, senderFactory, hooks, true);
@@ -420,7 +420,7 @@ public class ChangeUtil {
 
   public static void restore(final PatchSet.Id patchSetId,
       final IdentifiedUser user, final String message, final ReviewDb db,
-      final RestoredSender.Factory senderFactory,
+      final AbandonedSender.Factory senderFactory,
       final ChangeHookRunner hooks, final boolean sendMail) throws NoSuchChangeException,
       InvalidChangeOperationException, EmailException, OrmException {
     final Change.Id changeId = patchSetId.getParentKey();
@@ -460,7 +460,6 @@ public class ChangeUtil {
           "Change is not abandoned or patchset is not latest");
     }
 
-      final boolean sendMail, final String err)
     db.changeMessages().insert(Collections.singleton(cmsg));
 
     final List<PatchSetApproval> approvals =
@@ -471,12 +470,13 @@ public class ChangeUtil {
     db.patchSetApprovals().update(approvals);
 
     // Email the reviewers
-    final AbandonedSender cm = abandonedSenderFactory.create(updatedChange);
+    final AbandonedSender cm = senderFactory.create(updatedChange);
       cm.setFrom(user.getAccountId());
       cm.setChangeMessage(cmsg);
       cm.send();
 
     hooks.doChangeRestoreHook(updatedChange, user.getAccount(), message);
+  }
 
   public static Set<Account.Id> addReviewers(final Set<Account.Id> reviewerIds, final ReviewDb db,
       final PatchSet.Id psid, final ApprovalCategory.Id addReviewerCategoryId,

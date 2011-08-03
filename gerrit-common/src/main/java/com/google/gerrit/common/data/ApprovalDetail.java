@@ -20,7 +20,6 @@ import com.google.gerrit.reviewdb.SetApproval;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -68,34 +67,12 @@ public abstract class ApprovalDetail<T extends SetApproval<?>> {
       }
     }
     return null;
+  }
 
 
   public abstract Map<ApprovalCategory.Id, T> getApprovalMap();
 
   public abstract void sortFirst();
-  }
-
-  public void approved(String label) {
-    if (approved == null) {
-      approved = new HashSet<String>();
-    }
-    approved.add(label);
-  }
-
-  public void rejected(String label) {
-    if (rejected == null) {
-      rejected = new HashSet<String>();
-    }
-    rejected.add(label);
-  }
-
-  public boolean isApproved(String label) {
-    return approved != null && approved.contains(label);
-  }
-
-  public boolean isRejected(String label) {
-    return rejected != null && rejected.contains(label);
-  }
 
   public abstract void add(final T ca);
 }

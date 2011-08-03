@@ -31,7 +31,6 @@ public abstract class CommonDetail {
   protected List<ChangeInfo> neededBy;
   protected Set<ApprovalCategory.Id> missingApprovals;
   protected boolean canSubmit;
-  protected List<SubmitRecord> submitRecords;
 
   public AccountInfoCache getAccounts() {
     return accounts;
@@ -111,14 +110,5 @@ public abstract class CommonDetail {
 
   public void setMissingApprovals(Set<ApprovalCategory.Id> a) {
     missingApprovals = a;
-  }
-
-
-  public void setSubmitRecords(List<SubmitRecord> all) {
-    submitRecords = all;
-  }
-
-  public List<SubmitRecord> getSubmitRecords() {
-    return submitRecords;
   }
 }

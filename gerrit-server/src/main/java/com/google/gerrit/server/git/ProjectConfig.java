@@ -188,7 +188,7 @@ public class ProjectConfig extends VersionedMetaData {
     p.setUseContributorAgreements(rc.getBoolean(RECEIVE, KEY_REQUIRE_CONTRIBUTOR_AGREEMENT, false));
     p.setUseSignedOffBy(rc.getBoolean(RECEIVE, KEY_REQUIRE_SIGNED_OFF_BY, false));
     p.setRequireChangeID(rc.getBoolean(RECEIVE, KEY_REQUIRE_CHANGE_ID, false));
-    p.setAllowTopicReview(getBoolean(rc, RECEIVE, KEY_ALLOW_TOPIC_REVIEW, false));
+    p.setAllowTopicReview(rc.getBoolean(RECEIVE, KEY_ALLOW_TOPIC_REVIEW, false));
 
     p.setSubmitType(rc.getEnum(SUBMIT, null, KEY_ACTION, defaultSubmitAction));
     p.setUseContentMerge(rc.getBoolean(SUBMIT, null, KEY_MERGE_CONTENT, false));

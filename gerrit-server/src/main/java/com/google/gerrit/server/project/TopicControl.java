@@ -17,16 +17,18 @@ package com.google.gerrit.server.project;
 import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.PermissionRange;
-import com.google.gerrit.common.data.SubmitRecord;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.ChangeSetApproval;
 import com.google.gerrit.reviewdb.ChangeSetElement;
+import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.IdentifiedUser;
+import com.google.gerrit.server.workflow.CategoryFunction;
+import com.google.gerrit.server.workflow.FunctionState;
 import com.google.gerrit.server.workflow.TopicCategoryFunction;
 import com.google.gerrit.server.workflow.TopicFunctionState;
 import com.google.gwtorm.client.OrmException;
@@ -154,7 +156,7 @@ public class TopicControl {
     return isOwner() // owner (aka creator) of the change can abandon
         || getRefControl().isOwner() // branch owner can abandon
         || getProjectControl().isOwner() // project owner can abandon
-        || getCurrentUser().getCapabilities().canAdministrateServer() // site administers are god
+        || getCurrentUser().isAdministrator() // site administers are god
     ;
   }
 
@@ -209,7 +211,7 @@ public class TopicControl {
       //
       if (getRefControl().isOwner() // branch owner
           || getProjectControl().isOwner() // project owner
-          || getCurrentUser().getCapabilities().canAdministrateServer()) {
+          || getCurrentUser().isAdministrator()) {
         return true;
       }
     }
@@ -217,99 +219,47 @@ public class TopicControl {
     return false;
   }
 
-  public List<SubmitRecord> canSubmit(ReviewDb db, ChangeSet.Id changeSetId,
+  public CanSubmitResult canSubmit(ReviewDb db, ChangeSet.Id changeSetId,
       final ChangeControl.Factory changeControlFactory,
       final ApprovalTypes approvalTypes, final TopicFunctionState.Factory functionStateFactory)
       throws NoSuchChangeException, OrmException {
-    if (topic.getStatus().isClosed()) {
-      SubmitRecord rec = new SubmitRecord();
-      rec.status = SubmitRecord.Status.CLOSED;
-      return Collections.singletonList(rec);
+    CanSubmitResult result = canSubmit(changeSetId);
+    if (result != CanSubmitResult.OK) {
+      return result;
     }
 
-    if (!changeSetId.equals(topic.currentChangeSetId())) {
-      SubmitRecord rec = new SubmitRecord();
-      rec.status = SubmitRecord.Status.RULE_ERROR;
-      rec.errorMessage = "Patch set " + changeSetId + " is not current";
-      return Collections.singletonList(rec);
-    }
-
-    boolean doSubmit = true;
-    final List<ChangeSetElement> topicChangeSet = db.changeSetElements().byChangeSet(changeSetId).toList();
-    List<Change> changesInTopic = new ArrayList<Change>();
-    for (ChangeSetElement cse : topicChangeSet) {
-      changesInTopic.add(db.changes().get(cse.getChangeId()));
-    }
-
-    for (Change change : changesInTopic) {
-      ChangeControl cc = changeControlFactory.controlFor(change);
-      List<SubmitRecord> result = cc.canSubmit(db, change.currentPatchSetId(), true);
-      if (result.isEmpty()) {
-        throw new IllegalStateException("Cannot submit");
-      }
-      SubmitRecord rec = new SubmitRecord();
-      if (result.get(0).status.equals(SubmitRecord.Status.NOT_READY)) {
-        for (SubmitRecord.Label lbl : result.get(0).labels) {
-          switch (lbl.status) {
-            case OK:
-            case NEED:
-              break;
-            default:
-              rec.status = result.get(0).status;
-              doSubmit = false;
-          }
-        }
-      } else if (!result.get(0).status.equals(SubmitRecord.Status.OK)) {
-        rec.status = result.get(0).status;
-        doSubmit = false;
-      }
-    }
-
-    // TODO This checks must be done using the new Prolog implementation
-    // Now we need to properly check if the topic can be submitted
-    //
     final List<ChangeSetApproval> all =
       db.changeSetApprovals().byChangeSet(changeSetId).toList();
 
     final TopicFunctionState fs =
-      functionStateFactory.create(topic, changeSetId, all);
+        functionStateFactory.create(topic, changeSetId, all);
 
-    List<SubmitRecord.Label> labels = new ArrayList<SubmitRecord.Label>();
-    SubmitRecord rec = new SubmitRecord();
-    rec.status = SubmitRecord.Status.NOT_READY;
+    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
+      TopicCategoryFunction.forCategory(c.getCategory()).run(c, fs);
+    }
+
     for (ApprovalType type : approvalTypes.getApprovalTypes()) {
-      TopicCategoryFunction.forCategory(type.getCategory()).run(type, fs);
-      SubmitRecord.Label label = new SubmitRecord.Label();
-      label.label = type.getCategory().getLabelName();
-      label.status = SubmitRecord.Label.Status.NEED;
-      labels.add(label);
-      for (final ChangeSetApproval csa : fs.getApprovals(type)) {
-        if (!fs.isValid(type)) {
-          rec.status = SubmitRecord.Status.NOT_READY;
-          if (type.isMaxNegative(csa)) {
-            label.status = SubmitRecord.Label.Status.REJECT;
-            label.appliedBy = csa.getAccountId();
-          }
-        } else {
-          if (type.isMaxPositive(csa)) {
-            label.status = SubmitRecord.Label.Status.OK;
-            label.appliedBy = csa.getAccountId();
-          }
-        }
+      if (!fs.isValid(type)) {
+        return new CanSubmitResult("Requires " + type.getCategory().getName());
       }
     }
 
-    rec.labels = labels;
+    return CanSubmitResult.OK;
+  }
 
-    if (doSubmit) {
-      rec.status = SubmitRecord.Status.OK;
-      for (SubmitRecord.Label lbl : labels) {
-        if (!lbl.status.equals(SubmitRecord.Label.Status.OK)) {
-          rec.status = SubmitRecord.Status.NOT_READY;
-          break;
-        }
-      }
-    } else rec.status = SubmitRecord.Status.NOT_READY;
-    return Collections.singletonList(rec);
+  public CanSubmitResult canSubmit(ChangeSet.Id changeSetId) {
+    if (topic.getStatus().isClosed()) {
+      return new CanSubmitResult("topic " + topic.getId() + " is closed");
+    }
+    if (!changeSetId.equals(topic.currentChangeSetId())) {
+      return new CanSubmitResult("Change set " + changeSetId + " is not current");
+    }
+    if (!getRefControl().canSubmit()) {
+      return new CanSubmitResult("User does not have permission to submit");
+    }
+    if (!(getCurrentUser() instanceof IdentifiedUser)) {
+      return new CanSubmitResult("User is not signed-in");
+    }
+    return CanSubmitResult.OK;
   }
 }

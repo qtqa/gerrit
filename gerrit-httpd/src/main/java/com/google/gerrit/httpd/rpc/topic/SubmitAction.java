@@ -15,7 +15,6 @@
 package com.google.gerrit.httpd.rpc.topic;
 
 import com.google.gerrit.common.data.ApprovalTypes;
-import com.google.gerrit.common.data.SubmitRecord;
 import com.google.gerrit.common.data.TopicDetail;
 import com.google.gerrit.common.errors.NoSuchEntityException;
 import com.google.gerrit.httpd.rpc.Handler;
@@ -26,6 +25,7 @@ import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.TopicUtil;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
+import com.google.gerrit.server.project.CanSubmitResult;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchTopicException;
@@ -87,51 +87,13 @@ class SubmitAction extends Handler<TopicDetail> {
     final TopicControl topicControl =
         topicControlFactory.validateFor(topicId);
 
-    List<SubmitRecord> result = topicControl.canSubmit(db, changeSetId, changeControlFactory,
+    CanSubmitResult result = topicControl.canSubmit(db, changeSetId, changeControlFactory,
         approvalTypes, topicFunctionState);
-    if (result.isEmpty()) {
-      throw new IllegalStateException("Cannot submit");
-    }
-
-    switch (result.get(0).status) {
-      case OK:
+    if (result == CanSubmitResult.OK) {
         TopicUtil.submit(changeSetId, user, db, opFactory, merger);
         return topicDetailFactory.create(topicId).call();
-
-      case NOT_READY: {
-        for (SubmitRecord.Label lbl : result.get(0).labels) {
-          switch (lbl.status) {
-            case OK:
-              break;
-
-            case REJECT:
-              throw new IllegalStateException("Blocked by " + lbl.label);
-
-            case NEED:
-              throw new IllegalStateException("Needs " + lbl.label);
-
-            case IMPOSSIBLE:
-              throw new IllegalStateException("Cannnot submit, check project access");
-
-            default:
-              throw new IllegalArgumentException("Unknown status " + lbl.status);
-          }
-        }
-        throw new IllegalStateException("Cannot submit");
-      }
-
-      case CLOSED:
-        throw new IllegalStateException("Topic is closed");
-
-      case RULE_ERROR:
-        if (result.get(0).errorMessage != null) {
-          throw new IllegalStateException(result.get(0).errorMessage);
-        } else {
-          throw  new IllegalStateException("Internal rule error");
-        }
-
-      default:
-        throw new IllegalStateException("Uknown status " + result.get(0).status);
+    } else {
+      throw new IllegalStateException(result.getMessage());
     }
   }
 }

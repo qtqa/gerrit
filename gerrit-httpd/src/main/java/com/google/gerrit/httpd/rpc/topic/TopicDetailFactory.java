@@ -18,7 +18,6 @@ import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.ChangeInfo;
 import com.google.gerrit.common.data.ChangeSetApprovalDetail;
-import com.google.gerrit.common.data.SubmitRecord;
 import com.google.gerrit.common.data.TopicDetail;
 import com.google.gerrit.common.errors.NoSuchEntityException;
 import com.google.gerrit.httpd.rpc.Handler;
@@ -38,6 +37,7 @@ import com.google.gerrit.reviewdb.TopicMessage;
 import com.google.gerrit.server.AnonymousUser;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.account.AccountInfoCacheFactory;
+import com.google.gerrit.server.project.CanSubmitResult;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchTopicException;
@@ -107,6 +107,7 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
     if (changeSet == null) {
       throw new NoSuchEntityException();
     }
+    final CanSubmitResult canSubmitResult = control.canSubmit(changeSet.getId());
 
     aic.want(topic.getOwner());
 
@@ -120,22 +121,7 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
         topicId));
 
     detail.setCanRevert(topic.getStatus() == AbstractEntity.Status.MERGED && control.canAddChangeSet());
-
-    if (detail.getTopic().getStatus().isOpen()) {
-      List<SubmitRecord> submitRecords = control.canSubmit(db, changeSet.getId(),
-          changeControlFactory, approvalTypes, functionState);
-      for (SubmitRecord rec : submitRecords) {
-        if (rec.labels != null) {
-          for (SubmitRecord.Label lbl : rec.labels) {
-            aic.want(lbl.appliedBy);
-          }
-        }
-        if (rec.status == SubmitRecord.Status.OK && control.getRefControl().canSubmit()) {
-          detail.setCanSubmit(true);
-        }
-      }
-      detail.setSubmitRecords(submitRecords);
-    }
+    detail.setCanSubmit(canSubmitResult == CanSubmitResult.OK);
 
     loadChangeSets();
     loadMessages();

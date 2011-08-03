@@ -920,7 +920,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       return;
     }
 
-    requestReplace(cmd, changeEnt, newCommit);
+    requestReplace(cmd, changeEnt, newCommit, null, 0);
   }
 
   private boolean requestReplace(final ReceiveCommand cmd, final Change change,
@@ -940,7 +940,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     ChangeSet.Id csId = topic != null ? topic.currentChangeSetId() : null;
 
     final ReplaceRequest req =
-        new ReplaceRequest(change.getId(), newCommit, cmd);
+        new ReplaceRequest(change.getId(), newCommit, cmd,
             topicId, csId, pos);
     if (replaceByChange.containsKey(req.ontoChange)) {
       reject(cmd, "duplicate request");
@@ -1229,7 +1229,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     //
     for (Change c : toReplace.keySet()) {
       final int position = cOrder.indexOf(toReplace.get(c)) + toUpdate.size();
-      if (requestReplace(newChange, false, c, toReplace.get(c), t, position)) {
+      if (requestReplace(newChange, c, toReplace.get(c), t, position)) {
         continue;
       } else {
         if (t != null) restoreOnTopicError(t);
@@ -1942,7 +1942,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     final int position;
 
     ReplaceRequest(final Change.Id toChange, final RevCommit newCommit,
-        final ReceiveCommand cmd) {
+        final ReceiveCommand cmd,
         final Topic.Id topicId, final ChangeSet.Id csId,
         final int position) {
       this.ontoChange = toChange;
@@ -2216,7 +2216,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
         for (final String changeId : c.getFooterLines(CHANGE_ID)) {
           final Change.Id onto = byKey.get(new Change.Key(changeId.trim()));
           if (onto != null) {
-            toClose.add(new ReplaceRequest(onto, c, cmd));
+            toClose.add(new ReplaceRequest(onto, c, cmd, null, null, 0));
             break;
           }
         }

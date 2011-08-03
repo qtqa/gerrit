@@ -34,6 +34,7 @@ import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.ApprovalCategoryValue;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.SetApproval;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -134,46 +135,33 @@ public class ApprovalTable extends Composite {
     return AccountDashboardLink.link(accountCache, id);
   }
 
-  public void display(final Change change, final Set<ApprovalCategory.Id> need,
-      final List<ApprovalDetail> rows) {
-    changeId = change.getId();
+  void display(ChangeDetail detail) {
+    List<PatchSetApprovalDetail> rows = detail.getApprovals();
+    topicId = null;
+    changeId = detail.getChange().getId();
+    display(detail.getChange().getStatus().isOpen(), rows);
+  }
+
+  void display(TopicDetail detail) {
+    List<ChangeSetApprovalDetail> rows = detail.getApprovals();
+    topicId = detail.getTopic().getId();
+    changeId = null;
+    display(detail.getTopic().getStatus().isOpen(), rows);
+  }
+
+  private <T extends SetApproval<?>, U extends ApprovalDetail<T>>
+  void display(final boolean open, final List<U> rows) {
+
     if (rows.isEmpty()) {
       table.setVisible(false);
     } else {
       table.resizeRows(1 + rows.size());
       for (int i = 0; i < rows.size(); i++) {
-        displayRow(i + 1, rows.get(i), change);
+        displayRow(i + 1, rows.get(i));
       }
       table.setVisible(true);
     }
-    display(detail.getTopic().getStatus().isOpen(), rows, detail.getSubmitRecords());
-  }
 
-  private <T extends SetApproval<?>, U extends ApprovalDetail<T>> void display(
-      final boolean status, final List<U> rows,
-      final List<SubmitRecord> records) {
-    List<String> columns = new ArrayList<String>();
-
-    final Element missingList = missing.getElement();
-    while (DOM.getChildCount(missingList) > 0) {
-      DOM.removeChild(missingList, DOM.getChild(missingList, 0));
-    }
-
-    missing.setVisible(false);
-    if (need != null) {
-      for (final ApprovalType at : types) {
-        if (need.contains(at.getCategory().getId())) {
-          final Element li = DOM.createElement("li");
-          li.setClassName(Gerrit.RESOURCES.css().missingApproval());
-          DOM.setInnerText(li, Util.M.needApproval(at.getCategory().getName(),
-              at.getMax().formatValue(), at.getMax().getName()));
-          DOM.appendChild(missingList, li);
-          missing.setVisible(true);
-        }
-      }
-    }
-
-    addReviewer.setVisible(Gerrit.isSignedIn() && change.getStatus().isOpen());
   }
 
   private void doAddReviewer() {
@@ -222,7 +210,6 @@ public class ApprovalTable extends Composite {
         final ChangeDetail r = result.getChange();
         if (r != null) {
           setAccountInfoCache(r.getAccounts());
-              display(r.getChange(), r.getMissingApprovals(), r.getApprovals());
         }
       }
 
@@ -279,9 +266,10 @@ public class ApprovalTable extends Composite {
   }
 
   private <T extends SetApproval<?>, U extends ApprovalDetail<T>> void displayRow(
-      final Change change) {
+      final int row, final U ad) {
     final CellFormatter fmt = table.getCellFormatter();
-    final Map<ApprovalCategory.Id, PatchSetApproval> am = ad.getApprovalMap();
+    final Account.Id aId = ad.getAccount();
+    final Map<ApprovalCategory.Id, T> am = ad.getApprovalMap();
     final StringBuilder hint = new StringBuilder();
     int col = 0;
 
@@ -309,7 +297,7 @@ public class ApprovalTable extends Composite {
     for (final ApprovalType type : types) {
       fmt.setStyleName(row, col, Gerrit.RESOURCES.css().approvalscore());
 
-      final PatchSetApproval ca = am.get(type.getCategory().getId());
+      final T ca = am.get(type.getCategory().getId());
       if (ca == null || ca.getValue() == 0) {
         table.clearCell(row, col);
         col++;
@@ -359,7 +347,7 @@ public class ApprovalTable extends Composite {
       public void onSuccess(ReviewerResult result) {
         if (result.getErrors().isEmpty()) {
           final ChangeDetail r = result.getChange();
-              display(r.getChange(), r.getMissingApprovals(), r.getApprovals());
+              display(r);
         } else {
               new ErrorDialog(result.getErrors().get(0).toString()).center();
         }

@@ -130,6 +130,4 @@ class AddReviewer extends Handler<ReviewerResult> {
     result.setChange(changeDetailFactory.create(changeId).call());
     return result;
   }
-
-  }
 }
