@@ -14,8 +14,6 @@
 
 package com.google.gerrit.server.project;
 
-import static com.google.gerrit.reviewdb.ApprovalCategory.STAGING;
-
 import com.google.gerrit.common.CollectionsUtil;
 import com.google.gerrit.common.data.AccessSection;
 import com.google.gerrit.common.data.ParamertizedString;
@@ -158,6 +156,10 @@ public class RefControl {
       return getProjectControl().isOwner();
     }
     return canPerform(Permission.SUBMIT);
+  }
+
+  public boolean canStage() {
+    return canPerform(Permission.STAGE);
   }
 
   /** @return true if the user can update the reference as a fast-forward. */

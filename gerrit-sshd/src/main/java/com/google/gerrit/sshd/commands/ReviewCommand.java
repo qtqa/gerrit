@@ -329,7 +329,7 @@ public class ReviewCommand extends BaseCommand {
         throw error(result.getMessage());
       }
     } else if (staging) {
-      CanSubmitResult result = changeControl.canMergeToStaging(patchSetId,
+      CanSubmitResult result = changeControl.canStage(patchSetId,
           db, approvalTypes, functionStateFactory);
       if (result == CanSubmitResult.OK) {
         toStaging.add(patchSetId);

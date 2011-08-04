@@ -25,16 +25,19 @@ class TopicManageServiceImpl implements TopicManageService {
   private final AbandonTopic.Factory abandonTopicFactory;
   private final RestoreTopic.Factory restoreTopicFactory;
   private final RevertTopic.Factory revertTopicFactory;
+  private final StagingAction.Factory stagingActionFactory;
 
   @Inject
   TopicManageServiceImpl(final SubmitAction.Factory changeSetAction,
       final AbandonTopic.Factory abandonTopicFactory,
       final RestoreTopic.Factory restoreTopicFactory,
-      final RevertTopic.Factory revertTopicFactory) {
+      final RevertTopic.Factory revertTopicFactory,
+      final StagingAction.Factory stagingActionFactory) {
     this.submitAction = changeSetAction;
     this.abandonTopicFactory = abandonTopicFactory;
     this.restoreTopicFactory = restoreTopicFactory;
     this.revertTopicFactory = revertTopicFactory;
+    this.stagingActionFactory = stagingActionFactory;
   }
 
   public void submit(final ChangeSet.Id csid,
@@ -55,5 +58,10 @@ class TopicManageServiceImpl implements TopicManageService {
   public void restoreTopic(final ChangeSet.Id csid, final String message,
       final AsyncCallback<TopicDetail> cb) {
     restoreTopicFactory.create(csid, message).to(cb);
+  }
+
+  public void stage(ChangeSet.Id changeSetId,
+      AsyncCallback<TopicDetail> callback) {
+    stagingActionFactory.create(changeSetId).to(callback);
   }
 }

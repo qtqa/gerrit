@@ -111,7 +111,7 @@ class UnstageChange extends Handler<ChangeDetail> {
 
     // Check if the change can be merged to staging branch.
     CanSubmitResult err =
-      changeControl.canMergeToStaging(patchSetId, db, approvalTypes,
+      changeControl.canStage(patchSetId, db, approvalTypes,
           functionState);
 
     Repository git = null;

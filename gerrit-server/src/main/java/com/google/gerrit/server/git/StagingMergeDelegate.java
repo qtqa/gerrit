@@ -14,6 +14,7 @@
 
 package com.google.gerrit.server.git;
 
+import com.google.gerrit.reviewdb.AbstractEntity;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
@@ -128,7 +129,7 @@ public class StagingMergeDelegate implements MergeDelegate {
   }
 
   @Override
-  public Change.Status getStatus() {
+  public AbstractEntity.Status getStatus() {
     return Change.Status.STAGED;
   }
 

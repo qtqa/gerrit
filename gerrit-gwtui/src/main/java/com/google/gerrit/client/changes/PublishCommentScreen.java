@@ -326,7 +326,7 @@ public class PublishCommentScreen extends AccountScreen implements
     }
 
     submit.setVisible(r.canSubmit());
-    staging.setVisible(r.isStagingBranchAllowed());
+    staging.setVisible(r.canStage());
   }
 
   private void onSend(final Action action) {

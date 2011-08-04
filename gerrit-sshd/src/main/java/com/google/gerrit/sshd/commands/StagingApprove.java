@@ -14,17 +14,21 @@
 package com.google.gerrit.sshd.commands;
 
 import static com.google.gerrit.sshd.commands.StagingCommand.R_BUILDS;
+import static com.google.gerrit.sshd.commands.StagingCommand.R_HEADS;
 
 import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.reviewdb.ApprovalCategoryValue;
 import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
+import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
+import com.google.gerrit.server.TopicUtil;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
@@ -34,7 +38,10 @@ import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchRefException;
+import com.google.gerrit.server.project.NoSuchTopicException;
 import com.google.gerrit.server.workflow.FunctionState;
+import com.google.gerrit.server.project.TopicControl;
+import com.google.gerrit.server.workflow.TopicFunctionState;
 import com.google.gerrit.sshd.BaseCommand;
 import com.google.gerrit.sshd.commands.StagingCommand.BranchNotFoundException;
 import com.google.gwtorm.client.AtomicUpdate;
@@ -101,6 +108,9 @@ public class StagingApprove extends BaseCommand {
   private ChangeControl.Factory changeControlFactory;
 
   @Inject
+  private TopicControl.Factory topicControlFactory;
+
+  @Inject
   private ApprovalTypes approvalTypes;
 
   @Inject
@@ -118,6 +128,9 @@ public class StagingApprove extends BaseCommand {
   @Inject
   private MergeOp.Factory opFactory;
 
+  @Inject
+  private TopicFunctionState.Factory topicFunctionStateFactory;
+
   @Option(name = "--project", aliases = {"-p"},
       required = true, usage = "project name")
   private String project;
@@ -133,6 +146,10 @@ public class StagingApprove extends BaseCommand {
   @Option(name = "--message", aliases = {"-m"}, metaVar ="-|MESSAGE",
       usage = "message added to all changes")
   private String message;
+
+  @Option(name = "--branch", aliases = {"-b"}, metaVar = "BRANCH",
+      required = true, usage = "destination branch")
+  private String branch;
 
   private Repository git;
 
@@ -170,11 +187,13 @@ public class StagingApprove extends BaseCommand {
     Branch.NameKey buildBranchNameKey =
       StagingCommand.getNameKey(project, R_BUILDS, buildBranch);
 
+    destination = StagingCommand.getNameKey(project, R_HEADS, branch);
+
     try {
       openRepository(project);
 
       // Initialize and populate open changes list.
-      toApprove = StagingCommand.openChanges(git, db, buildBranchNameKey.get());
+      toApprove = StagingCommand.openChanges(git, db, buildBranchNameKey);
 
       // Notify user that build did not have any open changes. The build has
       // already been approved.
@@ -235,6 +254,10 @@ public class StagingApprove extends BaseCommand {
       throw new UnloggedFailure(1, "fatal: " + e.getMessage(), e);
     } catch (InvalidChangeOperationException e) {
       throw new UnloggedFailure(1, "fatal: Failed to publish comments", e);
+    } catch (IllegalStateException e) {
+      throw new UnloggedFailure(1, "fatal: Changes are missing required approvals: " + e.getMessage(), e);
+    } catch (NoSuchTopicException e) {
+      throw new UnloggedFailure(1, "fatal: Invalid topic: " + e.getMessage(), e);
     } finally {
       stdout.flush();
       if (git != null) {
@@ -245,16 +268,7 @@ public class StagingApprove extends BaseCommand {
 
   private void validateChanges() throws OrmException, UnloggedFailure {
     for (PatchSet patchSet : toApprove) {
-      Change change = db.changes().get(patchSet.getId().getParentKey());
-
-      // All changes must originate from the same destination branch.
-      if (destination == null) {
-        destination = change.getDest();
-      } else if (!destination.get().equals(change.getDest().get())) {
-        throw new UnloggedFailure(1,
-            "All changes in build must belong to same destination branch."
-            + " (" + destination + " != " + change.getDest() + ")");
-      }
+      final Change change = db.changes().get(patchSet.getId().getParentKey());
 
       // All changes must be in state INTEGRATING.
       if (change.getStatus() != Change.Status.INTEGRATING) {
@@ -270,17 +284,37 @@ public class StagingApprove extends BaseCommand {
   }
 
   private void validateSubmitRights() throws UnloggedFailure,
-      NoSuchChangeException, OrmException {
+      NoSuchChangeException, OrmException, NoSuchTopicException {
     for (PatchSet patchSet : toApprove) {
       final Change.Id changeId = patchSet.getId().getParentKey();
-      final ChangeControl changeControl =
-        changeControlFactory.validateFor(changeId);
+      final Change change = db.changes().get(changeId);
 
-      CanSubmitResult result =
-        changeControl.canSubmit(patchSet.getId(), db, approvalTypes, functionStateFactory);
-
-      if (result != CanSubmitResult.OK) {
-        throw new UnloggedFailure(1, result.getMessage());
+      final Topic.Id topicId = change.getTopicId();
+      // Check only topic status for changes in topic.
+      if (topicId != null) {
+        // Change is part of a topic. Validate the topic with
+        // TopicChangeControl.
+        final TopicControl topicControl =
+          topicControlFactory.validateFor(topicId);
+        List<ChangeSet> changeSets = db.changeSets().byTopic(topicId).toList();
+        for (ChangeSet changeSet : changeSets) {
+          CanSubmitResult result =
+            topicControl.canSubmit(db, changeSet.getId(), approvalTypes,
+                topicFunctionStateFactory);
+          if (result != CanSubmitResult.OK) {
+            throw new UnloggedFailure(1, result.getMessage());
+          }
+        }
+      } else {
+        // Change is not part of a topic. Validate it with ChangeControl.
+        final ChangeControl changeControl =
+          changeControlFactory.validateFor(changeId);
+        CanSubmitResult result =
+          changeControl.canSubmit(patchSet.getId(), db, approvalTypes,
+              functionStateFactory);
+        if (result != CanSubmitResult.OK) {
+          throw new UnloggedFailure(1, result.getMessage());
+        }
       }
     }
   }
@@ -344,12 +378,28 @@ public class StagingApprove extends BaseCommand {
   private void pass(final PatchSet.Id patchSetId) throws OrmException {
     // Update change status from INTEGRATING to MERGED.
     ChangeUtil.setIntegratingToMerged(patchSetId, currentUser, db);
+    Change change = db.changes().get(patchSetId.getParentKey());
+    Topic.Id topicId = change.getTopicId();
+    if (topicId != null) {
+      Topic topic = db.topics().get(topicId);
+      if (topic.getStatus() != Topic.Status.MERGED) {
+        TopicUtil.setIntegratingToMerged(topicId, db);
+      }
+    }
   }
 
   private void reject(final PatchSet.Id patchSetId) throws OrmException,
       IOException {
     // Remove staging approval and update status from INTEGRATING to NEW.
     ChangeUtil.rejectStagedChange(patchSetId, currentUser, db);
+    Change change = db.changes().get(patchSetId.getParentKey());
+    Topic.Id topicId = change.getTopicId();
+    if (topicId != null) {
+      Topic topic = db.topics().get(topicId);
+      if (topic.getStatus() != Topic.Status.NEW) {
+        TopicUtil.setIntegratingToNew(topicId, db);
+      }
+    }
   }
 
   private void prepareMessage() throws IOException {

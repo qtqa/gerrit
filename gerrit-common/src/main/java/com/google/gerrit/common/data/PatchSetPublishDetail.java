@@ -25,7 +25,6 @@ public class PatchSetPublishDetail extends CommonPublishDetail<PatchSetApproval>
   protected PatchSetInfo patchSetInfo;
   protected Change change;
   protected List<PatchLineComment> drafts;
-  protected boolean stagingBranchAllowed;
 
   public void setPatchSetInfo(PatchSetInfo patchSetInfo) {
     this.patchSetInfo = patchSetInfo;
@@ -39,10 +38,6 @@ public class PatchSetPublishDetail extends CommonPublishDetail<PatchSetApproval>
     this.drafts = drafts;
   }
 
-  public void setStagingBranchAllowed(boolean allowed) {
-    stagingBranchAllowed = allowed;
-  }
-
   public Change getChange() {
     return change;
   }
@@ -53,9 +48,5 @@ public class PatchSetPublishDetail extends CommonPublishDetail<PatchSetApproval>
 
   public List<PatchLineComment> getDrafts() {
     return drafts;
-  }
-
-  public boolean isStagingBranchAllowed() {
-    return stagingBranchAllowed;
   }
 }

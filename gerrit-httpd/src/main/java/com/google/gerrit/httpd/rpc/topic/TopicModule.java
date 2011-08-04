@@ -39,6 +39,7 @@ public class TopicModule extends RpcServletModule {
         factory(TopicDetailFactory.Factory.class);
         factory(SubmitAction.Factory.class);
         factory(IncludedInDetailHandler.Factory.class);
+        factory(StagingAction.Factory.class);
       }
     });
     rpc(TopicDetailServiceImpl.class);

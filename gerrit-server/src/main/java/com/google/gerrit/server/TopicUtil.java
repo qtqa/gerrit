@@ -15,6 +15,7 @@
 package com.google.gerrit.server;
 
 import static com.google.gerrit.reviewdb.ApprovalCategory.SUBMIT;
+import static com.google.gerrit.reviewdb.ApprovalCategory.STAGING;
 
 import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.reviewdb.AbstractEntity;
@@ -39,6 +40,7 @@ import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.NoSuchTopicException;
 import com.google.gerrit.server.project.TopicControl;
 import com.google.gerrit.server.mail.AbandonedSender;
@@ -52,6 +54,7 @@ import com.google.gwtorm.client.OrmException;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Repository;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -109,6 +112,40 @@ public class TopicUtil {
     }
   }
 
+  public static void stage(final ChangeSet.Id changeSetId,
+      final IdentifiedUser user, final ReviewDb db,
+      final MergeOp.Factory opFactory, final MergeQueue merger,
+      final Repository git, final ChangeHookRunner hooks)
+      throws OrmException, IOException, NoSuchRefException {
+    final Topic.Id topicId = changeSetId.getParentKey();
+    final ChangeSetApproval approval = createStagingApproval(changeSetId, user, db);
+
+    db.changeSetApprovals().upsert(Collections.singleton(approval));
+
+    final Topic updatedTopic = db.topics().atomicUpdate(topicId,
+        new AtomicUpdate<Topic>() {
+      @Override
+      public Topic update(Topic topic) {
+        if (topic.getStatus() == Topic.Status.NEW) {
+          topic.setStatus(Topic.Status.STAGED);
+          TopicUtil.updated(topic);
+        }
+        return topic;
+      }
+    });
+
+    if (updatedTopic.getStatus() == Topic.Status.STAGED) {
+      // Submit the changes belonging to the Topic
+      //
+
+      List<Change> toStage = db.changes().byTopicOpenAll(topicId).toList();
+      for(Change c : toStage) {
+        ChangeUtil.moveToStaging(opFactory, c.currentPatchSetId(), user, db,
+            merger, git, hooks);
+      }
+    }
+  }
+
   public static ChangeSetApproval createSubmitApproval(
       final ChangeSet.Id changeSetId, final IdentifiedUser user, final ReviewDb db
       ) throws OrmException {
@@ -118,6 +155,26 @@ public class TopicUtil {
 
     final ChangeSetApproval.Key akey =
         new ChangeSetApproval.Key(changeSetId, user.getAccountId(), SUBMIT);
+
+    for (final ChangeSetApproval approval : allApprovals) {
+      if (akey.equals(approval.getKey())) {
+        approval.setValue((short) 1);
+        approval.setGranted();
+        return approval;
+      }
+    }
+    return new ChangeSetApproval(akey, (short) 1);
+  }
+
+public static ChangeSetApproval createStagingApproval(
+      final ChangeSet.Id changeSetId, final IdentifiedUser user, final ReviewDb db
+      ) throws OrmException {
+    final List<ChangeSetApproval> allApprovals =
+        new ArrayList<ChangeSetApproval>(db.changeSetApprovals().byChangeSet(
+            changeSetId).toList());
+
+    final ChangeSetApproval.Key akey =
+        new ChangeSetApproval.Key(changeSetId, user.getAccountId(), STAGING);
 
     for (final ChangeSetApproval approval : allApprovals) {
       if (akey.equals(approval.getKey())) {
@@ -486,5 +543,54 @@ public class TopicUtil {
       }
     }
     return null;
+  }
+
+  public static Topic setIntegrating(final Topic.Id topicId, ReviewDb db)
+      throws OrmException {
+    final Topic updatedTopic = db.topics().atomicUpdate(topicId,
+        new AtomicUpdate<Topic>() {
+      @Override
+      public Topic update(Topic topic) {
+        if (topic.getStatus() == Topic.Status.STAGED) {
+          topic.setStatus(Topic.Status.INTEGRATING);
+          TopicUtil.updated(topic);
+        }
+        return topic;
+      }
+    });
+
+    return updatedTopic;
+  }
+
+  public static Topic setIntegratingToMerged(final Topic.Id topicId, ReviewDb db)
+      throws OrmException {
+    final Topic updatedTopic =
+        db.topics().atomicUpdate(topicId, new AtomicUpdate<Topic>() {
+          @Override
+          public Topic update(Topic topic) {
+            if (topic.getStatus() == Topic.Status.INTEGRATING) {
+              topic.setStatus(Topic.Status.MERGED);
+              TopicUtil.updated(topic);
+            }
+            return topic;
+          }
+        });
+    return updatedTopic;
+  }
+
+  public static Topic setIntegratingToNew(final Topic.Id topicId, ReviewDb db)
+      throws OrmException {
+    final Topic updatedTopic =
+        db.topics().atomicUpdate(topicId, new AtomicUpdate<Topic>() {
+          @Override
+          public Topic update(Topic topic) {
+            if (topic.getStatus() == Topic.Status.INTEGRATING) {
+              topic.setStatus(Topic.Status.NEW);
+              TopicUtil.updated(topic);
+            }
+            return topic;
+          }
+        });
+    return updatedTopic;
   }
 }

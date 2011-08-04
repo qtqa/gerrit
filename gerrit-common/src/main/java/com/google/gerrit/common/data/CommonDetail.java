@@ -31,6 +31,8 @@ public abstract class CommonDetail {
   protected List<ChangeInfo> neededBy;
   protected Set<ApprovalCategory.Id> missingApprovals;
   protected boolean canSubmit;
+  protected boolean canStage;
+  protected boolean canUnstage;
 
   public AccountInfoCache getAccounts() {
     return accounts;
@@ -110,5 +112,21 @@ public abstract class CommonDetail {
 
   public void setMissingApprovals(Set<ApprovalCategory.Id> a) {
     missingApprovals = a;
+  }
+
+  public boolean canStage() {
+    return canStage;
+  }
+
+  public void setCanStage(final boolean a) {
+    canStage = a;
+  }
+
+  public boolean canUnstage() {
+    return canUnstage;
+  }
+
+  public void setCanUnstage(final boolean a) {
+    canUnstage = a;
   }
 }

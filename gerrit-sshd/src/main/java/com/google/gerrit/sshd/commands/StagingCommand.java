@@ -110,7 +110,7 @@ public class StagingCommand {
    * @throws OrmException Thrown if ReviewDb is not accessible.
    */
   public static List<PatchSet> openChanges(Repository git, ReviewDb db,
-      final String branch) throws IOException, OrmException,
+      final Branch.NameKey branch) throws IOException, OrmException,
       BranchNotFoundException {
     List<PatchSet> open = new ArrayList<PatchSet>();
     PatchSetAccess patchSetAccess = db.patchSets();
@@ -118,7 +118,7 @@ public class StagingCommand {
     RevWalk revWalk = new RevWalk(git);
 
     try {
-      Ref ref = git.getRef(branch);
+      Ref ref = git.getRef(branch.get());
       if (ref == null) {
         throw new BranchNotFoundException("No such branch: " + branch);
       }
@@ -151,7 +151,7 @@ public class StagingCommand {
             List<Change> changes =
               db.changes().byKey(Change.Key.parse(changeId)).toList();
             for (Change change : changes) {
-              if (change.getStatus().isOpen()) {
+              if (change.getStatus().isOpen() && change.getDest().equals(branch)) {
                 open.add(patchSetAccess.get(change.currentPatchSetId()));
               }
             }

@@ -43,6 +43,7 @@ public interface TopicConstants extends Constants {
 
   String buttonReview();
   String buttonPublishCommentsSend();
+  String buttonPublishStaging();
   String buttonPublishSubmitSend();
   String buttonPublishCommentsCancel();
   String headingCoverMessage();

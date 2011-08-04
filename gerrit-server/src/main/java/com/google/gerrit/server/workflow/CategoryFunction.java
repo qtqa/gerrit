@@ -32,7 +32,6 @@ public abstract class CategoryFunction {
     all.put(MaxNoBlock.NAME, new MaxNoBlock());
     all.put(NoOpFunction.NAME, new NoOpFunction());
     all.put(NoBlock.NAME, new NoBlock());
-    all.put(StagingFunction.NAME, new StagingFunction());
   }
 
   /**

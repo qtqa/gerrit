@@ -17,26 +17,19 @@ package com.google.gerrit.server.project;
 import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.PermissionRange;
-import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.ChangeSetApproval;
-import com.google.gerrit.reviewdb.ChangeSetElement;
-import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.IdentifiedUser;
-import com.google.gerrit.server.workflow.CategoryFunction;
-import com.google.gerrit.server.workflow.FunctionState;
 import com.google.gerrit.server.workflow.TopicCategoryFunction;
 import com.google.gerrit.server.workflow.TopicFunctionState;
 import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 
@@ -220,8 +213,8 @@ public class TopicControl {
   }
 
   public CanSubmitResult canSubmit(ReviewDb db, ChangeSet.Id changeSetId,
-      final ChangeControl.Factory changeControlFactory,
-      final ApprovalTypes approvalTypes, final TopicFunctionState.Factory functionStateFactory)
+      final ApprovalTypes approvalTypes,
+      final TopicFunctionState.Factory functionStateFactory)
       throws NoSuchChangeException, OrmException {
     CanSubmitResult result = canSubmit(changeSetId);
     if (result != CanSubmitResult.OK) {
@@ -260,6 +253,51 @@ public class TopicControl {
     if (!(getCurrentUser() instanceof IdentifiedUser)) {
       return new CanSubmitResult("User is not signed-in");
     }
+    return CanSubmitResult.OK;
+  }
+
+  public CanSubmitResult canStage(ChangeSet.Id changeSetId) {
+    if (topic.getStatus().isClosed()) {
+      return new CanSubmitResult("topic " + topic.getId() + " is closed");
+    }
+    if (!changeSetId.equals(topic.currentChangeSetId())) {
+      return new CanSubmitResult("Change set " + changeSetId + " is not current");
+    }
+    if (!getRefControl().canBranchToStaging()) {
+      return new CanSubmitResult("User does not have permission to merge to staging");
+    }
+    if (!(getCurrentUser() instanceof IdentifiedUser)) {
+      return new CanSubmitResult("User is not signed-in");
+    }
+    return CanSubmitResult.OK;
+  }
+
+  public CanSubmitResult canStage(ReviewDb db, ChangeSet.Id changeSetId,
+      final ChangeControl.Factory changeControlFactory,
+      final ApprovalTypes approvalTypes,
+      final TopicFunctionState.Factory functionStateFactory)
+      throws NoSuchChangeException, OrmException {
+    CanSubmitResult result = canStage(changeSetId);
+    if (result != CanSubmitResult.OK) {
+      return result;
+    }
+
+    final List<ChangeSetApproval> all =
+      db.changeSetApprovals().byChangeSet(changeSetId).toList();
+
+    final TopicFunctionState fs =
+        functionStateFactory.create(topic, changeSetId, all);
+
+    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
+      TopicCategoryFunction.forCategory(c.getCategory()).run(c, fs);
+    }
+
+    for (ApprovalType type : approvalTypes.getApprovalTypes()) {
+      if (!fs.isValid(type)) {
+        return new CanSubmitResult("Requires " + type.getCategory().getName());
+      }
+    }
+
     return CanSubmitResult.OK;
   }
 }

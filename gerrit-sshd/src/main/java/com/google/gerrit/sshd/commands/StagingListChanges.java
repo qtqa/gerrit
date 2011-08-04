@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.gerrit.sshd.commands;
 
+import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.Project;
@@ -66,7 +67,9 @@ public class StagingListChanges extends BaseCommand {
     try {
       openRepository(project);
 
-      List<PatchSet> open = StagingCommand.openChanges(git, db, branch);
+      final Project.NameKey projectKey = new Project.NameKey(project);
+      final Branch.NameKey branchKey = new Branch.NameKey(projectKey, branch);
+      List<PatchSet> open = StagingCommand.openChanges(git, db, branchKey);
 
       for (PatchSet patchSet : open) {
         Change.Id changeId = patchSet.getId().getParentKey();

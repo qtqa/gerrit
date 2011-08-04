@@ -24,4 +24,5 @@ public interface TopicMessages extends Messages {
   String publishCommentsOnSet(String commitSetId, String topicName);
 
   String revertTopicDefaultMessage(String topic, int id, int changesetid);
+  String stageChangeSet(int id);
 }

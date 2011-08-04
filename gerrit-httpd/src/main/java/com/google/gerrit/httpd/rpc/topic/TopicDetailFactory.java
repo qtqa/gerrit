@@ -108,6 +108,7 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
       throw new NoSuchEntityException();
     }
     final CanSubmitResult canSubmitResult = control.canSubmit(changeSet.getId());
+    final CanSubmitResult canStageResult = control.canStage(changeSet.getId());
 
     aic.want(topic.getOwner());
 
@@ -122,6 +123,7 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
 
     detail.setCanRevert(topic.getStatus() == AbstractEntity.Status.MERGED && control.canAddChangeSet());
     detail.setCanSubmit(canSubmitResult == CanSubmitResult.OK);
+    detail.setCanStage(canStageResult == CanSubmitResult.OK);
 
     loadChangeSets();
     loadMessages();

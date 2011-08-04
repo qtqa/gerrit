@@ -20,6 +20,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
+import com.google.gerrit.reviewdb.AbstractEntity;
 import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Branch;
@@ -157,7 +158,7 @@ public class MergeOp {
      * The status that the change should be set to after a successful merge.
      * @return Final status of the change.
      */
-    public Change.Status getStatus();
+    public AbstractEntity.Status getStatus();
 
     /**
      * Indicates if staging rebuild is required after a change is merged.
@@ -1351,7 +1352,7 @@ public class MergeOp {
     final Topic.Id topicId = c.getTopicId();
     final Change.Id changeId = c.getId();
     final PatchSet.Id merged = c.currentPatchSetId();
-    final Change.Status newStatus = mergeDelegate.getStatus();
+    final AbstractEntity.Status newStatus = mergeDelegate.getStatus();
 
     try {
       schema.changes().atomicUpdate(changeId, new AtomicUpdate<Change>() {
@@ -1396,7 +1397,7 @@ public class MergeOp {
               schema.topics().atomicUpdate(topicId, new AtomicUpdate<Topic>() {
                 @Override
                 public Topic update(Topic t) {
-                  t.setStatus(Topic.Status.MERGED);
+                  t.setStatus(newStatus);
                   TopicUtil.updated(t);
                   return t;
                 }

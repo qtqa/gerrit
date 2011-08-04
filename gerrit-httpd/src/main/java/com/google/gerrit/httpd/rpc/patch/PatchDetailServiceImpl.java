@@ -233,7 +233,8 @@ class PatchDetailServiceImpl extends BaseServiceImplementation implements
 
             for (PatchSetApproval ca : db.patchSetApprovals().byPatchSet(ps_id)) {
               final ApprovalCategory.Id category = ca.getCategoryId();
-              if (ApprovalCategory.SUBMIT.equals(category)) {
+              if (ApprovalCategory.SUBMIT.equals(category)
+                  || ApprovalCategory.STAGING.equals(category)) {
                 continue;
               }
               if (change.getStatus().isOpen()) {

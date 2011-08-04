@@ -58,12 +58,15 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     ClickHandler, CommentEditorContainer {
   private static SavedState lastState;
 
+  private enum Action { NOOP, SUBMIT, STAGING };
+
   private final ChangeSet.Id changeSetId;
   private Collection<ValueRadioButton> approvalButtons;
   private TopicDescriptionBlock descBlock;
   private Panel approvalPanel;
   private NpTextArea message;
   private Button send;
+  private Button staging;
   private Button submit;
   private Button cancel;
   private boolean saveStateOnUnload = true;
@@ -105,6 +108,10 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     send.addClickHandler(this);
     buttonRow.add(send);
 
+    staging = new Button(Util.TC.buttonPublishStaging());
+    staging.addClickHandler(this);
+    buttonRow.add(staging);
+
     submit = new Button(Util.TC.buttonPublishSubmitSend());
     submit.addClickHandler(this);
     buttonRow.add(submit);
@@ -120,6 +127,7 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     }
     message.setEnabled(enabled);
     send.setEnabled(enabled);
+    staging.setEnabled(enabled);
     submit.setEnabled(enabled);
     cancel.setEnabled(enabled);
   }
@@ -152,9 +160,11 @@ public class PublishTopicCommentScreen extends AccountScreen implements
   public void onClick(final ClickEvent event) {
     final Widget sender = (Widget) event.getSource();
     if (send == sender) {
-      onSend(false);
+      onSend(Action.NOOP);
     } else if (submit == sender) {
-      onSend(true);
+      onSend(Action.SUBMIT);
+    } else if (staging == sender) {
+      onSend(Action.STAGING);
     } else if (cancel == sender) {
       saveStateOnUnload = false;
       goChangeSet();
@@ -253,7 +263,7 @@ public class PublishTopicCommentScreen extends AccountScreen implements
     submit.setVisible(r.canSubmit());
   }
 
-  private void onSend(final boolean submit) {
+  private void onSend(final Action action) {
     final Map<ApprovalCategory.Id, ApprovalCategoryValue.Id> values =
         new HashMap<ApprovalCategory.Id, ApprovalCategoryValue.Id>();
     for (final ValueRadioButton b : approvalButtons) {
@@ -267,9 +277,11 @@ public class PublishTopicCommentScreen extends AccountScreen implements
         new HashSet<ApprovalCategoryValue.Id>(values.values()),
         new GerritCallback<VoidResult>() {
           public void onSuccess(final VoidResult result) {
-            if(submit) {
+            if(action == Action.SUBMIT) {
               submit();
-            } else {
+            } else if (action == Action.STAGING) {
+              stage();
+            }else {
               saveStateOnUnload = false;
               goChangeSet();
             }
@@ -297,6 +309,23 @@ public class PublishTopicCommentScreen extends AccountScreen implements
             super.onFailure(caught);
           }
         });
+  }
+
+  private void stage() {
+    Util.T_MANAGE_SVC.stage(changeSetId,
+        new GerritCallback<TopicDetail>() {
+          @Override
+          public void onSuccess(TopicDetail result) {
+            saveStateOnUnload = false;
+            goChangeSet();
+          }
+
+          @Override
+          public void onFailure(Throwable caught) {
+            goChangeSet();
+            super.onFailure(caught);
+          }
+    });
   }
 
   private void goChangeSet() {

@@ -16,10 +16,13 @@ package com.google.gerrit.sshd.commands;
 import static com.google.gerrit.sshd.commands.StagingCommand.R_BUILDS;
 import static com.google.gerrit.sshd.commands.StagingCommand.R_STAGING;
 import com.google.gerrit.reviewdb.Branch;
+import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.ChangeUtil;
+import com.google.gerrit.server.TopicUtil;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.StagingUtil;
 import com.google.gerrit.server.project.NoSuchRefException;
@@ -30,7 +33,6 @@ import com.google.inject.Inject;
 
 import org.apache.sshd.server.Environment;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
-import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate.Result;
 import org.eclipse.jgit.lib.Repository;
 import org.kohsuke.args4j.Option;
@@ -87,8 +89,11 @@ public class StagingNewBuild extends BaseCommand {
       Branch.NameKey stagingBranchKey =
         StagingCommand.getNameKey(project, R_STAGING, stagingBranch);
 
+      Branch.NameKey branchNameKey =
+        StagingCommand.getShortNameKey(project, R_STAGING, stagingBranch);
+
       // Make sure that are changes in the staging branch.
-      if (StagingCommand.openChanges(git, db, stagingBranchKey.get()).isEmpty()) {
+      if (StagingCommand.openChanges(git, db, stagingBranchKey).isEmpty()) {
         stdout.println("No changes in staging branch. Not creating a build reference");
         return;
       }
@@ -100,12 +105,11 @@ public class StagingNewBuild extends BaseCommand {
       if (result != Result.NEW && result != Result.FAST_FORWARD) {
         throw new UnloggedFailure(1, "fatal: failed to create new build ref: " + result);
       } else {
-        updateChangeStatus(buildBranchKey);
+        updateChangeStatus(buildBranchKey, branchNameKey);
       }
 
       // Re-create staging branch.
-      Branch.NameKey branchNameKey =
-        StagingCommand.getShortNameKey(project, R_STAGING, stagingBranch);
+
       result = StagingUtil.createStagingBranch(git, branchNameKey);
       if (result != Result.NEW && result != Result.FAST_FORWARD
           && result != Result.FORCED && result != Result.NO_CHANGE) {
@@ -116,7 +120,7 @@ public class StagingNewBuild extends BaseCommand {
     } catch (OrmException e) {
       throw new UnloggedFailure(1, "fatal: Failed to access database", e);
     } catch (BranchNotFoundException e) {
-      throw new UnloggedFailure(1, "fatal: Failed to access build ref", e);
+      throw new UnloggedFailure(1, "fatal: Failed to access build or staging ref", e);
     } catch (NoSuchRefException e) {
       throw new UnloggedFailure(1, "fatal: Invalid branch name", e);
     } finally {
@@ -132,12 +136,21 @@ public class StagingNewBuild extends BaseCommand {
     git = gitManager.openRepository(projectKey);
   }
 
-  private void updateChangeStatus(final Branch.NameKey buildBranchKey)
+  private void updateChangeStatus(final Branch.NameKey buildBranchKey,
+      final Branch.NameKey destBranchKey)
       throws IOException, OrmException, BranchNotFoundException {
     List<PatchSet> patchSets =
-      StagingCommand.openChanges(git, db, buildBranchKey.get());
+      StagingCommand.openChanges(git, db, buildBranchKey);
     for (PatchSet patchSet : patchSets) {
       ChangeUtil.setIntegrating(patchSet.getId(), db);
+      Change change = db.changes().get(patchSet.getId().getParentKey());
+      Topic.Id topicId = change.getTopicId();
+      if (topicId != null) {
+        Topic topic = db.topics().get(topicId);
+        if (topic.getStatus() != Topic.Status.INTEGRATING) {
+          TopicUtil.setIntegrating(topicId, db);
+        }
+      }
     }
   }
 }

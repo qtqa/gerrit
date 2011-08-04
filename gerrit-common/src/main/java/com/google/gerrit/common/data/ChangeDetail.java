@@ -14,7 +14,6 @@
 
 package com.google.gerrit.common.data;
 
-import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeMessage;
 import com.google.gerrit.reviewdb.PatchSet;
@@ -23,12 +22,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /** Detail necessary to display a change. */
 public class ChangeDetail extends CommonDetail {
-  protected boolean canStage;
-  protected boolean canUnstage;
   protected Change change;
   protected List<PatchSet> patchSets;
   protected boolean canSubmit;
@@ -39,22 +35,6 @@ public class ChangeDetail extends CommonDetail {
   protected int topicId;
 
   public ChangeDetail() {
-  }
-
-  public boolean canStage() {
-    return canStage;
-  }
-
-  public void setCanStage(final boolean a) {
-    canStage = a;
-  }
-
-  public boolean canUnstage() {
-    return canUnstage;
-  }
-
-  public void setCanUnstage(final boolean a) {
-    canUnstage = a;
   }
 
   public Change getChange() {

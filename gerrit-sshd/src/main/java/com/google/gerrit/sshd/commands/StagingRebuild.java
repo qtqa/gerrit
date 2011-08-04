@@ -4,7 +4,6 @@ import static com.google.gerrit.sshd.commands.StagingCommand.R_HEADS;
 
 import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.reviewdb.Branch;
-import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;

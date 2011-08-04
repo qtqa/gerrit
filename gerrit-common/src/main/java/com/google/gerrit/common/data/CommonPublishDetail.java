@@ -24,6 +24,8 @@ public abstract class CommonPublishDetail<T extends SetApproval<?>> {
   protected List<PermissionRange> labels;
   protected List<T> given;
   protected boolean canSubmit;
+  protected boolean canStage;
+  protected boolean canUnstage;
 
   public List<PermissionRange> getLabels() {
     return labels;
@@ -47,6 +49,14 @@ public abstract class CommonPublishDetail<T extends SetApproval<?>> {
 
   public void setCanSubmit(boolean allowed) {
     canSubmit = allowed;
+  }
+
+  public void setCanStage(boolean allowed) {
+    canStage = allowed;
+  }
+
+  public void setCanUnstage(boolean allowed) {
+    canUnstage = allowed;
   }
 
   public AccountInfoCache getAccounts() {
@@ -73,5 +83,13 @@ public abstract class CommonPublishDetail<T extends SetApproval<?>> {
 
   public boolean canSubmit() {
     return canSubmit;
+  }
+
+  public boolean canStage() {
+    return canStage;
+  }
+
+  public boolean canUnstage() {
+    return canUnstage;
   }
 }

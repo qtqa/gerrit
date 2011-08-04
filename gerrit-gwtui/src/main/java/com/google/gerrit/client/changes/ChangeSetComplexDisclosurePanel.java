@@ -167,6 +167,32 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
 
   private void populateActions(final ChangeSetDetail detail) {
     final boolean isOpen = topicDetail.getTopic().getStatus().isOpen();
+    final boolean isNew = topicDetail.getTopic().getStatus() == Status.NEW;
+    if (isOpen && isNew && topicDetail.canStage()) {
+      final Button b =
+        new Button(Util.TM
+            .stageChangeSet(detail.getChangeSet().getChangeSetId()));
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(final ClickEvent event) {
+          b.setEnabled(false);
+          Util.T_MANAGE_SVC.stage(changeSet.getId(),
+              new GerritCallback<TopicDetail>() {
+                @Override
+                public void onSuccess(TopicDetail result) {
+                  onSubmitResult(result);
+                }
+
+                @Override
+                public void onFailure(Throwable caught) {
+                  b.setEnabled(true);
+                  super.onFailure(caught);
+                }
+          });
+        }
+      });
+      actionsPanel.add(b);
+    }
 
     if (isOpen && topicDetail.canSubmit()) {
       final Button b =

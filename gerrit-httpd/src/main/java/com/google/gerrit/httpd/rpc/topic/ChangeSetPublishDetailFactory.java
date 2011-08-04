@@ -14,12 +14,11 @@
 
 package com.google.gerrit.httpd.rpc.topic;
 
-import com.google.gerrit.common.data.ApprovalType;
-import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.ChangeSetPublishDetail;
 import com.google.gerrit.common.data.PermissionRange;
 import com.google.gerrit.common.errors.NoSuchEntityException;
 import com.google.gerrit.httpd.rpc.Handler;
+import com.google.gerrit.reviewdb.AbstractEntity;
 import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.ChangeSetApproval;
 import com.google.gerrit.reviewdb.ChangeSetInfo;
@@ -28,20 +27,16 @@ import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.account.AccountInfoCacheFactory;
 import com.google.gerrit.server.project.CanSubmitResult;
-import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchTopicException;
 import com.google.gerrit.server.project.TopicControl;
-import com.google.gerrit.server.workflow.TopicFunctionState;
 import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail> {
   interface Factory {
@@ -50,10 +45,7 @@ final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail
 
   private final ChangeSetInfoFactory infoFactory;
   private final ReviewDb db;
-  private final ChangeControl.Factory changeControlFactory;
   private final TopicControl.Factory topicControlFactory;
-  private final TopicFunctionState.Factory topicFunctionState;
-  private final ApprovalTypes approvalTypes;
   private final AccountInfoCacheFactory aic;
   private final IdentifiedUser user;
 
@@ -66,17 +58,12 @@ final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail
   ChangeSetPublishDetailFactory(final ChangeSetInfoFactory infoFactory,
       final ReviewDb db,
       final AccountInfoCacheFactory.Factory accountInfoCacheFactory,
-      final ChangeControl.Factory changeControlFactory,
       final TopicControl.Factory topicControlFactory,
-      final TopicFunctionState.Factory topicFunctionState,
-      final ApprovalTypes approvalTypes,
-      final IdentifiedUser user, @Assisted final ChangeSet.Id changeSetId) {
+      final IdentifiedUser user,
+      @Assisted final ChangeSet.Id changeSetId) {
     this.infoFactory = infoFactory;
     this.db = db;
-    this.changeControlFactory = changeControlFactory;
     this.topicControlFactory = topicControlFactory;
-    this.topicFunctionState = topicFunctionState;
-    this.approvalTypes = approvalTypes;
     this.aic = accountInfoCacheFactory.create();
     this.user = user;
 
@@ -92,12 +79,6 @@ final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail
     topic = control.getTopic();
     changeSetInfo = infoFactory.get(changeSetId);
 
-    aic.want(topic.getOwner());
-
-    ChangeSetPublishDetail detail = new ChangeSetPublishDetail();
-    detail.setChangeSetInfo(changeSetInfo);
-    detail.setTopic(topic);
-
     List<PermissionRange> allowed = Collections.emptyList();
     List<ChangeSetApproval> given = Collections.emptyList();
 
@@ -111,6 +92,12 @@ final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail
           .toList();
     }
 
+    aic.want(topic.getOwner());
+
+    ChangeSetPublishDetail detail = new ChangeSetPublishDetail();
+    detail.setChangeSetInfo(changeSetInfo);
+    detail.setTopic(topic);
+
     detail.setLabels(allowed);
     detail.setGiven(given);
     detail.setAccounts(aic.create());
@@ -118,7 +105,17 @@ final class ChangeSetPublishDetailFactory extends Handler<ChangeSetPublishDetail
     final CanSubmitResult canSubmitResult = control.canSubmit(changeSetId);
     if (canSubmitResult == CanSubmitResult.OK) {
         detail.setCanSubmit(true);
-      }
+    }
+
+    final CanSubmitResult canStage = control.canStage(changeSetId);
+    if (canStage == CanSubmitResult.OK) {
+      detail.setCanStage(true);
+    }
+
+    if (topic.getStatus() == AbstractEntity.Status.STAGED
+        && control.getRefControl().canStage()) {
+      detail.setCanUnstage(true);
+    }
 
     return detail;
   }
