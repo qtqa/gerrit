@@ -25,6 +25,7 @@ import static com.google.gerrit.common.data.Permission.PUSH_MERGE;
 import static com.google.gerrit.common.data.Permission.PUSH_TAG;
 import static com.google.gerrit.common.data.Permission.READ;
 import static com.google.gerrit.common.data.Permission.SUBMIT;
+import static com.google.gerrit.common.data.Permission.STAGE;
 
 import com.google.gerrit.common.data.AccessSection;
 import com.google.gerrit.common.data.GroupReference;
@@ -79,6 +80,7 @@ class Schema_53 extends SchemaVersion {
   private final String OLD_PUSH_TAG = "pTAG";
   private final String OLD_PUSH_HEAD = "pHD";
   private final String OLD_FORGE_IDENTITY = "FORG";
+  private final String OLD_STAGING = "STGN";
 
   @Inject
   Schema_53(Provider<Schema_52> prior, GitRepositoryManager mgr,
@@ -283,7 +285,10 @@ class Schema_53 extends SchemaVersion {
         PermissionRule submit = rule(group);
         submit.setDeny(old.max_value <= 0);
         add(section, SUBMIT, old.exclusive, submit);
-
+      } else if (OLD_STAGING.equals(old.category)) {
+        PermissionRule stage = rule(group);
+        stage.setDeny(old.max_value <= 0);
+        add(section, STAGE, old.exclusive, stage);
       } else if (OLD_READ.equals(old.category)) {
         if (old.exclusive) {
           section.getPermission(READ, true).setExclusiveGroup(true);
