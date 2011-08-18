@@ -111,12 +111,6 @@ public class ChangeDetailFactory extends Handler<ChangeDetail> {
 
     detail.setCanRevert(change.getStatus() == Change.Status.MERGED && control.canAddPatchSet() && (change.getTopicId() == null));
 
-    final CanSubmitResult canStageResult =
-      control.canStage(patch.getId());
-    detail.setCanStage(canStageResult == CanSubmitResult.OK);
-    detail.setCanUnstage(change.getStatus() == Change.Status.STAGED
-        && control.canAbandon());
-
     loadPatchSets();
     loadMessages();
     if (change.currentPatchSetId() != null) {
@@ -128,6 +122,12 @@ public class ChangeDetailFactory extends Handler<ChangeDetail> {
       detail.setTopicId(change.getTopicId().get());
     } else {
       detail.setTopicId(-1);
+
+      final CanSubmitResult canStageResult =
+        control.canStage(patch.getId());
+      detail.setCanStage(canStageResult == CanSubmitResult.OK);
+      detail.setCanUnstage(change.getStatus() == Change.Status.STAGED
+          && control.canAbandon());
     }
 
     return detail;
