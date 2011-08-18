@@ -25,7 +25,6 @@ import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 
 import org.apache.sshd.server.Environment;
-import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.Repository;
 import org.kohsuke.args4j.Option;
 
@@ -48,8 +47,12 @@ public class StagingListChanges extends BaseCommand {
   private String project;
 
   @Option(name = "--branch", aliases = {"-b"},
-      required = true, usage = "branch name, e.g. refs/builds/1")
+      required = true, usage = "branch name, e.g. refs/staging/master")
   private String branch;
+
+  @Option(name = "--destination", aliases = {"-d"},
+      required = true, usage = "desitnation branch name, e.g. refs/heads/master")
+  private String destination;
 
   @Override
   public void start(final Environment env) {
@@ -65,15 +68,17 @@ public class StagingListChanges extends BaseCommand {
   private void list() throws UnloggedFailure {
     final PrintWriter stdout = toPrintWriter(out);
     try {
-      openRepository(project);
-
-      final Project.NameKey projectKey = new Project.NameKey(project);
+      final Project.NameKey projectKey = StagingCommand.getProjectKey(project);
+      git = gitManager.openRepository(projectKey);
       final Branch.NameKey branchKey = new Branch.NameKey(projectKey, branch);
-      List<PatchSet> open = StagingCommand.openChanges(git, db, branchKey);
+      final Branch.NameKey destinationKey = new Branch.NameKey(projectKey,
+          destination);
+      final List<PatchSet> open = StagingCommand.openChanges(git, db,
+          branchKey, destinationKey);
 
       for (PatchSet patchSet : open) {
-        Change.Id changeId = patchSet.getId().getParentKey();
-        Change change = db.changes().get(changeId);
+        final Change.Id changeId = patchSet.getId().getParentKey();
+        final Change change = db.changes().get(changeId);
         if (change.getStatus().isOpen()) {
           stdout.println(patchSet.getRevision().get() + " " + patchSet.getId() + " " + change.getSubject());
         }
@@ -90,10 +95,5 @@ public class StagingListChanges extends BaseCommand {
         git.close();
       }
     }
-  }
-
-  public void openRepository(final String project) throws RepositoryNotFoundException {
-    Project.NameKey projectNameKey = new Project.NameKey(project);
-    git = gitManager.openRepository(projectNameKey);
   }
 }

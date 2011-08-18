@@ -22,6 +22,7 @@ import com.google.gerrit.reviewdb.RevId;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gwtorm.client.OrmException;
 
+import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
@@ -74,7 +75,7 @@ public class StagingCommand {
    */
   public static Branch.NameKey getNameKey(final String project,
       final String prefix, final String branch) {
-    final Project.NameKey projectKey = new Project.NameKey(project);
+    final Project.NameKey projectKey = getProjectKey(project);
     if (branch.startsWith(prefix)) {
       return new Branch.NameKey(projectKey, branch);
     } else {
@@ -91,7 +92,7 @@ public class StagingCommand {
    */
   public static Branch.NameKey getShortNameKey(final String project,
       final String prefix, final String branch) {
-    final Project.NameKey projectKey = new Project.NameKey(project);
+    final Project.NameKey projectKey = getProjectKey(project);
     if (branch.startsWith(prefix)) {
       return new Branch.NameKey(projectKey, branch.substring(prefix.length()));
     } else {
@@ -99,19 +100,43 @@ public class StagingCommand {
     }
   }
 
+  public static Branch.NameKey getDestinationKey(final Branch.NameKey key) {
+    final String branch = key.get();
+    if (branch.startsWith(R_STAGING)) {
+      return new Branch.NameKey(key.getParentKey(),
+          R_HEADS + branch.substring(R_STAGING.length()));
+    } else if (branch.startsWith(R_BUILDS)) {
+      return new Branch.NameKey(key.getParentKey(),
+          R_HEADS + branch.substring(R_BUILDS.length()));
+    } else {
+      return key;
+    }
+  }
+
+  public static Project.NameKey getProjectKey(final String project) {
+    String projectName = project;
+    if (project.endsWith(Constants.DOT_GIT_EXT)) {
+      projectName = project.substring(0, //
+          project.length() - Constants.DOT_GIT_EXT.length());
+    }
+
+    return new Project.NameKey(projectName);
+  }
+
   /**
    * Lists open changes in a branch.
    * @param git jGit Repository. Must be open.
    * @param db ReviewDb of a Gerrit site.
-   * @param branch Branch to search for open changes-
+   * @param branch Branch to search for open changes.
+   * @param destination Destination branch for changes.
    * @return List of open changes.
    * @throws IOException Thrown by Repository or RevWalk if repository is not
    *         accessible.
    * @throws OrmException Thrown if ReviewDb is not accessible.
    */
   public static List<PatchSet> openChanges(Repository git, ReviewDb db,
-      final Branch.NameKey branch) throws IOException, OrmException,
-      BranchNotFoundException {
+      final Branch.NameKey branch, final Branch.NameKey destination)
+      throws IOException, OrmException, BranchNotFoundException {
     List<PatchSet> open = new ArrayList<PatchSet>();
     PatchSetAccess patchSetAccess = db.patchSets();
 
@@ -138,20 +163,26 @@ public class StagingCommand {
           List<PatchSet> patchSets = patchSetAccess.byRevision(revId).toList();
           for (PatchSet patchSet : patchSets) {
             Change.Id changeId = patchSet.getId().getParentKey();
-            Change change = db.changes().get(changeId);
+            final Change change = db.changes().get(changeId);
             if (change.getStatus().isOpen()) {
               open.add(patchSet);
               break;
             }
           }
         } else {
+          final Branch.NameKey destinationKey =
+            getNameKey(destination.getParentKey().get(), R_HEADS,
+                destination.get());
           // Change-Id footer found in commit message. Search by Change-Id
           // value.  Usually, there is only 1 Change-Id footer.
           for (String changeId : changeIds) {
             List<Change> changes =
               db.changes().byKey(Change.Key.parse(changeId)).toList();
             for (Change change : changes) {
-              if (change.getStatus().isOpen() && change.getDest().equals(branch)) {
+              if (!change.getDest().equals(destinationKey)) {
+                continue;
+              }
+              if (change.getStatus().isOpen()) {
                 open.add(patchSetAccess.get(change.currentPatchSetId()));
               }
             }

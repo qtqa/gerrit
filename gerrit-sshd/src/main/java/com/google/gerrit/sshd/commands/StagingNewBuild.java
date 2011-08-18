@@ -93,7 +93,8 @@ public class StagingNewBuild extends BaseCommand {
         StagingCommand.getShortNameKey(project, R_STAGING, stagingBranch);
 
       // Make sure that are changes in the staging branch.
-      if (StagingCommand.openChanges(git, db, stagingBranchKey).isEmpty()) {
+      if (StagingCommand.openChanges(git, db, stagingBranchKey, branchNameKey)
+          .isEmpty()) {
         stdout.println("No changes in staging branch. Not creating a build reference");
         return;
       }
@@ -137,10 +138,10 @@ public class StagingNewBuild extends BaseCommand {
   }
 
   private void updateChangeStatus(final Branch.NameKey buildBranchKey,
-      final Branch.NameKey destBranchKey)
+      final Branch.NameKey destinationKey)
       throws IOException, OrmException, BranchNotFoundException {
     List<PatchSet> patchSets =
-      StagingCommand.openChanges(git, db, buildBranchKey);
+      StagingCommand.openChanges(git, db, buildBranchKey, destinationKey);
     for (PatchSet patchSet : patchSets) {
       ChangeUtil.setIntegrating(patchSet.getId(), db);
       Change change = db.changes().get(patchSet.getId().getParentKey());

@@ -193,7 +193,8 @@ public class StagingApprove extends BaseCommand {
       openRepository(project);
 
       // Initialize and populate open changes list.
-      toApprove = StagingCommand.openChanges(git, db, buildBranchNameKey);
+      toApprove = StagingCommand.openChanges(git, db, buildBranchNameKey,
+          destination);
 
       // Notify user that build did not have any open changes. The build has
       // already been approved.
