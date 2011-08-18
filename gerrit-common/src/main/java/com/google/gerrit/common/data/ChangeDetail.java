@@ -27,7 +27,6 @@ import java.util.List;
 public class ChangeDetail extends CommonDetail {
   protected Change change;
   protected List<PatchSet> patchSets;
-  protected boolean canSubmit;
   protected List<PatchSetApprovalDetail> approvals;
   protected List<ChangeMessage> messages;
   protected PatchSet.Id currentPatchSetId;
