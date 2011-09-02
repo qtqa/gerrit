@@ -32,6 +32,9 @@ import com.google.gerrit.server.TopicUtil;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
+import com.google.gerrit.server.mail.BuildApprovedSender;
+import com.google.gerrit.server.mail.BuildRejectedSender;
+import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.patch.PublishComments;
 import com.google.gerrit.server.project.CanSubmitResult;
 import com.google.gerrit.server.project.ChangeControl;
@@ -57,6 +60,8 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevSort;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.kohsuke.args4j.Option;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -75,6 +80,8 @@ import java.util.List;
  * $ ssh -p 29418 localhost gerrit staging-approve -p project -b master -i 123 -r=pass
  */
 public class StagingApprove extends BaseCommand {
+  private static final Logger log =
+    LoggerFactory.getLogger(StagingApprove.class);
 
   private class MergeException extends Exception {
     private static final long serialVersionUID = 1L;
@@ -130,6 +137,12 @@ public class StagingApprove extends BaseCommand {
 
   @Inject
   private TopicFunctionState.Factory topicFunctionStateFactory;
+
+  @Inject
+  private BuildApprovedSender.Factory buildApprovedFactory;
+
+  @Inject
+  private BuildRejectedSender.Factory buildRejectedFactory;
 
   @Option(name = "--project", aliases = {"-p"},
       required = true, usage = "project name")
@@ -365,8 +378,18 @@ public class StagingApprove extends BaseCommand {
         case FAST_FORWARD:
           hooks.doRefUpdatedHook(destination, branchUpdate,
               currentUser.getAccount());
+          try {
+            sendBuildApprovedMails();
+          } catch (Exception e) {
+            log.error("Failed to send change merged e-mails", e);
+          }
           break;
         default:
+          try {
+            sendBuildRejectedMails();
+          } catch (Exception e) {
+            log.error("Failed to send change merged e-mails", e);
+          }
           throw new MergeException("Could not fast-forward build to destination branch");
       }
     } finally {
@@ -453,6 +476,32 @@ public class StagingApprove extends BaseCommand {
           merger, hooks);
     } catch (Exception e) {
       throw new MergeException("fatal: Failed to rebuild staging branch after failed fast-forward", e);
+    }
+  }
+
+  private void sendBuildApprovedMails() throws OrmException, EmailException {
+    for (PatchSet patchSet : toApprove) {
+      final PatchSet.Id patchSetId = patchSet.getId();
+      final Change.Id changeId = patchSetId.getParentKey();
+      final Change change = db.changes().get(changeId);
+
+      final BuildApprovedSender sender = buildApprovedFactory.create(change);
+      sender.setFrom(currentUser.getAccountId());
+      sender.setPatchSet(patchSet);
+      sender.send();
+    }
+  }
+
+  private void sendBuildRejectedMails() throws OrmException, EmailException  {
+    for (PatchSet patchSet : toApprove) {
+      final PatchSet.Id patchSetId = patchSet.getId();
+      final Change.Id changeId = patchSetId.getParentKey();
+      final Change change = db.changes().get(changeId);
+
+      final BuildRejectedSender sender = buildRejectedFactory.create(change);
+      sender.setFrom(currentUser.getAccountId());
+      sender.setPatchSet(patchSet);
+      sender.send();
     }
   }
 }

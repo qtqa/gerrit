@@ -30,6 +30,8 @@ import com.google.gerrit.server.git.StagingMergeDelegate;
 import com.google.gerrit.server.git.SubmitMergeDelegate;
 import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.AddReviewerSender;
+import com.google.gerrit.server.mail.BuildApprovedSender;
+import com.google.gerrit.server.mail.BuildRejectedSender;
 import com.google.gerrit.server.mail.CommentSender;
 import com.google.gerrit.server.mail.CreateChangeSender;
 import com.google.gerrit.server.mail.MergeFailSender;
@@ -83,5 +85,7 @@ public class GerritRequestModule extends FactoryModule {
     factory(MergeFailSender.Factory.class);
     factory(RegisterNewEmailSender.Factory.class);
     factory(PerformCreateGroup.Factory.class);
+    factory(BuildApprovedSender.Factory.class);
+    factory(BuildRejectedSender.Factory.class);
   }
 }
