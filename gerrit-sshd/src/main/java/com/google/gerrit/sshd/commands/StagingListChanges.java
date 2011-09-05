@@ -51,7 +51,7 @@ public class StagingListChanges extends BaseCommand {
   private String branch;
 
   @Option(name = "--destination", aliases = {"-d"},
-      required = true, usage = "desitnation branch name, e.g. refs/heads/master")
+      required = true, usage = "destination branch name, e.g. refs/heads/master")
   private String destination;
 
   @Override
