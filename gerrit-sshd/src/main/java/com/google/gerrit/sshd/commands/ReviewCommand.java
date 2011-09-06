@@ -105,7 +105,7 @@ public class ReviewCommand extends BaseCommand {
   @Option(name = "--submit", aliases = "-s", usage = "submit the patch set")
   private boolean submitChange;
 
-  @Option(name = "--staging", aliases ="t", usage = "merge patch set to staging")
+  @Option(name = "--stage", aliases ="t", usage = "merge patch set to staging")
   private boolean staging;
 
   @Inject
