@@ -139,6 +139,7 @@ public class PublishCommentScreen extends AccountScreen implements
     }
     send.setEnabled(enabled);
     submit.setEnabled(enabled);
+    staging.setEnabled(enabled);
     cancel.setEnabled(enabled);
   }
 
