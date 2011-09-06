@@ -259,6 +259,24 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       actionsPanel.add(b);
     }
 
+    if (topicDetail.canUnstage()) {
+      final Button b = new Button(Util.C.buttonUnstagingChange());
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          b.setEnabled(false);
+          Util.T_MANAGE_SVC.unstage(changeSet.getId(),
+              new GerritCallback<TopicDetail>() {
+                @Override
+                public void onSuccess(TopicDetail result) {
+                  topicScreen.update(result);
+                }
+          });
+        }
+      });
+      actionsPanel.add(b);
+    }
+
     if (topicDetail.canRestore()) {
       final Button b = new Button(Util.TC.buttonRestoreTopicBegin());
       b.addClickHandler(new ClickHandler() {

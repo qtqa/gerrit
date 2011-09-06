@@ -38,7 +38,6 @@ import com.google.gerrit.server.AnonymousUser;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.account.AccountInfoCacheFactory;
 import com.google.gerrit.server.project.CanSubmitResult;
-import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchTopicException;
 import com.google.gerrit.server.project.TopicControl;
@@ -64,7 +63,6 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
   }
 
   private final ApprovalTypes approvalTypes;
-  private final ChangeControl.Factory changeControlFactory;
   private final TopicControl.Factory topicControlFactory;
   private final TopicFunctionState.Factory functionState;
   private final ChangeSetDetailFactory.Factory changeSetDetail;
@@ -81,7 +79,6 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
   TopicDetailFactory(final ApprovalTypes approvalTypes,
       final TopicFunctionState.Factory functionState,
       final ChangeSetDetailFactory.Factory changeSetDetail, final ReviewDb db,
-      final ChangeControl.Factory changeControlFactory,
       final TopicControl.Factory topicControlFactory,
       final AccountInfoCacheFactory.Factory accountInfoCacheFactory,
       final AnonymousUser anonymousUser,
@@ -90,7 +87,6 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
     this.functionState = functionState;
     this.changeSetDetail = changeSetDetail;
     this.db = db;
-    this.changeControlFactory = changeControlFactory;
     this.topicControlFactory = topicControlFactory;
     this.anonymousUser = anonymousUser;
     this.aic = accountInfoCacheFactory.create();
@@ -124,6 +120,7 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
     detail.setCanRevert(topic.getStatus() == AbstractEntity.Status.MERGED && control.canAddChangeSet());
     detail.setCanSubmit(canSubmitResult == CanSubmitResult.OK);
     detail.setCanStage(canStageResult == CanSubmitResult.OK);
+    detail.setCanUnstage(topic.getStatus() == AbstractEntity.Status.STAGED && control.canAbandon());
 
     loadChangeSets();
     loadMessages();

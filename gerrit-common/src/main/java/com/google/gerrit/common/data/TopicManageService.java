@@ -40,4 +40,7 @@ public interface TopicManageService extends RemoteJsonService {
 
   @SignInRequired
   void stage(ChangeSet.Id changeSetId, AsyncCallback<TopicDetail> callback);
+
+  @SignInRequired
+  void unstage(ChangeSet.Id changeSetId, AsyncCallback<TopicDetail> callback);
 }

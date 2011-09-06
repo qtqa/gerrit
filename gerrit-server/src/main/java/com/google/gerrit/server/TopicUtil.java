@@ -146,6 +146,32 @@ public class TopicUtil {
     }
   }
 
+  public static void rejectStagedTopic(final ChangeSet.Id changeSetId,
+      final IdentifiedUser user, final ReviewDb db,
+      final MergeOp.Factory opFactory, final MergeQueue merger,
+      final Repository git, final ChangeHookRunner hooks) throws OrmException {
+    // Delete all STAGING approvals for the change set.
+    final ChangeSetApproval.Key stagingKey =
+      new ChangeSetApproval.Key(changeSetId, user.getAccountId(), STAGING);
+    db.changeSetApprovals().deleteKeys(Collections.singleton(stagingKey));
+
+    // Set topic state to NEW.
+    final Topic.Id topicId = changeSetId.getParentKey();
+    AtomicUpdate<Topic> atomicUpdate =
+      new AtomicUpdate<Topic>() {
+      @Override
+      public Topic update(Topic topic) {
+        if (topic.getStatus() == AbstractEntity.Status.INTEGRATING
+            || topic.getStatus() == AbstractEntity.Status.STAGED) {
+          topic.setStatus(AbstractEntity.Status.NEW);
+          TopicUtil.updated(topic);
+        }
+        return topic;
+      }
+    };
+    db.topics().atomicUpdate(topicId, atomicUpdate);
+  }
+
   public static ChangeSetApproval createSubmitApproval(
       final ChangeSet.Id changeSetId, final IdentifiedUser user, final ReviewDb db
       ) throws OrmException {
