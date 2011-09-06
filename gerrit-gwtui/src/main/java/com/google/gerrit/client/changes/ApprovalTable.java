@@ -34,13 +34,11 @@ import com.google.gerrit.reviewdb.Account;
 import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.ApprovalCategoryValue;
 import com.google.gerrit.reviewdb.Change;
-import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.SetApproval;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.DOM;
-import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Grid;
@@ -54,7 +52,6 @@ import com.google.gwtexpui.safehtml.client.SafeHtmlBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /** Displays a table of {@link ApprovalDetail} objects for a change record. */
 public class ApprovalTable extends Composite {
@@ -162,6 +159,7 @@ public class ApprovalTable extends Composite {
       table.setVisible(true);
     }
 
+    addReviewer.setVisible(Gerrit.isSignedIn());
   }
 
   private void doAddReviewer() {
