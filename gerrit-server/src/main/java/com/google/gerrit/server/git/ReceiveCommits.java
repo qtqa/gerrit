@@ -1741,7 +1741,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       }
 
       // ApprovalCategory.SUBMIT is still in db but not relevant in git-store
-      if (!ApprovalCategory.SUBMIT.equals(a.getCategoryId())) {
+      if (!ApprovalCategory.SUBMIT.equals(a.getCategoryId()) &&
+          !ApprovalCategory.STAGING.equals(a.getCategoryId())) {
         final ApprovalType type =
           approvalTypes.byId(a.getCategoryId());
         if (a.getPatchSetId().equals(priorPatchSet)
@@ -1861,6 +1862,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
             repo, mergeFactory, merger, hooks);
       } catch (NoSuchRefException e) {
         // Destination branch not available.
+        log.error("Could not rebuild staging branch. No destination branch.", e);
       }
     }
     return result != null ? result.info.getKey() : null;
