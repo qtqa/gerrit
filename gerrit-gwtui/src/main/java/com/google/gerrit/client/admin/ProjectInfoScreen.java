@@ -189,10 +189,14 @@ public class ProjectInfoScreen extends ProjectScreen {
     final boolean isCherryPickSubmitType =
       SubmitType.CHERRY_PICK.equals(Project.SubmitType.valueOf(
           submitType.getValue(submitType.getSelectedIndex())));
-    includeReviewedOn.setEnabled(isCherryPickSubmitType);
-    includeOnlyMaxApproval.setEnabled(isCherryPickSubmitType);
+    enableCherryPickOptions(isCherryPickSubmitType);
+  }
+
+  private void enableCherryPickOptions(final boolean enable) {
+    includeReviewedOn.setEnabled(enable);
+    includeOnlyMaxApproval.setEnabled(enable);
     for (CheckBox checkBox : approvalsInFooter.values()) {
-      checkBox.setEnabled(isCherryPickSubmitType);
+      checkBox.setEnabled(enable);
     }
   }
 
@@ -263,6 +267,7 @@ public class ProjectInfoScreen extends ProjectScreen {
 
     includeOnlyMaxApproval.setValue(project.isIncludeOnlyMaxApproval());
     includeReviewedOn.setValue(!project.isHideReviewedOn());
+    cherryPickPanel.setVisible(!isall);
 
     Map<String, Boolean> hiddenFooters = project.getHiddenFooters();
     for (Entry<String, CheckBox> entry : approvalsInFooter.entrySet()) {
@@ -297,6 +302,7 @@ public class ProjectInfoScreen extends ProjectScreen {
     }
 
     enableForm(false, false, false);
+    enableCherryPickOptions(false);
 
     Util.PROJECT_SVC.changeProjectSettings(project,
         new GerritCallback<ProjectDetail>() {
