@@ -49,7 +49,7 @@ public class StagingRebuild extends BaseCommand {
   private String project;
 
   @Option(name = "--branch", aliases = {"-b"},
-      required = true, usage = "branch name, e.g. refs/builds/1")
+      required = true, usage = "branch name, e.g. refs/heads/master")
   private String branch;
 
   @Override
