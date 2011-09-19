@@ -32,7 +32,6 @@ import com.google.gerrit.server.config.SitePath;
 import com.google.gerrit.server.config.SitePaths;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
-import com.google.gerrit.server.workflow.StagingFunction;
 import com.google.gerrit.server.git.NoReplication;
 import com.google.gerrit.server.git.ProjectConfig;
 import com.google.gwtjsonrpc.server.SignedToken;
@@ -117,7 +116,6 @@ public class SchemaCreator {
       // TODO This should never be null when initializing a site.
       initWildCardProject();
     }
-    initStagingCategory(db);
 
     final SqlDialect d = jdbc.getDialect();
     if (d instanceof DialectH2) {
@@ -302,19 +300,6 @@ public class SchemaCreator {
     vals.add(value(cat, 0, "No score"));
     vals.add(value(cat, -1, "I would prefer that you didn't submit this"));
     vals.add(value(cat, -2, "Do not submit"));
-    c.approvalCategories().insert(Collections.singleton(cat));
-    c.approvalCategoryValues().insert(vals);
-  }
-
-  private void initStagingCategory(final ReviewDb c) throws OrmException {
-    final ApprovalCategory cat;
-    final ArrayList<ApprovalCategoryValue> vals;
-
-    cat = new ApprovalCategory(ApprovalCategory.STAGING, "Staging");
-    cat.setPosition((short) -1);
-    cat.setFunctionName(StagingFunction.NAME);
-    vals = new ArrayList<ApprovalCategoryValue>();
-    vals.add(value(cat, 1, "Staging"));
     c.approvalCategories().insert(Collections.singleton(cat));
     c.approvalCategoryValues().insert(vals);
   }
