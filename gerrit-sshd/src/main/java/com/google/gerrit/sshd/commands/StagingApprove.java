@@ -161,7 +161,7 @@ public class StagingApprove extends BaseCommand {
   private String message;
 
   @Option(name = "--branch", aliases = {"-b"}, metaVar = "BRANCH",
-      required = true, usage = "destination branch")
+      required = true, usage = "destination branch, e.g. refs/heads/master or just master")
   private String branch;
 
   private Repository git;

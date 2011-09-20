@@ -60,7 +60,7 @@ public class StagingNewBuild extends BaseCommand {
   private String stagingBranch;
 
   @Option(name = "--build-id", aliases = {"-i"},
-      required = true, usage = "build id, e.g. 123 (refs/build/123)")
+      required = true, usage = "build id, e.g. refs/builds/my_build or just my_build")
   private String build;
 
   @Override
