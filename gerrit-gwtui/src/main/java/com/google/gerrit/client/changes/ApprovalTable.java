@@ -208,6 +208,7 @@ public class ApprovalTable extends Composite {
         final ChangeDetail r = result.getChange();
         if (r != null) {
           setAccountInfoCache(r.getAccounts());
+          display(r);
         }
       }
 
