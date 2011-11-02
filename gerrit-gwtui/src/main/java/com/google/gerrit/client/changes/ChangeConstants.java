@@ -143,4 +143,7 @@ public interface ChangeConstants extends Constants {
 
   String buttonDiffAllSideBySide();
   String buttonDiffAllUnified();
+
+  String headingReviewDisabled();
+  String messageReviewDisabled();
 }

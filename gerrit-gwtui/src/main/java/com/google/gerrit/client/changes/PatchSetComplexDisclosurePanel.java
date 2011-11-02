@@ -21,6 +21,7 @@ import com.google.gerrit.client.ui.ListenableAccountDiffPreference;
 import com.google.gerrit.common.data.ChangeDetail;
 import com.google.gerrit.common.data.GitwebLink;
 import com.google.gerrit.common.data.PatchSetDetail;
+import com.google.gerrit.reviewdb.AbstractEntity.Status;
 import com.google.gerrit.reviewdb.AccountDiffPreference;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeMessage;
@@ -35,9 +36,9 @@ import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Grid;
+import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Panel;
-import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 
 import java.util.HashSet;
 import java.util.List;
@@ -353,8 +354,15 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
     b.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(final ClickEvent event) {
-        Gerrit.display("change,publish," + patchSet.getId().toString(),
-            new PublishCommentScreen(patchSet.getId()));
+        Status status = changeDetail.getChange().getStatus();
+        if (status == Status.INTEGRATING) {
+          alertMessageBox(Util.C.headingReviewDisabled(),
+              Util.C.messageReviewDisabled())
+              .center();
+        } else {
+          Gerrit.display("change,publish," + patchSet.getId().toString(),
+              new PublishCommentScreen(patchSet.getId()));
+        }
       }
     });
     actionsPanel.add(b);
@@ -470,4 +478,6 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       }
     };
   }
+
+
 }

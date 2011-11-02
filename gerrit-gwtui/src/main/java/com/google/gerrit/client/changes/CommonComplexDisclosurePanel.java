@@ -25,12 +25,19 @@ import com.google.gerrit.reviewdb.AccountGeneralPreferences.DownloadScheme;
 import com.google.gerrit.reviewdb.Project;
 import com.google.gerrit.reviewdb.UserIdentity;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.logical.shared.OpenHandler;
 import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Grid;
+import com.google.gwt.user.client.ui.HasAlignment;
 import com.google.gwt.user.client.ui.InlineLabel;
+import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwtexpui.clippy.client.CopyableLabel;
 
 import java.util.Set;
@@ -247,5 +254,27 @@ abstract class CommonComplexDisclosurePanel extends ComplexDisclosurePanel imple
     infoTable.setText(row, 0, name);
     infoTable.getCellFormatter().addStyleName(row, 0,
         Gerrit.RESOURCES.css().header());
+  }
+
+  protected static DialogBox alertMessageBox(final String header, final String message) {
+    final DialogBox box = new DialogBox();
+    final VerticalPanel panel = new VerticalPanel();
+    panel.add(new Label(message));
+    final Label empty = new Label("");
+    empty.setSize("auto", "16px");
+    panel.add(empty);
+    panel.add(empty);
+    final Button close = new Button(Util.C.buttonClose(), new ClickHandler() {
+      public void onClick(final ClickEvent event) {
+        box.hide();
+      }
+    });
+    panel.add(close);
+    panel.setSpacing(16);
+    panel.setCellHorizontalAlignment(close, HasAlignment.ALIGN_RIGHT);
+    box.setText(header);
+    box.add(panel);
+    box.setGlassEnabled(true);  // Gray out background
+    return box;
   }
 }

@@ -302,7 +302,20 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
     b.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(final ClickEvent event) {
+        boolean integrating = false;
+        for (Change change : topicDetail.getCurrentChangeSetDetail().getChanges()) {
+          if (change.getStatus() == Status.INTEGRATING) {
+            integrating = true;
+            break;
+          }
+        }
+        if (integrating) {
+          alertMessageBox(Util.C.headingReviewDisabled(),
+              Util.C.messageReviewDisabled())
+              .center();
+        } else {
         Gerrit.display(Dispatcher.toPublish(changeSet.getId()));
+        }
       }
     });
     actionsPanel.add(b);
