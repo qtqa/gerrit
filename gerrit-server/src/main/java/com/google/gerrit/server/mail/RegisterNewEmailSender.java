@@ -56,6 +56,15 @@ public class RegisterNewEmailSender extends OutgoingEmail {
     appendText(velocifyFile("RegisterNewEmail.vm"));
   }
 
+  @Override
+  public String getGerritUrl() {
+    String url = args.urlProvider.get();
+    if (url.startsWith("http:")) {
+      url = url.replaceAll("http:", "https:");
+    }
+    return url;
+  }
+
   public String getEmailRegistrationToken() {
     try {
       return authConfig.getEmailRegistrationToken().newToken(
