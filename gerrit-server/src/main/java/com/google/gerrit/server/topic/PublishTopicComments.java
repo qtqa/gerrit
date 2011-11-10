@@ -99,7 +99,8 @@ public class PublishTopicComments implements Callable<VoidResult> {
     }
 
     final boolean isCurrent = changeSetId.equals(topic.currentChangeSetId());
-    if (isCurrent && topic.getStatus().isOpen()) {
+    if ((isCurrent && topic.getStatus().isOpen() && !topic.getStatus()
+        .isIntegrating())) {
       publishApprovals();
     } else {
       publishMessageOnly();

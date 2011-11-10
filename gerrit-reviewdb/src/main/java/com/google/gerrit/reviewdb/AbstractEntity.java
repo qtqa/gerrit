@@ -221,6 +221,10 @@ public abstract class AbstractEntity {
       return closed;
     }
 
+    public boolean isIntegrating() {
+      return code == STATUS_INTEGRATING;
+    }
+
     public static Status forCode(final char c) {
       for (final Status s : Status.values()) {
         if (s.code == c) {

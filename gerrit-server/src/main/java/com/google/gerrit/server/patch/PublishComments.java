@@ -136,7 +136,7 @@ public class PublishComments implements Callable<VoidResult> {
     final boolean isCurrent = patchSetId.equals(change.currentPatchSetId());
     // Only message will be published for changes with status INTEGRATING.
     if (isCurrent && change.getStatus().isOpen()
-        && change.getStatus() != Change.Status.INTEGRATING) {
+        && !change.getStatus().isIntegrating()) {
       publishApprovals();
        // Update staging, if score required for staging was removed.
       // E.g. Existing +2 code review changed to +1 or -2 score was added.
