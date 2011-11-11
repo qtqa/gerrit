@@ -27,6 +27,9 @@ public final class ApprovalCategory {
   /** Id of the custom "Staging" category. */
   public static final ApprovalCategory.Id STAGING = new ApprovalCategory.Id("STGN");
 
+  /** Id of the sanity review category */
+  public static final ApprovalCategory.Id SANITY_REVIEW = new ApprovalCategory.Id("SRVW");
+
   public static class Id extends StringKey<Key<?>> {
     private static final long serialVersionUID = 1L;
 

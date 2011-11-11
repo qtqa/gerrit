@@ -185,19 +185,24 @@ class PatchDetailServiceImpl extends BaseServiceImplementation implements
                 functionStateFactory.create(change, ps_id, psas.values());
 
             for (final PatchSetApproval ca : db.patchSetApprovals()
-                .byPatchSetUser(ps_id, aid)) {
+                .byPatchSet(ps_id)) {
               final ApprovalCategory.Id category = ca.getCategoryId();
               if (ApprovalCategory.SUBMIT.equals(category)
                   || ApprovalCategory.STAGING.equals(category)) {
                 continue;
               }
-              if (change.getStatus().isOpen()) {
-                fs.normalize(approvalTypes.byId(category), ca);
+              // Only process approval for account or if approval category is sanity review
+              if (ca.getAccountId().equals(aid)
+                  || ApprovalCategory.SANITY_REVIEW.equals(category)) {
+                if (change.getStatus().isOpen()) {
+                  fs.normalize(approvalTypes.byId(category), ca);
+                }
+                if (ca.getValue() == 0) {
+                  continue;
+                }
+                psas.put(category, ca);
               }
-              if (ca.getValue() == 0) {
-                continue;
-              }
-              psas.put(category, ca);
+
             }
 
             approvals.put(id, new ApprovalSummary(psas.values()));
