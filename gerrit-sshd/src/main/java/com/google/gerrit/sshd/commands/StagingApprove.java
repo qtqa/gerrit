@@ -232,9 +232,6 @@ public class StagingApprove extends BaseCommand {
           throw e;
         }
 
-        for (PatchSet patch : toApprove) {
-          ChangeUtil.submit(patch.getId(), currentUser, db, opFactory, merger);
-        }
         // Rebuild staging branch.
         ChangeUtil.rebuildStaging(destination, currentUser, db, git, opFactory,
             merger, hooks);

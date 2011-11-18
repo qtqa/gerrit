@@ -683,7 +683,12 @@ public class ChangeUtil {
     final Change.Id changeId = patchSetId.getParentKey();
     AtomicUpdate<Change> atomicUpdate =
       getUpdateToState(Change.Status.INTEGRATING, Change.Status.MERGED);
-    db.changes().atomicUpdate(changeId, atomicUpdate);
+    Change change = db.changes().atomicUpdate(changeId, atomicUpdate);
+    List<PatchSetApproval> approvals = db.patchSetApprovals().byChange(changeId).toList();
+    for (PatchSetApproval a : approvals) {
+      a.cache(change);
+    }
+    db.patchSetApprovals().update(approvals);
   }
 
   /**
