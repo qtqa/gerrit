@@ -39,15 +39,20 @@ import com.google.gerrit.reviewdb.server.ReviewDb;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.change.PostReview.Input;
+import com.google.gerrit.server.config.GerritServerConfig;
 import com.google.gerrit.server.project.ChangeControl;
+import com.google.gerrit.server.util.BooleanExpression;
 import com.google.gwtorm.server.OrmException;
 import com.google.inject.Inject;
 
+import org.eclipse.jgit.lib.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Timestamp;
+import java.text.ParseException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -112,14 +117,17 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
   private List<PatchLineComment> comments = Lists.newArrayList();
   private List<String> labelDelta = Lists.newArrayList();
   private Map<String, Short> categories = Maps.newHashMap();
+  private final Config config;
 
   @Inject
   PostReview(ReviewDb db,
       EmailReviewComments.Factory email,
-      ChangeHooks hooks) {
+      ChangeHooks hooks,
+      @GerritServerConfig Config config) {
     this.db = db;
     this.email = email;
     this.hooks = hooks;
+    this.config = config;
   }
 
   @Override
@@ -155,13 +163,15 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
     }
 
     if (input.notify.compareTo(NotifyHandling.NONE) > 0 && message != null) {
-      email.create(
-          input.notify,
-          change,
-          revision.getPatchSet(),
-          revision.getAccountId(),
-          message,
-          comments).sendAsync();
+      if (!isEmailRejectedByFilter(input.labels, revision)) {
+        email.create(
+            input.notify,
+            change,
+            revision.getPatchSet(),
+            revision.getAccountId(),
+            message,
+            comments).sendAsync();
+      }
       fireCommentAddedHook(revision);
     }
 
@@ -493,5 +503,38 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
     } catch (OrmException e) {
       log.warn("ChangeHook.doCommentAddedHook delivery failed", e);
     }
+  }
+
+  private boolean isEmailRejectedByFilter(Map<String, Short> labels, RevisionResource rsrc) {
+    if (labels == null) {
+      return false;
+    }
+    try {
+      String f = config.getString("review", null, "filter");
+      if (f != null) {
+        // Only care about filter if available in configuration
+        BooleanExpression ef = new BooleanExpression(f);
+        HashMap<String, String> am = new HashMap<String, String>();
+        Iterator<Map.Entry<String, Short>> itr = labels.entrySet().iterator();
+        while (itr.hasNext()) {
+          Map.Entry<String, Short> ent = itr.next();
+
+          LabelType lt = rsrc.getControl().getLabelTypes()
+              .byLabel(ent.getKey());
+          if (lt == null) {
+            continue;
+          }
+          am.put(ent.getKey(), Short.toString(ent.getValue()));
+        }
+        IdentifiedUser user = (IdentifiedUser) rsrc.getControl().getCurrentUser();
+        am.put("reviewer", user.getUserName());
+        // If filter expression evaluates to false
+        // this return true and no email will be sent
+        return !ef.evaluate(am);
+      }
+    } catch (ParseException e) {
+      log.error("Failed to parse filter expression from configuration", e);
+    }
+  return false;
   }
 }
