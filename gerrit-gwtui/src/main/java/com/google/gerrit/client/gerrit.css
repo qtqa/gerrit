@@ -1245,6 +1245,18 @@ a:hover.downloadLink {
   display: none;
 }
 
+.publishCommentsScreen .gwt-DisclosurePanel .header td {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.publishCommentsScreen .gwt-DisclosurePanel .complexHeader {
+  white-space: nowrap;
+}
+.publishCommentsScreen .gwt-DisclosurePanel .complexHeader span {
+  white-space: nowrap;
+}
+
 
 /** AbandonChangeDialog **/
 
