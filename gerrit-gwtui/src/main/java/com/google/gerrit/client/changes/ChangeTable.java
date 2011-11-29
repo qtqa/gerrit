@@ -344,7 +344,9 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
         table.clearCell(row, col);
 
       } else {
-        haveReview = true;
+        if (!ca.getCategoryId().equals(ApprovalCategory.SANITY_REVIEW)) {
+          haveReview = true;
+        }
 
         final ApprovalCategoryValue acv = type.getValue(ca);
         final AccountInfo ai = aic.get(ca.getAccountId());
