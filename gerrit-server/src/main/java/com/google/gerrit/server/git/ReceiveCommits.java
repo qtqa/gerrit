@@ -112,12 +112,12 @@ import javax.annotation.Nullable;
 
 /** Receives change upload using the Git receive-pack protocol. */
 public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
-  private static final Logger log =
-      LoggerFactory.getLogger(ReceiveCommits.class);
+  private static final Logger log = LoggerFactory
+      .getLogger(ReceiveCommits.class);
 
   public static final String NEW_CHANGE = "refs/for/";
-  private static final Pattern NEW_PATCHSET =
-      Pattern.compile("^refs/changes/(?:[0-9][0-9]/)?([1-9][0-9]*)(?:/new)?$");
+  private static final Pattern NEW_PATCHSET = Pattern
+      .compile("^refs/changes/(?:[0-9][0-9]/)?([1-9][0-9]*)(?:/new)?$");
 
   private static final FooterKey REVIEWED_BY = new FooterKey("Reviewed-by");
   private static final FooterKey TESTED_BY = new FooterKey("Tested-by");
@@ -193,15 +193,12 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       final ReplacePatchSetSender.Factory replacePatchSetFactory,
       final ReplicationQueue replication,
       final PatchSetInfoFactory patchSetInfoFactory,
-      final ChangeHookRunner hooks,
-      final ProjectCache projectCache,
-      final GitRepositoryManager repoManager,
-      final GroupCache groupCache,
+      final ChangeHookRunner hooks, final ProjectCache projectCache,
+      final GitRepositoryManager repoManager, final GroupCache groupCache,
       @CanonicalWebUrl @Nullable final String canonicalWebUrl,
       @GerritPersonIdent final PersonIdent gerritIdent,
       final TrackingFooters trackingFooters,
-      final MergeOp.Factory mergeFactory,
-      final MergeQueue merger,
+      final MergeOp.Factory mergeFactory, final MergeQueue merger,
 
       @Assisted final ProjectControl projectControl,
       @Assisted final Repository repo) throws IOException {
@@ -267,8 +264,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     // Advertise some recent open changes, in case a commit is based one.
     try {
       Set<PatchSet.Id> toGet = new HashSet<PatchSet.Id>();
-      for (Change change : db.changes()
-          .byProjectOpenNext(project.getNameKey(), "z", 32)) {
+      for (Change change : db.changes().byProjectOpenNext(project.getNameKey(),
+          "z", 32)) {
         PatchSet.Id id = change.currentPatchSetId();
         if (id != null) {
           toGet.add(id);
@@ -328,7 +325,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
         }
       }
     } catch (IOException err) {
-      log.error("Error trying to advertise history on " + project.getNameKey(), err);
+      log.error("Error trying to advertise history on " + project.getNameKey(),
+          err);
     }
     rw.reset();
     rp.getAdvertisedObjects().addAll(toInclude);
@@ -339,6 +337,10 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     if (!projectControl.canPushToAtLeastOneRef()) {
       String reqName = project.getName();
       return new Capable("Upload denied for project '" + reqName + "'");
+    }
+    if (project.getName() != null && project.getName().endsWith("/")) {
+      log.warn("Invalid project name '" + project.getName() + "'");
+      return new Capable("Project name cannot end with '/'");
     }
 
     // Don't permit receive-pack to be executed if a refs/for/branch_name
@@ -417,8 +419,10 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           // Change refs are scheduled when they are created.
           //
           replication.scheduleUpdate(project.getNameKey(), c.getRefName());
-          Branch.NameKey destBranch = new Branch.NameKey(project.getNameKey(), c.getRefName());
-          hooks.doRefUpdatedHook(destBranch, c.getOldId(), c.getNewId(), currentUser.getAccount());
+          Branch.NameKey destBranch =
+              new Branch.NameKey(project.getNameKey(), c.getRefName());
+          hooks.doRefUpdatedHook(destBranch, c.getOldId(), c.getNewId(),
+              currentUser.getAccount());
         }
       }
     }
@@ -615,7 +619,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           continue;
       }
 
-      if (cmd.getResult() != ReceiveCommand.Result.NOT_ATTEMPTED){
+      if (cmd.getResult() != ReceiveCommand.Result.NOT_ATTEMPTED) {
         continue;
       }
 
@@ -657,8 +661,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     try {
       obj = rp.getRevWalk().parseAny(cmd.getNewId());
     } catch (IOException err) {
-      log.error("Invalid object " + cmd.getNewId().name() + " for "
-          + cmd.getRefName() + " creation", err);
+      log.error(
+          "Invalid object " + cmd.getNewId().name() + " for "
+              + cmd.getRefName() + " creation", err);
       reject(cmd, "invalid object");
       return;
     }
@@ -695,8 +700,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     try {
       obj = rp.getRevWalk().parseAny(cmd.getNewId());
     } catch (IOException err) {
-      log.error("Invalid object " + cmd.getNewId().name() + " for "
-          + cmd.getRefName(), err);
+      log.error(
+          "Invalid object " + cmd.getNewId().name() + " for "
+              + cmd.getRefName(), err);
       reject(cmd, "invalid object");
       return false;
     }
@@ -725,8 +731,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     } catch (IncorrectObjectTypeException notCommit) {
       newObject = null;
     } catch (IOException err) {
-      log.error("Invalid object " + cmd.getNewId().name() + " for "
-          + cmd.getRefName() + " forced update", err);
+      log.error(
+          "Invalid object " + cmd.getNewId().name() + " for "
+              + cmd.getRefName() + " forced update", err);
       reject(cmd, "invalid object");
       return;
     }
@@ -769,7 +776,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       return;
     }
 
-    // Split the destination branch by branch and topic.  The topic
+    // Split the destination branch by branch and topic. The topic
     // suffix is entirely optional, so it might not even exist.
     //
     int split = destBranchName.length();
@@ -919,11 +926,13 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       return;
     }
     if (changeEnt.getTopicId() != null) {
-      reject(cmd, "change " + changeId + " belongs to the topic " + changeEnt.getTopicId().get());
+      reject(cmd, "change " + changeId + " belongs to the topic "
+          + changeEnt.getTopicId().get());
       return;
     }
     if (!project.getNameKey().equals(changeEnt.getProject())) {
-      reject(cmd, "change " + changeId + " does not belong to project " + project.getName());
+      reject(cmd, "change " + changeId + " does not belong to project "
+          + project.getName());
       return;
     }
 
@@ -931,14 +940,13 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   }
 
   private boolean requestReplace(final ReceiveCommand cmd, final Change change,
-      final RevCommit newCommit, final Topic topic,
-      final int pos) {
+      final RevCommit newCommit, final Topic topic, final int pos) {
     if (change.getStatus().equals(AbstractEntity.Status.MERGED)) {
       reject(cmd, "change " + change.getId() + " closed");
       return false;
     }
-    if (change.getStatus().equals(AbstractEntity.Status.ABANDONED) &&
-        topic == null) {
+    if (change.getStatus().equals(AbstractEntity.Status.ABANDONED)
+        && topic == null) {
       reject(cmd, "change " + change.getId() + " closed");
       return false;
     }
@@ -947,8 +955,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     ChangeSet.Id csId = topic != null ? topic.currentChangeSetId() : null;
 
     final ReplaceRequest req =
-        new ReplaceRequest(change.getId(), newCommit, cmd,
-            topicId, csId, pos);
+        new ReplaceRequest(change.getId(), newCommit, cmd, topicId, csId, pos);
     if (replaceByChange.containsKey(req.ontoChange)) {
       reject(cmd, "duplicate request");
       return false;
@@ -970,8 +977,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       reject(cmd, "change " + change.getId() + " closed");
       return false;
     }
-    if (change.getStatus().equals(AbstractEntity.Status.ABANDONED) &&
-        !topic) {
+    if (change.getStatus().equals(AbstractEntity.Status.ABANDONED) && !topic) {
       reject(cmd, "change " + change.getId() + " closed");
       return false;
     }
@@ -997,14 +1003,17 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   }
 
   private void createNewChanges() {
-    final String abandonMessage = "This Change doesn't belong any more to the topic ";
+    final String abandonMessage =
+        "This Change doesn't belong any more to the topic ";
     final List<RevCommit> toCreate = new ArrayList<RevCommit>();
     final Map<Change, RevCommit> toReplace = new HashMap<Change, RevCommit>();
     final Map<Change.Id, Change> byChangeId = new HashMap<Change.Id, Change>();
     final RevWalk walk = rp.getRevWalk();
     final ObjectId lastIncluded = newChange.getNewId();
     final RevCommit firstIncluded;
-    final boolean topicSetting = project.isAllowTopicReview() && project.isRequireChangeID() && (destTopicName != null);
+    final boolean topicSetting =
+        project.isAllowTopicReview() && project.isRequireChangeID()
+            && (destTopicName != null);
     List<Change> toAbandon = new ArrayList<Change>();
     List<Change> toUpdate = new ArrayList<Change>();
     List<RevCommit> cOrder = new ArrayList<RevCommit>();
@@ -1072,7 +1081,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           if (changes.size() == 1) {
             toReplace.put(changes.get(0), c);
             byChangeId.put(changes.get(0).getId(), changes.get(0));
-            if (requestReplaceCheck(newChange, changes.get(0), c, toReplace, topicSetting)) {
+            if (requestReplaceCheck(newChange, changes.get(0), c, toReplace,
+                topicSetting)) {
               continue;
             } else {
               return;
@@ -1122,32 +1132,38 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
         final String message = "";
         final ChangeSet.Id previousCs;
 
-        List<ChangeSetElement> currentChangeSetElements = new ArrayList<ChangeSetElement>();
+        List<ChangeSetElement> currentChangeSetElements =
+            new ArrayList<ChangeSetElement>();
         List<Change> currentChanges = new ArrayList<Change>();
         Set<String> revIdAncestors = new HashSet<String>();
-        if (cOrder.isEmpty()) firstIncluded = null;
+        if (cOrder.isEmpty())
+          firstIncluded = null;
         else {
           firstIncluded = cOrder.get(0);
           for (RevCommit r : firstIncluded.getParents())
             revIdAncestors.add(r.getName());
         }
 
-        t = TopicUtil.findActiveTopic(destTopicName, db, destBranch,
-            project.getNameKey());
+        t =
+            TopicUtil.findActiveTopic(destTopicName, db, destBranch,
+                project.getNameKey());
         if (t != null) {
           if (t.getStatus().equals(AbstractEntity.Status.SUBMITTED)) {
-            reject(newChange, "There is a topic with the same topic name in SUBMITTED status");
+            reject(newChange,
+                "There is a topic with the same topic name in SUBMITTED status");
             return;
           }
           topicId = t.getId();
           previousCs = new ChangeSet.Id(topicId, t.currChangeSetId().get());
-          currentChangeSetElements = db.changeSetElements().byChangeSet(previousCs).toList();
+          currentChangeSetElements =
+              db.changeSetElements().byChangeSet(previousCs).toList();
         }
 
         // Check if the replacement Changes belongs to this topic
         //
         if (!checkSameTopic(toReplace, topicId)) {
-          reject(newChange, "The modified changes doesn't belong to the same topic.");
+          reject(newChange,
+              "The modified changes doesn't belong to the same topic.");
           return;
         }
 
@@ -1167,14 +1183,17 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           // Identify deleted elements
           //
           if (!currentChanges.isEmpty()) {
-            for (Change c : currentChanges.subList(toUpdate.size(), currentChanges.size())) {
+            for (Change c : currentChanges.subList(toUpdate.size(),
+                currentChanges.size())) {
               if (!byChangeId.containsKey(c.getId())) toAbandon.add(c);
             }
           }
           if (t == null) {
             // This is the first push to this topic, we need to create it
             //
-            t = TopicUtil.createTopic(currentUser.getAccountId(), db, destTopicName, destBranch, message);
+            t =
+                TopicUtil.createTopic(currentUser.getAccountId(), db,
+                    destTopicName, destBranch, message);
             topicId = t.getId();
 
             // Show info in the command line
@@ -1186,9 +1205,11 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
             // and currentChanges == toAbandon, is the user referring to
             // the same topic ? - Don't allow to do that, maybe he is wrong
             //
-            if ((toCreate.size() == cOrder.size()) && (toAbandon.equals(currentChanges))) {
-              reject(newChange, "This new push has nothing in common with the previous one. " +
-                      "Please, abandon this topic or create a new one");
+            if ((toCreate.size() == cOrder.size())
+                && (toAbandon.equals(currentChanges))) {
+              reject(newChange,
+                  "This new push has nothing in common with the previous one. "
+                      + "Please, abandon this topic or create a new one");
               return;
             }
             t = TopicUtil.setUpTopic(t, db, currentUser.getAccountId());
@@ -1196,7 +1217,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
             // Show info in the command line
             //
             rp.sendMessage("");
-            rp.sendMessage("New ChangeSet (" + t.currentChangeSetId().get() + ") in topic " + topicId);
+            rp.sendMessage("New ChangeSet (" + t.currentChangeSetId().get()
+                + ") in topic " + topicId);
           }
         } else {
           // That means that there were no additions or replacements
@@ -1204,11 +1226,16 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           //
           Collections.reverse(currentChanges);
           for (Change c : currentChanges) {
-            final RevId currentRevId = db.patchSets().get(c.currentPatchSetId()).getRevision();
+            final RevId currentRevId =
+                db.patchSets().get(c.currentPatchSetId()).getRevision();
             final RevId last = new RevId(lastIncluded.name());
             if (currentRevId.get().equals(last.get())) {
-              toAbandon = new ArrayList<Change>(currentChanges.subList(0, currentChanges.indexOf(c)));
-              toUpdate = new ArrayList<Change>(currentChanges.subList(currentChanges.indexOf(c), currentChanges.size()));
+              toAbandon =
+                  new ArrayList<Change>(currentChanges.subList(0,
+                      currentChanges.indexOf(c)));
+              toUpdate =
+                  new ArrayList<Change>(currentChanges.subList(
+                      currentChanges.indexOf(c), currentChanges.size()));
               break;
             }
           }
@@ -1225,7 +1252,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
         if (!toUpdate.isEmpty())
           updateChangeSetId(toUpdate, t.currentChangeSetId());
       } catch (OrmException e) {
-        log.error("Error creating Topic " + destTopicName + " for commit set.", e);
+        log.error("Error creating Topic " + destTopicName + " for commit set.",
+            e);
         reject(newChange, "database error");
         return;
       }
@@ -1264,14 +1292,14 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     if (!toAbandon.isEmpty()) rp.sendMessage("");
     for (final Change c : toAbandon) {
       try {
-        ChangeUtil.abandon(c.currentPatchSetId(), currentUser,
-            abandonMessage + topicId.get(), db, null, hooks, false);
+        ChangeUtil.abandon(c.currentPatchSetId(), currentUser, abandonMessage
+            + topicId.get(), db, null, hooks, false);
 
         // Show info in the command line
         //
-        rp.sendMessage("Change " + c.getId().get() +
-            " (belonging to the changeset " + t.currentChangeSetId().get() +
-            ") in topic " + topicId + " abandoned");
+        rp.sendMessage("Change " + c.getId().get()
+            + " (belonging to the changeset " + t.currentChangeSetId().get()
+            + ") in topic " + topicId + " abandoned");
       } catch (NoSuchChangeException e) {
         reject(newChange, "Problem when abandoning change " + c.getId());
         restoreOnTopicError(t);
@@ -1326,30 +1354,36 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     replaceByCommit.clear();
 
     try {
-      final List<ChangeSetElement> toDelete = db.changeSetElements().byChangeSet(csi).toList();
+      final List<ChangeSetElement> toDelete =
+          db.changeSetElements().byChangeSet(csi).toList();
       db.changeSetElements().delete(toDelete);
     } catch (OrmException e) {
-      log.error("Cannot delete ChangeSet elements when recovering from an error " + e);
+      log.error("Cannot delete ChangeSet elements when recovering from an error "
+          + e);
       return;
     }
 
     if (t.currentChangeSetId().get() > 1) {
-      final ChangeSet.Id previousCSId = new ChangeSet.Id(t.getId(), csi.get() - 1);
+      final ChangeSet.Id previousCSId =
+          new ChangeSet.Id(t.getId(), csi.get() - 1);
       final ChangeSetInfo csInfo = new ChangeSetInfo(previousCSId);
       t.setCurrentChangeSet(csInfo);
       try {
         final ChangeSet toDeleteCS = db.changeSets().get(csi);
         db.topics().update(Collections.singleton(t));
-        if (toDeleteCS != null) db.changeSets().delete(Collections.singleton(toDeleteCS));
+        if (toDeleteCS != null)
+          db.changeSets().delete(Collections.singleton(toDeleteCS));
       } catch (OrmException e) {
-        log.error("Cannot recover previous state of a topic when recovering from an error " + e);
+        log.error("Cannot recover previous state of a topic when recovering from an error "
+            + e);
         return;
       }
     } else {
       try {
         final ChangeSet toDeleteCS = db.changeSets().get(csi);
         db.topics().delete(Collections.singleton(t));
-        if (toDeleteCS != null) db.changeSets().delete(Collections.singleton(toDeleteCS));
+        if (toDeleteCS != null)
+          db.changeSets().delete(Collections.singleton(toDeleteCS));
       } catch (OrmException e) {
         log.error("Cannot delete topic when recovering from an error " + e);
         return;
@@ -1362,7 +1396,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     for (Change c : currentChanges) {
       try {
         ChangeSetElement.Key cseKey = new ChangeSetElement.Key(c.getId(), csId);
-        ChangeSetElement cse = new ChangeSetElement(cseKey, currentChanges.indexOf(c));
+        ChangeSetElement cse =
+            new ChangeSetElement(cseKey, currentChanges.indexOf(c));
 
         db.changeSetElements().insert(Collections.singleton(cse));
       } catch (OrmException e) {
@@ -1377,8 +1412,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   }
 
   private void createChange(final RevWalk walk, final RevCommit c,
-      final Topic.Id topicId, final int pos)
-      throws OrmException, IOException {
+      final Topic.Id topicId, final int pos) throws OrmException, IOException {
     walk.parseBody(c);
     warnMalformedMessage(c);
 
@@ -1415,7 +1449,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       ChangeSet.Id currentChangeSetId = topic.currentChangeSetId();
       change.setTopicId(topicId);
 
-      final ChangeSetElement.Key cseKey = new ChangeSetElement.Key(change.getId(), currentChangeSetId);
+      final ChangeSetElement.Key cseKey =
+          new ChangeSetElement.Key(change.getId(), currentChangeSetId);
       final ChangeSetElement cse = new ChangeSetElement(cseKey, pos);
       db.changeSetElements().insert(Collections.singleton(cse));
     }
@@ -1450,23 +1485,24 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       if (authorId != null && haveApprovals.add(authorId)) {
         insertDummyApproval(change, ps.getId(), authorId, catId, db);
         if (topicId != null) {
-          insertDummyApproval(db.topics().get(topicId), db.topics().get(topicId).currentChangeSetId(),
-              authorId, catId, db);
+          insertDummyApproval(db.topics().get(topicId), db.topics()
+              .get(topicId).currentChangeSetId(), authorId, catId, db);
         }
       }
       if (committerId != null && haveApprovals.add(committerId)) {
         insertDummyApproval(change, ps.getId(), committerId, catId, db);
         if (topicId != null) {
-          insertDummyApproval(db.topics().get(topicId), db.topics().get(topicId).currentChangeSetId(),
-              committerId, catId, db);
+          insertDummyApproval(db.topics().get(topicId), db.topics()
+              .get(topicId).currentChangeSetId(), committerId, catId, db);
         }
       }
       for (final Account.Id reviewer : reviewers) {
         if (haveApprovals.add(reviewer)) {
           insertDummyApproval(change, ps.getId(), reviewer, catId, db);
           if (topicId != null) {
-            insertDummyApproval(db.topics().get(topicId), db.topics().get(topicId).currentChangeSetId(),
-                reviewer, catId, db);
+            insertDummyApproval(db.topics().get(topicId),
+                db.topics().get(topicId).currentChangeSetId(), reviewer, catId,
+                db);
           }
         }
       }
@@ -1531,7 +1567,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
 
   private PatchSet.Id doReplace(final ReplaceRequest request)
       throws IOException, OrmException {
-    final String restoreMessage = "This change has been restored to be reviewed in topic ";
+    final String restoreMessage =
+        "This change has been restored to be reviewed in topic ";
     final RevCommit c = request.newCommit;
     final boolean fromTopic = request.csId != null;
     rp.getRevWalk().parseBody(c);
@@ -1570,8 +1607,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       return null;
     }
     if (change.getStatus() == Change.Status.INTEGRATING) {
-        reject(request.cmd, "change " + request.ontoChange + " is already INTEGRATING");
-        return null;
+      reject(request.cmd, "change " + request.ontoChange
+          + " is already INTEGRATING");
+      return null;
     }
     if (change.getStatus().equals(AbstractEntity.Status.ABANDONED)) {
       // It is needed a special behavior in case we are working with topics
@@ -1587,7 +1625,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
         reject(request.cmd, "change " + request.ontoChange + " not found");
         return null;
       } catch (InvalidChangeOperationException e) {
-        reject(request.cmd, "error when restoring the abandoned change " + request.ontoChange);
+        reject(request.cmd, "error when restoring the abandoned change "
+            + request.ontoChange);
         return null;
       } catch (EmailException e) {
         // This should never happen, as it will never send any email
@@ -1741,10 +1780,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       }
 
       // ApprovalCategory.SUBMIT is still in db but not relevant in git-store
-      if (!ApprovalCategory.SUBMIT.equals(a.getCategoryId()) &&
-          !ApprovalCategory.STAGING.equals(a.getCategoryId())) {
-        final ApprovalType type =
-          approvalTypes.byId(a.getCategoryId());
+      if (!ApprovalCategory.SUBMIT.equals(a.getCategoryId())
+          && !ApprovalCategory.STAGING.equals(a.getCategoryId())) {
+        final ApprovalType type = approvalTypes.byId(a.getCategoryId());
         if (a.getPatchSetId().equals(priorPatchSet)
             && type.getCategory().isCopyMinScore() && type.isMaxNegative(a)) {
           // If there was a negative vote on the prior patch set, carry it
@@ -1765,15 +1803,15 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     }
 
     final ChangeMessage msg =
-        new ChangeMessage(new ChangeMessage.Key(change.getId(), ChangeUtil
-            .messageUUID(db)), me, ps.getCreatedOn());
+        new ChangeMessage(new ChangeMessage.Key(change.getId(),
+            ChangeUtil.messageUUID(db)), me, ps.getCreatedOn());
     msg.setMessage("Uploaded patch set " + ps.getPatchSetId() + ".");
     db.changeMessages().insert(Collections.singleton(msg));
     result.msg = msg;
 
     // Check staging status before change status is updated.
-    boolean inStaging = (change.getStatus() == Change.Status.STAGED
-        || change.getStatus() == Change.Status.STAGING);
+    boolean inStaging =
+        (change.getStatus() == Change.Status.STAGED || change.getStatus() == Change.Status.STAGING);
 
     if (result.mergedIntoRef != null) {
       // Change was already submitted to a branch, close it.
@@ -1804,9 +1842,11 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
         db.changeMessages().delete(Collections.singleton(msg));
         reject(request.cmd, "change is closed");
         return null;
-      }  else if (request.csId != null) {
-        final ChangeSetElement.Key cseKey = new ChangeSetElement.Key(change.getId(), request.csId);
-        final ChangeSetElement cse = new ChangeSetElement(cseKey, request.position);
+      } else if (request.csId != null) {
+        final ChangeSetElement.Key cseKey =
+            new ChangeSetElement.Key(change.getId(), request.csId);
+        final ChangeSetElement cse =
+            new ChangeSetElement(cseKey, request.position);
         db.changeSetElements().insert(Collections.singleton(cse));
       }
     }
@@ -1858,8 +1898,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     sendMergedEmail(result);
     if (inStaging) {
       try {
-        ChangeUtil.rebuildStaging(change.getDest(), currentUser, db,
-            repo, mergeFactory, merger, hooks);
+        ChangeUtil.rebuildStaging(change.getDest(), currentUser, db, repo,
+            mergeFactory, merger, hooks);
       } catch (NoSuchRefException e) {
         // Destination branch not available.
         log.error("Could not rebuild staging branch. No destination branch.", e);
@@ -1925,8 +1965,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       final Account.Id forAccount, final ApprovalCategory.Id catId,
       final ReviewDb db) throws OrmException {
     final ChangeSetApproval ca =
-      new ChangeSetApproval(new ChangeSetApproval.Key(csId, forAccount, catId),
-          (short) 0);
+        new ChangeSetApproval(
+            new ChangeSetApproval.Key(csId, forAccount, catId), (short) 0);
     ca.cache(topic);
     db.changeSetApprovals().insert(Collections.singleton(ca));
   }
@@ -1967,9 +2007,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     final int position;
 
     ReplaceRequest(final Change.Id toChange, final RevCommit newCommit,
-        final ReceiveCommand cmd,
-        final Topic.Id topicId, final ChangeSet.Id csId,
-        final int position) {
+        final ReceiveCommand cmd, final Topic.Id topicId,
+        final ChangeSet.Id csId, final int position) {
       this.ontoChange = toChange;
       this.newCommit = newCommit;
       this.cmd = cmd;
@@ -2089,8 +2128,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
 
     final List<String> idList = c.getFooterLines(CHANGE_ID);
     if (idList.isEmpty()) {
-      if (project.isRequireChangeID() && (cmd.getRefName().startsWith(NEW_CHANGE)
-  || NEW_PATCHSET.matcher(cmd.getRefName()).matches())) {
+      if (project.isRequireChangeID()
+          && (cmd.getRefName().startsWith(NEW_CHANGE) || NEW_PATCHSET.matcher(
+              cmd.getRefName()).matches())) {
         String errMsg = "missing Change-Id in commit message";
         reject(cmd, errMsg);
         rp.sendMessage(getFixedCommitMsgWithChangeId(errMsg, c));
@@ -2102,7 +2142,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     } else {
       final String v = idList.get(idList.size() - 1).trim();
       if (!v.matches("^I[0-9a-f]{8,}.*$")) {
-        final String errMsg = "missing or invalid Change-Id line format in commit message";
+        final String errMsg =
+            "missing or invalid Change-Id line format in commit message";
         reject(cmd, errMsg);
         rp.sendMessage(getFixedCommitMsgWithChangeId(errMsg, c));
         return false;
@@ -2121,15 +2162,17 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   private String getFixedCommitMsgWithChangeId(String errMsg, RevCommit c) {
     // We handle 3 cases:
     // 1. No change id in the commit message at all.
-    // 2. change id last in the commit message but missing empty line to create the footer.
-    // 3. there is a change-id somewhere in the commit message, but we ignore it.
+    // 2. change id last in the commit message but missing empty line to create
+    // the footer.
+    // 3. there is a change-id somewhere in the commit message, but we ignore
+    // it.
     final String changeId = "Change-Id:";
     StringBuilder sb = new StringBuilder();
     sb.append("ERROR: ").append(errMsg);
     sb.append("\n");
     sb.append("Suggestion for commit message:\n");
 
-    if (c.getFullMessage().indexOf(changeId)==-1) {
+    if (c.getFullMessage().indexOf(changeId) == -1) {
       sb.append(c.getFullMessage());
       sb.append("\n");
       sb.append(changeId).append(" I").append(c.name());
@@ -2137,7 +2180,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       String lines[] = c.getFullMessage().trim().split("\n");
       String lastLine = lines.length > 0 ? lines[lines.length - 1] : "";
 
-      if (lastLine.indexOf(changeId)==0) {
+      if (lastLine.indexOf(changeId) == 0) {
         for (int i = 0; i < lines.length - 1; i++) {
           sb.append(lines[i]);
           sb.append("\n");
@@ -2160,7 +2203,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     StringBuilder sb = new StringBuilder();
     sb.append("\n");
     sb.append("ERROR:  In commit " + c.name() + "\n");
-    sb.append("ERROR:  " + type + " email address " + who.getEmailAddress() + "\n");
+    sb.append("ERROR:  " + type + " email address " + who.getEmailAddress()
+        + "\n");
     sb.append("ERROR:  does not match your user account.\n");
     sb.append("ERROR:\n");
     if (currentUser.getEmailAddresses().isEmpty()) {
@@ -2174,7 +2218,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     sb.append("ERROR:\n");
     if (canonicalWebUrl != null) {
       sb.append("ERROR:  To register an email address, please visit:\n");
-      sb.append("ERROR:  " + canonicalWebUrl + "#" + PageLinks.SETTINGS_CONTACT + "\n");
+      sb.append("ERROR:  " + canonicalWebUrl + "#" + PageLinks.SETTINGS_CONTACT
+          + "\n");
     }
     sb.append("\n");
     getReceivePack().sendMessage(sb.toString());
@@ -2225,8 +2270,9 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       }
 
       final Map<ObjectId, Ref> byCommit = changeRefsById();
-      final Map<Change.Key, Change.Id> byKey = openChangesByKey(
-          new Branch.NameKey(project.getNameKey(), cmd.getRefName()));
+      final Map<Change.Key, Change.Id> byKey =
+          openChangesByKey(new Branch.NameKey(project.getNameKey(),
+              cmd.getRefName()));
       final List<ReplaceRequest> toClose = new ArrayList<ReplaceRequest>();
       RevCommit c;
       while ((c = rw.next()) != null) {
@@ -2340,8 +2386,8 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     }
     msgBuf.append(".");
     final ChangeMessage msg =
-        new ChangeMessage(new ChangeMessage.Key(change.getId(), ChangeUtil
-            .messageUUID(db)), currentUser.getAccountId());
+        new ChangeMessage(new ChangeMessage.Key(change.getId(),
+            ChangeUtil.messageUUID(db)), currentUser.getAccountId());
     msg.setMessage(msgBuf.toString());
 
     db.changeMessages().insert(Collections.singleton(msg));
