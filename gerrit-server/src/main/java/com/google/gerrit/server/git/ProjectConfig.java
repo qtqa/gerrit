@@ -198,10 +198,14 @@ public class ProjectConfig extends VersionedMetaData {
 
     p.setSubmitType(rc.getEnum(SUBMIT, null, KEY_ACTION, defaultSubmitAction));
     p.setUseContentMerge(rc.getBoolean(SUBMIT, null, KEY_MERGE_CONTENT, false));
-    
+
     p.setIncludeOnlyMaxApproval(rc.getBoolean(CHERRY_PICK, INCLUDE_ONLY_MAX_APPROVALS, false));
     p.setHideReviewedOn(rc.getBoolean(CHERRY_PICK, HIDE_REVIEWED_ON, false));
 
+    for (String category : rc.getNames(CHERRY_PICK, CATEGORY_FOOTERS)) {
+      final boolean value = rc.getBoolean(CATEGORY_FOOTERS, category, true);
+      p.addHiddenFooter(category, value);
+    }
     accessSections = new HashMap<String, AccessSection>();
     for (String refName : rc.getSubsections(ACCESS)) {
       if (isAccessSection(refName)) {
@@ -214,16 +218,9 @@ public class ProjectConfig extends VersionedMetaData {
             }
           }
         }
-
         for (String varName : rc.getNames(ACCESS, refName)) {
           if (isPermission(varName)) {
             Permission perm = as.getPermission(varName, true);
-    for (String category : rc.getNames(CHERRY_PICK, CATEGORY_FOOTERS)) {
-      final boolean value = rc.getBoolean(CATEGORY_FOOTERS, category, true);
-      p.addHiddenFooter(category, value);
-    }
-
-
             boolean useRange = perm.isLabel();
             for (String ruleString : rc.getStringList(ACCESS, refName, varName)) {
               PermissionRule rule;
