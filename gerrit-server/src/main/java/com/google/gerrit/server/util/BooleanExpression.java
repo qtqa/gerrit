@@ -86,22 +86,20 @@ public class BooleanExpression {
           stack[spos++] = Boolean.toString(!a.equals(b));
         } else {
           // Only integer numbers can be compared
-          if (!isNumber(a)) {
-            throw new IllegalArgumentException(a + " is not a integer number");
-          }
-          if (!isNumber(b)) {
-            throw new IllegalArgumentException(b + " is not a integer number");
-          }
-          int ai = Integer.parseInt(a);
-          int bi = Integer.parseInt(b);
-          if (o == O_GT) {
-            stack[spos++] = Boolean.toString(ai > bi);
-          } else if (o == O_GTOREQUAL) {
-            stack[spos++] = Boolean.toString(ai >= bi);
-          } else if (o == O_LT) {
-            stack[spos++] = Boolean.toString(ai < bi);
-          } else if (o == O_LTOREQUAL) {
-            stack[spos++] = Boolean.toString(ai <= bi);
+          if (!isNumber(a) || !isNumber(b)) {
+            stack[spos++] = "false";
+          } else {
+            int ai = Integer.parseInt(a);
+            int bi = Integer.parseInt(b);
+            if (o == O_GT) {
+              stack[spos++] = Boolean.toString(ai > bi);
+            } else if (o == O_GTOREQUAL) {
+              stack[spos++] = Boolean.toString(ai >= bi);
+            } else if (o == O_LT) {
+              stack[spos++] = Boolean.toString(ai < bi);
+            } else if (o == O_LTOREQUAL) {
+              stack[spos++] = Boolean.toString(ai <= bi);
+            }
           }
         }
       } else if (o == O_TRUE) {
