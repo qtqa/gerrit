@@ -31,6 +31,7 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.RadioButton;
@@ -80,7 +81,7 @@ public class Approvals extends Composite {
 
   private static SavedState lastState;
   private boolean saveState = true;
-  private final VerticalPanel body;
+  private final Panel body;
   private final PatchSet.Id patchSetId;
   private Collection<ValueRadioButton> approvalButtons;
   private Message message;
@@ -90,7 +91,7 @@ public class Approvals extends Composite {
 
   public Approvals(final PatchSet.Id patchSetId) {
     this.patchSetId = patchSetId;
-    body = new VerticalPanel();
+    body = new FlowPanel();
     approvalButtons = new ArrayList<ValueRadioButton>();
     message = new Message(patchSetId);
 
@@ -155,8 +156,6 @@ public class Approvals extends Composite {
 
   private void initApprovalType(final PatchSetPublishDetail r,
       final Panel body, final ApprovalType ct, final PermissionRange range) {
-    body.add(new SmallHeading(ct.getCategory().getName() + ":"));
-
     final VerticalPanel vp = new VerticalPanel();
     vp.setStyleName(Gerrit.RESOURCES.css().approvalCategoryList());
     final List<ApprovalCategoryValue> lst =
@@ -186,7 +185,11 @@ public class Approvals extends Composite {
       approvalButtons.add(b);
       vp.add(b);
     }
-    body.add(vp);
+    DisclosurePanel atp = new DisclosurePanel(ct.getCategory().getName());
+    atp.setContent(vp);
+    atp.setOpen(!ApprovalCategory.SANITY_REVIEW.equals(ct
+        .getCategory().getId()));
+    body.add(atp);
   }
 
   private void populateActions(final PatchSetPublishDetail result) {

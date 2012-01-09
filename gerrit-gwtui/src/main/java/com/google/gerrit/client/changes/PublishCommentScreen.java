@@ -37,7 +37,6 @@ import com.google.gerrit.reviewdb.Patch;
 import com.google.gerrit.reviewdb.PatchLineComment;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.PatchSetApproval;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
@@ -74,7 +73,6 @@ public class PublishCommentScreen extends AccountScreen implements
   private Panel approvalPanel;
   private NpTextArea message;
   private FlowPanel draftsPanel;
-  private DisclosurePanel approvalTypePanel;
   private Button send;
   private Button submit;
   private Button staging;
@@ -285,11 +283,11 @@ public class PublishCommentScreen extends AccountScreen implements
       approvalButtons.add(b);
       vp.add(b);
     }
-    approvalTypePanel = new DisclosurePanel(ct.getCategory().getName());
-    approvalTypePanel.setContent(vp);
-    approvalTypePanel.setOpen(!ApprovalCategory.SANITY_REVIEW.equals(ct
+    DisclosurePanel atp = new DisclosurePanel(ct.getCategory().getName());
+    atp.setContent(vp);
+    atp.setOpen(!ApprovalCategory.SANITY_REVIEW.equals(ct
         .getCategory().getId()));
-    body.add(approvalTypePanel);
+    body.add(atp);
   }
 
   private void display(final PatchSetPublishDetail r) {
