@@ -310,15 +310,22 @@ public class StagingApprove extends BaseCommand {
         // TopicChangeControl.
         final TopicControl topicControl =
           topicControlFactory.validateFor(topicId);
-        List<ChangeSet> changeSets = db.changeSets().byTopic(topicId).toList();
-        for (ChangeSet changeSet : changeSets) {
-          CanSubmitResult result =
-            topicControl.canSubmit(db, changeSet.getId(), approvalTypes,
-                topicFunctionStateFactory);
-          if (result != CanSubmitResult.OK) {
-            throw new UnloggedFailure(1, result.getMessage());
-          }
+        Topic topic = db.topics().get(topicId);
+        // Only validate most current change set of topic
+        ChangeSet changeSet = db.changeSets().get(topic.currentChangeSetId());
+        CanSubmitResult result = topicControl.canSubmit(db, changeSet.getId(), approvalTypes, topicFunctionStateFactory);
+        if (result != CanSubmitResult.OK) {
+          throw new UnloggedFailure(1, result.getMessage());
         }
+//        List<ChangeSet> changeSets = db.changeSets().byTopic(topicId).toList();
+//        for (ChangeSet changeSet : changeSets) {
+//          CanSubmitResult result =
+//            topicControl.canSubmit(db, changeSet.getId(), approvalTypes,
+//                topicFunctionStateFactory);
+//          if (result != CanSubmitResult.OK) {
+//            throw new UnloggedFailure(1, result.getMessage());
+//          }
+//        }
       } else {
         // Change is not part of a topic. Validate it with ChangeControl.
         final ChangeControl changeControl =
