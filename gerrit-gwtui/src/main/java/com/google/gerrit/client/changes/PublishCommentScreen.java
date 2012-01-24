@@ -43,6 +43,7 @@ import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FormPanel;
 import com.google.gwt.user.client.ui.FormPanel.SubmitEvent;
+import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.RadioButton;
 import com.google.gwt.user.client.ui.VerticalPanel;
@@ -62,7 +63,9 @@ public class PublishCommentScreen extends AccountScreen implements
     ClickHandler, CommentEditorContainer {
   private static SavedState lastState;
 
-  private enum Action { NOOP, SUBMIT, STAGING };
+  private enum Action {
+    NOOP, SUBMIT, STAGING
+  };
 
   private final PatchSet.Id patchSetId;
   private Collection<ValueRadioButton> approvalButtons;
@@ -177,7 +180,7 @@ public class PublishCommentScreen extends AccountScreen implements
     } else if (cancel == sender) {
       saveStateOnUnload = false;
       goChange();
-    } else if(staging == sender) {
+    } else if (staging == sender) {
       onSend(Action.STAGING);
     }
   }
@@ -233,7 +236,8 @@ public class PublishCommentScreen extends AccountScreen implements
     ApprovalTypes types = Gerrit.getConfig().getApprovalTypes();
 
     for (ApprovalType type : types.getApprovalTypes()) {
-      String permission = Permission.forLabel(type.getCategory().getLabelName());
+      String permission =
+          Permission.forLabel(type.getCategory().getLabelName());
       PermissionRange range = r.getRange(permission);
       if (range != null && !range.isEmpty()) {
         initApprovalType(r, body, type, range);
@@ -249,7 +253,6 @@ public class PublishCommentScreen extends AccountScreen implements
 
   private void initApprovalType(final PatchSetPublishDetail r,
       final Panel body, final ApprovalType ct, final PermissionRange range) {
-    body.add(new SmallHeading(ct.getCategory().getName() + ":"));
 
     final VerticalPanel vp = new VerticalPanel();
     vp.setStyleName(Gerrit.RESOURCES.css().approvalCategoryList());
@@ -280,7 +283,11 @@ public class PublishCommentScreen extends AccountScreen implements
       approvalButtons.add(b);
       vp.add(b);
     }
-    body.add(vp);
+    DisclosurePanel atp = new DisclosurePanel(ct.getCategory().getName());
+    atp.setContent(vp);
+    atp.setOpen(!ApprovalCategory.SANITY_REVIEW.equals(ct
+        .getCategory().getId()));
+    body.add(atp);
   }
 
   private void display(final PatchSetPublishDetail r) {
@@ -365,7 +372,7 @@ public class PublishCommentScreen extends AccountScreen implements
         new HashSet<ApprovalCategoryValue.Id>(values.values()),
         new GerritCallback<VoidResult>() {
           public void onSuccess(final VoidResult result) {
-            if(action == Action.SUBMIT) {
+            if (action == Action.SUBMIT) {
               submit();
             } else if (action == Action.STAGING) {
               staging();
@@ -384,19 +391,18 @@ public class PublishCommentScreen extends AccountScreen implements
   }
 
   private void submit() {
-    Util.MANAGE_SVC.submit(patchSetId,
-        new GerritCallback<ChangeDetail>() {
-          public void onSuccess(ChangeDetail result) {
-            saveStateOnUnload = false;
-            goChange();
-          }
+    Util.MANAGE_SVC.submit(patchSetId, new GerritCallback<ChangeDetail>() {
+      public void onSuccess(ChangeDetail result) {
+        saveStateOnUnload = false;
+        goChange();
+      }
 
-          @Override
-          public void onFailure(Throwable caught) {
-            goChange();
-            super.onFailure(caught);
-          }
-        });
+      @Override
+      public void onFailure(Throwable caught) {
+        goChange();
+        super.onFailure(caught);
+      }
+    });
   }
 
   private void staging() {

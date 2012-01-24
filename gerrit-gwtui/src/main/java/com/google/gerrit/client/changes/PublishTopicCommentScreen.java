@@ -36,6 +36,7 @@ import com.google.gerrit.reviewdb.Topic;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FormPanel;
 import com.google.gwt.user.client.ui.FormPanel.SubmitEvent;
@@ -213,8 +214,6 @@ public class PublishTopicCommentScreen extends AccountScreen implements
 
   private void initApprovalType(final ChangeSetPublishDetail r,
       final Panel body, final ApprovalType ct, final PermissionRange range) {
-    body.add(new SmallHeading(ct.getCategory().getName() + ":"));
-
     final VerticalPanel vp = new VerticalPanel();
     vp.setStyleName(Gerrit.RESOURCES.css().approvalCategoryList());
     final List<ApprovalCategoryValue> lst =
@@ -244,7 +243,11 @@ public class PublishTopicCommentScreen extends AccountScreen implements
       approvalButtons.add(b);
       vp.add(b);
     }
-    body.add(vp);
+
+    DisclosurePanel atp = new DisclosurePanel(ct.getCategory().getName());
+    atp.setContent(vp);
+    atp.setOpen(!ApprovalCategory.SANITY_REVIEW.equals(ct.getCategory().getId()));
+    body.add(atp);
   }
 
   private void display(final ChangeSetPublishDetail r) {
