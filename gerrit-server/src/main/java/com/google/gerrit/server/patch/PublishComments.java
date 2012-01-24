@@ -27,6 +27,7 @@ import com.google.gerrit.reviewdb.PatchSetApproval;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
+import com.google.gerrit.server.config.GerritServerConfig;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
@@ -36,17 +37,20 @@ import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchRefException;
+import com.google.gerrit.server.util.BooleanExpression;
 import com.google.gerrit.server.workflow.FunctionState;
 import com.google.gwtjsonrpc.client.VoidResult;
 import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
+import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.lib.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -78,6 +82,8 @@ public class PublishComments implements Callable<VoidResult> {
   private final MergeOp.Factory mergeFactory;
   private final MergeQueue merger;
 
+  private final Config config;
+
   private final PatchSet.Id patchSetId;
   private final String messageText;
   private final Set<ApprovalCategoryValue.Id> approvals;
@@ -98,7 +104,7 @@ public class PublishComments implements Callable<VoidResult> {
       final GitRepositoryManager gitManager,
       final MergeOp.Factory mergeFactory,
       final MergeQueue merger,
-
+      @GerritServerConfig final Config config,
       @Assisted final PatchSet.Id patchSetId,
       @Assisted final String messageText,
       @Assisted final Set<ApprovalCategoryValue.Id> approvals) {
@@ -113,7 +119,7 @@ public class PublishComments implements Callable<VoidResult> {
     this.gitManager = gitManager;
     this.mergeFactory = mergeFactory;
     this.merger = merger;
-
+    this.config = config;
     this.patchSetId = patchSetId;
     this.messageText = messageText;
     this.approvals = approvals;
@@ -307,6 +313,21 @@ public class PublishComments implements Callable<VoidResult> {
 
   private void email() {
     try {
+      String f = config.getString("review", null, "filter");
+      if (f != null) {
+        // Only care about filter if available in configuration
+        BooleanExpression ef = new BooleanExpression(f);
+        HashMap<String, String> am = new HashMap<String, String>();
+        for (ApprovalCategoryValue.Id a : approvals) {
+          am.put(a.getParentKey().get(), Short.toString(a.get()));
+        }
+        am.put("reviewer", user.getUserName());
+        if (!ef.evaluate(am)) {
+          // If filter expression evaluates to false
+          // no email will be sent
+          return;
+        }
+      }
       final CommentSender cm = commentSenderFactory.create(change);
       cm.setFrom(user.getAccountId());
       cm.setPatchSet(patchSet, patchSetInfoFactory.get(patchSetId));
@@ -317,6 +338,8 @@ public class PublishComments implements Callable<VoidResult> {
       log.error("Cannot send comments by email for patch set " + patchSetId, e);
     } catch (PatchSetInfoNotAvailableException e) {
       log.error("Failed to obtain PatchSetInfo for patch set " + patchSetId, e);
+    } catch (ParseException e) {
+      log.error("Failed to parse filter expression from configuration", e);
     }
   }
 
