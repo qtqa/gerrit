@@ -33,6 +33,7 @@ import com.google.gerrit.reviewdb.AccountDiffPreference;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.Patch;
 import com.google.gerrit.reviewdb.PatchSet;
+import com.google.gerrit.reviewdb.PatchSet.Id;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.event.dom.client.KeyPressEvent;
@@ -215,11 +216,13 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   private KeyNavigation keyNavigation;
   private List<Diff> diffs;
   private Diff.Factory diffFactory;
+  private Id id;
 
   public AllInOnePatchScreen(final PatchSet.Id patchSetId,
       final PatchSetDetail detail, final PatchTable patchTable,
       AbstractPatchScreen.Type patchScreenType) {
     super(null, patchSetId, detail, patchTable);
+    setPatchId(patchSetId);
     diffs = new ArrayList<Diff>();
     keyNavigation = new KeyNavigation(this);
     keyNavigation.addNavigationKey(new UpToChangeCommand(patchSetId, 0, 'u'));
@@ -318,6 +321,14 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     lastScript = null;
   }
 
+  private Id getPatchId() {
+    return id;
+  }
+
+  private void setPatchId(Id id) {
+    this.id = id;
+  }
+
   private boolean canReuse(AccountDiffPreference dp, PatchScript last) {
     if (last.getDiffPrefs().getIgnoreWhitespace() != dp.getIgnoreWhitespace()) {
       // Whitespace ignore setting requires server computation.
@@ -399,7 +410,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
 
   private void loadFileList() {
     if (patchSetDetail == null) {
-      Util.DETAIL_SVC.patchSetDetail(idSideB,
+      Util.DETAIL_SVC.patchSetDetail(getPatchId(),
           new GerritCallback<PatchSetDetail>() {
             @Override
             public void onSuccess(PatchSetDetail result) {
