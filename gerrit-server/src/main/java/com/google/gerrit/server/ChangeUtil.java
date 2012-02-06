@@ -67,6 +67,8 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.util.Base64;
 import org.eclipse.jgit.util.NB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -79,6 +81,8 @@ import java.util.regex.Matcher;
 public class ChangeUtil {
   private static int uuidPrefix;
   private static int uuidSeq;
+  private static final Logger log = LoggerFactory
+      .getLogger(ChangeUtil.class);
 
   /**
    * Generate a new unique identifier for change message entities.
@@ -280,11 +284,15 @@ public class ChangeUtil {
     }
     db.patchSetApprovals().update(approvals);
 
-    // Email the reviewers
-    final AbandonedSender cm = senderFactory.create(updatedChange);
-    cm.setFrom(user.getAccountId());
-    cm.setChangeMessage(cmsg);
-    cm.send();
+    if (senderFactory != null) {
+      // Email the reviewers
+      final AbandonedSender cm = senderFactory.create(updatedChange);
+      cm.setFrom(user.getAccountId());
+      cm.setChangeMessage(cmsg);
+      cm.send();
+    } else {
+      log.error("Abandoned sender factory is null!");
+    }
 
     hooks.doChangeAbandonedHook(updatedChange, user.getAccount(), message);
   }
