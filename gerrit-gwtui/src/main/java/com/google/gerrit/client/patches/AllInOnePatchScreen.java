@@ -478,7 +478,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     files = new VerticalPanel();
 
     approvalPanel = new FlowPanel();
-    approvals = new Approvals(idSideB);
+    approvals = new Approvals(getPatchId());
     approvals.addDelegate(this);
     approvalPanel.add(approvals);
 
