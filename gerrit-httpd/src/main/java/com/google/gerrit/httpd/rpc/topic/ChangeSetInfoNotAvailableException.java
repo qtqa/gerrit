@@ -16,9 +16,14 @@ package com.google.gerrit.httpd.rpc.topic;
 
 public final class ChangeSetInfoNotAvailableException extends Exception {
   private static final long serialVersionUID = 1L;
+  public static final String MESSAGE = "No change set elements in list";
 
   public ChangeSetInfoNotAvailableException(Exception cause) {
     super(cause);
+  }
+
+  public ChangeSetInfoNotAvailableException() {
+    super(MESSAGE);
   }
 
 }

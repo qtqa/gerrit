@@ -54,6 +54,9 @@ public class ChangeSetInfoFactory {
       final List<ChangeSetElement> changeSetElements = db.changeSetElements().byChangeSet(csId).toList();
       // Our data source will be the last change in the ChangeSet
       //
+      if(changeSetElements.isEmpty()){
+        throw new ChangeSetInfoNotAvailableException();
+      }
       final Change.Id changeId = changeSetElements.get(changeSetElements.size() - 1).getChangeId();
       final Change change = db.changes().get(changeId);
       final PatchSet patchSet = db.patchSets().get(change.currentPatchSetId());
