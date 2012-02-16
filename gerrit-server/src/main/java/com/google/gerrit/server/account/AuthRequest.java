@@ -32,9 +32,9 @@ public class AuthRequest {
   /** Create a request for a local username, such as from LDAP. */
   public static AuthRequest forUser(final String username) {
     final AccountExternalId.Key i =
-        new AccountExternalId.Key(SCHEME_GERRIT, username);
+        new AccountExternalId.Key(SCHEME_GERRIT, username.trim());
     final AuthRequest r = new AuthRequest(i.get());
-    r.setUserName(username);
+    r.setUserName(username.trim());
     return r;
   }
 
