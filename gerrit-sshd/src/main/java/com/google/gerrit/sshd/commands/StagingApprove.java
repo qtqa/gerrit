@@ -218,6 +218,9 @@ public class StagingApprove extends BaseCommand {
       // Validate change status and destination branch.
       validateChanges();
 
+      // Use current message or read it from stdin.
+      prepareMessage();
+
       // If result is passed, check that the user has required access rights
       // to submit changes.
       if (passed) {
@@ -236,9 +239,6 @@ public class StagingApprove extends BaseCommand {
         ChangeUtil.rebuildStaging(destination, currentUser, db, git, opFactory,
             merger, hooks);
       }
-
-      // Use current message or read it from stdin.
-      prepareMessage();
 
       // Iterate through each open change and publish message.
       for (PatchSet patchSet : toApprove) {
@@ -345,7 +345,7 @@ public class StagingApprove extends BaseCommand {
       IOException, InvalidChangeOperationException {
     if (message != null && message.length() > 0) {
       publishCommentsFactory.create(patchSetId, message,
-          new HashSet<ApprovalCategoryValue.Id>()).call();
+          new HashSet<ApprovalCategoryValue.Id>(), false).call();
     }
   }
 
@@ -493,6 +493,7 @@ public class StagingApprove extends BaseCommand {
       final Change change = db.changes().get(changeId);
 
       final BuildApprovedSender sender = buildApprovedFactory.create(change);
+      sender.setBuildApprovedMessage(message);
       sender.setFrom(currentUser.getAccountId());
       sender.setPatchSet(patchSet);
       sender.send();

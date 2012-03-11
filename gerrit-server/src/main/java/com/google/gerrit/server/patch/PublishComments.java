@@ -67,7 +67,7 @@ public class PublishComments implements Callable<VoidResult> {
 
   public interface Factory {
     PublishComments create(PatchSet.Id patchSetId, String messageText,
-        Set<ApprovalCategoryValue.Id> approvals);
+        Set<ApprovalCategoryValue.Id> approvals, boolean sendMail);
   }
 
   private final ReviewDb db;
@@ -92,6 +92,7 @@ public class PublishComments implements Callable<VoidResult> {
   private PatchSet patchSet;
   private ChangeMessage message;
   private List<PatchLineComment> drafts;
+  private boolean sendMail = true;
 
   @Inject
   PublishComments(final ReviewDb db, final IdentifiedUser user,
@@ -107,7 +108,8 @@ public class PublishComments implements Callable<VoidResult> {
       @GerritServerConfig final Config config,
       @Assisted final PatchSet.Id patchSetId,
       @Assisted final String messageText,
-      @Assisted final Set<ApprovalCategoryValue.Id> approvals) {
+      @Assisted final Set<ApprovalCategoryValue.Id> approvals,
+      @Assisted final boolean sendMail) {
     this.db = db;
     this.user = user;
     this.types = approvalTypes;
@@ -123,6 +125,7 @@ public class PublishComments implements Callable<VoidResult> {
     this.patchSetId = patchSetId;
     this.messageText = messageText;
     this.approvals = approvals;
+    this.sendMail = sendMail;
   }
 
   @Override
@@ -156,7 +159,9 @@ public class PublishComments implements Callable<VoidResult> {
     }
 
     touchChange();
-    email();
+    if (sendMail) {
+      email();
+    }
     fireHook();
     return VoidResult.INSTANCE;
   }

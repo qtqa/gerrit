@@ -292,7 +292,7 @@ public class ReviewCommand extends BaseCommand {
       }
     }
 
-    publishCommentsFactory.create(patchSetId, changeComment, aps).call();
+    publishCommentsFactory.create(patchSetId, changeComment, aps, true).call();
 
     try {
       if (abandonChange) {

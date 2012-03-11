@@ -41,4 +41,4 @@ Change subject: $change.subject
 ......................................................................
 
 
-$email.changeDetail$email.approvals
+$email.changeDetail$email.approvals$email.buildApprovedMessage
