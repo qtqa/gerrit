@@ -27,6 +27,9 @@ import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,11 +40,16 @@ public class BuildApprovedSender extends ReplyToChangeSender {
   }
 
   private final ApprovalTypes approvalTypes;
+  private String buildApprovedMessage;
 
   @Inject
   public BuildApprovedSender(EmailArguments ea, ApprovalTypes at, @Assisted Change c) {
     super(ea, c, "build-approved");
     approvalTypes = at;
+  }
+
+  public void setBuildApprovedMessage(final String m) {
+    buildApprovedMessage = m;
   }
 
   @Override
@@ -81,6 +89,36 @@ public class BuildApprovedSender extends ReplyToChangeSender {
       // Don't list the approvals
     }
     return "";
+  }
+
+  public String getBuildApprovedMessage() {
+    if (buildApprovedMessage == null) {
+      return "";
+    }
+    StringBuilder txt = new StringBuilder();
+    txt.append("Message:");
+    txt.append('\n');
+    BufferedReader r = new BufferedReader(new StringReader(buildApprovedMessage));
+    String l;
+    try {
+      l = r.readLine();
+      while (l != null) {
+        txt.append("  "); // Indent 2 spaces for each line in message
+        txt.append(l);
+        txt.append('\n');
+        l = r.readLine();
+      }
+    } catch (IOException e) {
+      // Ignore
+    } finally {
+      try {
+        r.close();
+      } catch (IOException e) {
+          // Ignore
+      }
+    }
+    txt.append('\n');
+    return txt.toString();
   }
 
   private String format(final String type,
