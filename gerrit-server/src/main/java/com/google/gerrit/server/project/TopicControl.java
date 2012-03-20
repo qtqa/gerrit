@@ -14,7 +14,6 @@
 
 package com.google.gerrit.server.project;
 
-import com.google.gerrit.common.data.ApprovalType;
 import com.google.gerrit.common.data.ApprovalTypes;
 import com.google.gerrit.common.data.PermissionRange;
 import com.google.gerrit.reviewdb.ChangeSet;
@@ -24,7 +23,6 @@ import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.IdentifiedUser;
-import com.google.gerrit.server.workflow.TopicCategoryFunction;
 import com.google.gerrit.server.workflow.TopicFunctionState;
 import com.google.gwtorm.client.OrmException;
 import com.google.inject.Inject;
@@ -221,22 +219,6 @@ public class TopicControl {
       return result;
     }
 
-    final List<ChangeSetApproval> all =
-      db.changeSetApprovals().byChangeSet(changeSetId).toList();
-
-    final TopicFunctionState fs =
-        functionStateFactory.create(topic, changeSetId, all);
-
-    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
-      TopicCategoryFunction.forCategory(c.getCategory()).run(c, fs);
-    }
-
-    for (ApprovalType type : approvalTypes.getApprovalTypes()) {
-      if (!fs.isValid(type)) {
-        return new CanSubmitResult("Requires " + type.getCategory().getName());
-      }
-    }
-
     return CanSubmitResult.OK;
   }
 
@@ -280,22 +262,6 @@ public class TopicControl {
     CanSubmitResult result = canStage(changeSetId);
     if (result != CanSubmitResult.OK) {
       return result;
-    }
-
-    final List<ChangeSetApproval> all =
-      db.changeSetApprovals().byChangeSet(changeSetId).toList();
-
-    final TopicFunctionState fs =
-        functionStateFactory.create(topic, changeSetId, all);
-
-    for (ApprovalType c : approvalTypes.getApprovalTypes()) {
-      TopicCategoryFunction.forCategory(c.getCategory()).run(c, fs);
-    }
-
-    for (ApprovalType type : approvalTypes.getApprovalTypes()) {
-      if (!fs.isValid(type)) {
-        return new CanSubmitResult("Requires " + type.getCategory().getName());
-      }
     }
 
     return CanSubmitResult.OK;
