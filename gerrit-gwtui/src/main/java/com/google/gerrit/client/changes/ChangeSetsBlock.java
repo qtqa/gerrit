@@ -65,6 +65,8 @@ public class ChangeSetsBlock extends Composite {
   /** Change sets on this topic, in order. */
   private List<ChangeSet> changeSets;
 
+  private ChangeSetComplexDisclosurePanel changeSetCmlxDiscPanel;
+
   ChangeSetsBlock(final TopicScreen parent) {
     this.parent = parent;
     body = new FlowPanel();
@@ -97,15 +99,14 @@ public class ChangeSetsBlock extends Composite {
     changeSetPanelsList = new ArrayList<ChangeSetComplexDisclosurePanel>();
 
     for (final ChangeSet cs : changeSets) {
-      final ChangeSetComplexDisclosurePanel p;
       if (cs == currcs) {
-        p = new ChangeSetComplexDisclosurePanel(parent, detail, detail.getCurrentChangeSetDetail());
+        changeSetCmlxDiscPanel = new ChangeSetComplexDisclosurePanel(parent, detail, detail.getCurrentChangeSetDetail());
       } else {
-        p = new ChangeSetComplexDisclosurePanel(parent, detail, cs);
+        changeSetCmlxDiscPanel = new ChangeSetComplexDisclosurePanel(parent, detail, cs);
       }
 
-      add(p);
-      changeSetPanelsList.add(p);
+      add(changeSetCmlxDiscPanel);
+      changeSetPanelsList.add(changeSetCmlxDiscPanel);
     }
   }
 
@@ -270,5 +271,14 @@ public class ChangeSetsBlock extends Composite {
         activate(changeSets.get(index).getId());
       }
     }
+  }
+
+  /**
+   * Update the enable/disable status for the
+   * submitChangeSetButton and stageChangeSetButton
+   */
+  public void updateButtons() {
+   changeSetCmlxDiscPanel.topicDetailCallback();
+
   }
 }

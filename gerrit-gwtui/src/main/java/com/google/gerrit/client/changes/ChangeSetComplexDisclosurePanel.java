@@ -14,7 +14,6 @@
 
 package com.google.gerrit.client.changes;
 
-import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.changes.ChangeTable.ApprovalViewType;
 import com.google.gerrit.client.rpc.GerritCallback;
@@ -35,8 +34,8 @@ import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Grid;
-import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
+import com.google.gwt.user.client.ui.Panel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +56,8 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
   protected Hyperlink next;
 
   private ChangeSet.Id diffBaseId;
+  Button stageChangeSetButton;
+  Button submitChangeSetButton;
 
   /**
    * Creates a closed complex disclosure panel for a change set.
@@ -129,7 +130,6 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       actionsPanel.setStyleName(Gerrit.RESOURCES.css().patchSetActions());
       body.add(actionsPanel);
       if (Gerrit.isSignedIn()) {
-        populateReviewAction();
         if (topicDetail.isCurrentChangeSet(detail)) {
           populateActions(detail);
         }
@@ -168,14 +168,16 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
   private void populateActions(final ChangeSetDetail detail) {
     final boolean isOpen = topicDetail.getTopic().getStatus().isOpen();
     final boolean isNew = topicDetail.getTopic().getStatus() == Status.NEW;
+
     if (isOpen && isNew && topicDetail.canStage()) {
-      final Button b =
+
+      stageChangeSetButton =
         new Button(Util.TM
             .stageChangeSet(detail.getChangeSet().getChangeSetId()));
-      b.addClickHandler(new ClickHandler() {
+      stageChangeSetButton.addClickHandler(new ClickHandler() {
         @Override
         public void onClick(final ClickEvent event) {
-          b.setEnabled(false);
+          stageChangeSetButton.setEnabled(false);
           Util.T_MANAGE_SVC.stage(changeSet.getId(),
               new GerritCallback<TopicDetail>() {
                 @Override
@@ -185,23 +187,22 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
 
                 @Override
                 public void onFailure(Throwable caught) {
-                  b.setEnabled(true);
                   super.onFailure(caught);
                 }
           });
         }
       });
-      actionsPanel.add(b);
+      actionsPanel.add(stageChangeSetButton);
     }
 
     if (isOpen && topicDetail.canSubmit()) {
-      final Button b =
+      submitChangeSetButton =
           new Button(Util.TM
               .submitChangeSet(detail.getChangeSet().getChangeSetId()));
-      b.addClickHandler(new ClickHandler() {
+      submitChangeSetButton.addClickHandler(new ClickHandler() {
         @Override
         public void onClick(final ClickEvent event) {
-          b.setEnabled(false);
+          submitChangeSetButton.setEnabled(false);
           Util.T_MANAGE_SVC.submit(changeSet.getId(),
               new GerritCallback<TopicDetail>() {
                 public void onSuccess(TopicDetail result) {
@@ -210,13 +211,12 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
 
                 @Override
                 public void onFailure(Throwable caught) {
-                  b.setEnabled(true);
                   super.onFailure(caught);
                 }
               });
         }
       });
-      actionsPanel.add(b);
+      actionsPanel.add(submitChangeSetButton);
     }
 
     if (topicDetail.canRevert()) {
@@ -297,30 +297,6 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
     }
   }
 
-  private void populateReviewAction() {
-    final Button b = new Button(Util.TC.buttonReview());
-    b.addClickHandler(new ClickHandler() {
-      @Override
-      public void onClick(final ClickEvent event) {
-        boolean integrating = false;
-        for (Change change : topicDetail.getCurrentChangeSetDetail().getChanges()) {
-          if (change.getStatus() == Status.INTEGRATING) {
-            integrating = true;
-            break;
-          }
-        }
-        if (integrating) {
-          alertMessageBox(Util.C.headingReviewDisabled(),
-              Util.C.messageReviewDisabled())
-              .center();
-        } else {
-        Gerrit.display(Dispatcher.toPublish(changeSet.getId()));
-        }
-      }
-    });
-    actionsPanel.add(b);
-  }
-
   public void refresh() {
     Util.T_DETAIL_SVC.changeSetDetail(changeSet.getId(),
         new GerritCallback<ChangeSetDetail>() {
@@ -397,5 +373,29 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
         b.setEnabled(true);
       }
     };
+  }
+
+  /**
+   * topicDetail callback that updates status for the
+   * submitChangeSetButton and stageChangeSetButton
+   */
+  public void topicDetailCallback() {
+    Util.T_DETAIL_SVC.topicDetail(topicDetail.getTopic().getId(), new GerritCallback<TopicDetail>() {
+      public void onSuccess(TopicDetail result) {
+
+       if(changeTable.getChangeSetIsReviewed()){
+         submitChangeSetButton.setEnabled(true);
+         stageChangeSetButton.setEnabled(true);
+       }else{
+         submitChangeSetButton.setEnabled(false);
+         stageChangeSetButton.setEnabled(false);
+       }
+      }
+
+      public void onFailure(Throwable caught) {
+        submitChangeSetButton.setEnabled(false);
+        stageChangeSetButton.setEnabled(false);
+      }
+    });
   }
 }

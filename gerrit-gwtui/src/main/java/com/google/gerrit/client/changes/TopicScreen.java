@@ -56,7 +56,6 @@ public class TopicScreen extends Screen {
   private final ChangeSet.Id openChangeSetId;
 
   private TopicDescriptionBlock descriptionBlock;
-  private ApprovalTable approvals;
 
   private IncludedInTable includedInTable;
   private DisclosurePanel includedInPanel;
@@ -175,9 +174,6 @@ public class TopicScreen extends Screen {
     descriptionBlock = new TopicDescriptionBlock();
     add(descriptionBlock);
 
-    approvals = new ApprovalTable();
-    add(approvals);
-
     includedInPanel = new DisclosurePanel(Util.C.changeScreenIncludedIn());
     includedInTable = new IncludedInTable(topicId);
 
@@ -258,15 +254,12 @@ public class TopicScreen extends Screen {
     }
 
     dependencies.setAccountInfoCache(detail.getAccounts());
-    approvals.setAccountInfoCache(detail.getAccounts());
 
     descriptionBlock.display(detail.getTopic(),
         detail.getCurrentChangeSetDetail().getInfo(),detail.getAccounts());
 
     dependsOn.display(detail.getDependsOn());
     neededBy.display(detail.getNeededBy());
-
-    approvals.display(detail);
 
     for (ChangeSet cId : detail.getChangeSets()) {
       if (changesList != null) {

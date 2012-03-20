@@ -22,8 +22,8 @@ import com.google.gerrit.client.patches.PatchUtil;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.ui.AbstractKeyNavigation.Action;
 import com.google.gerrit.client.ui.AccountDashboardLink;
-import com.google.gerrit.client.ui.ChangeLink;
 import com.google.gerrit.client.ui.BranchTopicLink;
+import com.google.gerrit.client.ui.ChangeLink;
 import com.google.gerrit.client.ui.NavigationTable;
 import com.google.gerrit.client.ui.NeedsSignInKeyCommand;
 import com.google.gerrit.client.ui.ProjectLink;
@@ -47,14 +47,14 @@ import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyPressEvent;
 import com.google.gwt.resources.client.ImageResource;
 import com.google.gwt.user.client.DOM;
+import com.google.gwt.user.client.ui.FlexTable.FlexCellFormatter;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.HTMLTable.Cell;
+import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.UIObject;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.user.client.ui.FlexTable.FlexCellFormatter;
-import com.google.gwt.user.client.ui.HTMLTable.Cell;
-import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 import com.google.gwtjsonrpc.client.VoidResult;
 
 import java.util.ArrayList;
@@ -77,6 +77,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
   private AccountInfoCache accountCache = AccountInfoCache.empty();
   private final List<ApprovalType> approvalTypes;
   private final int columns;
+  private List<Boolean> changeSetIsReviewed = new ArrayList<Boolean>();
 
   private class KeyNavigation extends DefaultKeyNavigation {
 
@@ -322,6 +323,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
         summary.getApprovalMap();
     int col = BASE_COLUMNS;
     boolean haveReview = false;
+    boolean isGreenChecked = false;
 
     boolean displayPersonNameInReviewCategory = false;
 
@@ -342,6 +344,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
 
       if (ca == null || ca.getValue() == 0) {
         table.clearCell(row, col);
+        isGreenChecked = false;
 
       } else {
         if (!ca.getCategoryId().equals(ApprovalCategory.SANITY_REVIEW)) {
@@ -361,7 +364,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
           } else {
             table.setWidget(row, col, new Image(Gerrit.RESOURCES.redNot()));
           }
-
+          isGreenChecked = false;
         } else if (type.isMaxPositive(ca)) {
 
           if (displayPersonNameInReviewCategory) {
@@ -373,6 +376,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
             table.setWidget(row, col, new Image(Gerrit.RESOURCES.greenCheck()));
           }
 
+          isGreenChecked = true;
         } else {
           String vstr = String.valueOf(ca.getValue());
 
@@ -387,6 +391,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
             fmt.addStyleName(row, col, Gerrit.RESOURCES.css().negscore());
           }
           table.setText(row, col, vstr);
+          isGreenChecked = false;
         }
 
         // Some web browsers ignore the embedded newline; some like it;
@@ -395,7 +400,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
         fmt.getElement(row, col).setTitle(
             acv.getName() + " \nby " + FormatUtil.nameEmail(ai));
       }
-
+      changeSetIsReviewed.add(isGreenChecked);
       col++;
     }
 
@@ -414,11 +419,37 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
         for (int row = dataBegin; row < dataBegin + rows; row++) {
           final ChangeInfo c = getRowItem(row);
           if (ids.containsKey(c.getId())) {
-            displayApprovals(row, ids.get(c.getId()), aic, highlightUnreviewed);
+           displayApprovals(row, ids.get(c.getId()), aic, highlightUnreviewed);
           }
+        }
+
+        // ChangeSetsBlock widget
+        Widget csb =
+            getParent().getParent().getParent().getParent().getParent()
+                .getParent().getParent().getParent();
+
+        // TopicScreen widget
+        Widget w =
+            getParent().getParent().getParent().getParent().getParent()
+                .getParent().getParent().getParent().getParent().getParent()
+                .getParent();
+
+        if (w instanceof TopicScreen) {
+          ChangeSetsBlock cb = new ChangeSetsBlock((TopicScreen) w);
+          cb = (ChangeSetsBlock) csb;
+          cb.updateButtons();
         }
       }
     };
+  }
+
+
+  /**
+   * Get the changeSet reviews
+   * @return true if no false exist in list
+   */
+  public boolean getChangeSetIsReviewed() {
+    return !changeSetIsReviewed.contains(false);
   }
 
   public class StarKeyCommand extends NeedsSignInKeyCommand {
