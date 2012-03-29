@@ -20,7 +20,6 @@ import com.google.inject.servlet.ServletModule;
 public class HttpAuthModule extends ServletModule {
   @Override
   protected void configureServlets() {
-    filter("/").through(HttpAuthFilter.class);
     serve("/login", "/login/*").with(HttpLoginServlet.class);
   }
 }

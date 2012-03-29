@@ -705,6 +705,12 @@ public class Gerrit implements EntryPoint {
       switch (cfg.getAuthType()) {
         case HTTP:
         case HTTP_LDAP:
+          menuRight.addItem(C.menuSignIn(), new Command() {
+            public void execute() {
+              doSignIn(History.getToken());
+            }
+          });
+          break;
         case CLIENT_SSL_CERT_LDAP:
           break;
 
