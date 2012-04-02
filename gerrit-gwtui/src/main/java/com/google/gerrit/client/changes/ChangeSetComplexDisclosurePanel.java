@@ -174,6 +174,7 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       stageChangeSetButton =
         new Button(Util.TM
             .stageChangeSet(detail.getChangeSet().getChangeSetId()));
+      stageChangeSetButton.setEnabled(false);
       stageChangeSetButton.addClickHandler(new ClickHandler() {
         @Override
         public void onClick(final ClickEvent event) {
@@ -199,6 +200,7 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       submitChangeSetButton =
           new Button(Util.TM
               .submitChangeSet(detail.getChangeSet().getChangeSetId()));
+      submitChangeSetButton.setEnabled(false);
       submitChangeSetButton.addClickHandler(new ClickHandler() {
         @Override
         public void onClick(final ClickEvent event) {
