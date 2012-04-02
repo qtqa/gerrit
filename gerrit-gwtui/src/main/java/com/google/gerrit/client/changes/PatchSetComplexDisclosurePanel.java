@@ -199,10 +199,11 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
     if (isNew && changeDetail.canStage()) {
       // Create button new button and add click handler.
       final Button stagingButton = new Button(Util.M.mergeToStagingPatchSet(detail.getPatchSet().getPatchSetId()));
+      stagingButton.setEnabled(false);
 
-      // If the change is included in a topic,  the button should be disabled
-      if(changeDetail.getChange().getTopicId() != null){
-        stagingButton.setEnabled(false);
+      // If the change is not included in a topic,  the button should be enabled
+      if(changeDetail.getChange().getTopicId() == null){
+        stagingButton.setEnabled(true);
       }
 
       stagingButton.addClickHandler(new ClickHandler() {
@@ -233,10 +234,11 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       final Button b =
           new Button(Util.M
               .submitPatchSet(detail.getPatchSet().getPatchSetId()));
+      b.setEnabled(false);
 
-      // If the change is included in a topic,  the button should be disabled
-      if(changeDetail.getChange().getTopicId() != null ){
-        b.setEnabled(false);
+      // If the change is not included in a topic,  the button should be enabled
+      if(changeDetail.getChange().getTopicId() == null ){
+        b.setEnabled(true);
       }
 
       b.addClickHandler(new ClickHandler() {
