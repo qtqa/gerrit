@@ -385,19 +385,32 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
     Util.T_DETAIL_SVC.topicDetail(topicDetail.getTopic().getId(), new GerritCallback<TopicDetail>() {
       public void onSuccess(TopicDetail result) {
 
-       if(changeTable.getChangeSetIsReviewed()){
-         submitChangeSetButton.setEnabled(true);
-         stageChangeSetButton.setEnabled(true);
-       }else{
-         submitChangeSetButton.setEnabled(false);
-         stageChangeSetButton.setEnabled(false);
-       }
-      }
+            if (submitChangeSetButton != null) {
+              if (changeTable.getChangeSetIsReviewed()) {
+                submitChangeSetButton.setEnabled(true);
+              } else {
+                submitChangeSetButton.setEnabled(false);
+              }
+            }
 
-      public void onFailure(Throwable caught) {
-        submitChangeSetButton.setEnabled(false);
-        stageChangeSetButton.setEnabled(false);
-      }
-    });
+            if (stageChangeSetButton != null) {
+              if (changeTable.getChangeSetIsReviewed()) {
+                stageChangeSetButton.setEnabled(true);
+              } else {
+                stageChangeSetButton.setEnabled(false);
+              }
+            }
+
+          }
+
+          public void onFailure(Throwable caught) {
+            if (submitChangeSetButton != null) {
+              submitChangeSetButton.setEnabled(false);
+            }
+            if (stageChangeSetButton != null) {
+              stageChangeSetButton.setEnabled(false);
+            }
+          }
+        });
   }
 }
