@@ -240,10 +240,10 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
     }
     table.setWidget(row, C_SUBJECT, new TableChangeLink(s, c));
     table.setWidget(row, C_OWNER, link(c.getOwner()));
-    table.setWidget(row, C_PROJECT, new ProjectLink(c.getProject().getKey(), c
-        .getStatus()));
-    table.setWidget(row, C_BRANCH, new BranchTopicLink(c.getProject().getKey(), c
-        .getStatus(), c.getBranch(), c.getTopic(), c.getTopicId()));
+    table.setWidget(row, C_PROJECT,
+        new ProjectLink(c.getProject().getKey(), c.getStatus()));
+    table.setWidget(row, C_BRANCH, new BranchTopicLink(c.getProject().getKey(),
+        c.getStatus(), c.getBranch(), c.getTopic(), c.getTopicId()));
     table.setText(row, C_LAST_UPDATE, shortFormat(c.getLastUpdatedOn()));
     setRowItem(row, c);
   }
@@ -328,7 +328,8 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
     boolean displayPersonNameInReviewCategory = false;
 
     if (Gerrit.isSignedIn()) {
-      AccountGeneralPreferences prefs = Gerrit.getUserAccount().getGeneralPreferences();
+      AccountGeneralPreferences prefs =
+          Gerrit.getUserAccount().getGeneralPreferences();
 
       if (prefs.isDisplayPersonNameInReviewCategory()) {
         displayPersonNameInReviewCategory = true;
@@ -419,25 +420,46 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
         for (int row = dataBegin; row < dataBegin + rows; row++) {
           final ChangeInfo c = getRowItem(row);
           if (ids.containsKey(c.getId())) {
-           displayApprovals(row, ids.get(c.getId()), aic, highlightUnreviewed);
+            displayApprovals(row, ids.get(c.getId()), aic, highlightUnreviewed);
           }
         }
 
         // ChangeSetsBlock widget
-        Widget csb =
-            getParent().getParent().getParent().getParent().getParent()
-                .getParent().getParent().getParent();
-
+        Widget csb = null;
         // TopicScreen widget
-        Widget w =
-            getParent().getParent().getParent().getParent().getParent()
-                .getParent().getParent().getParent().getParent().getParent()
-                .getParent();
+        Widget w = null;
 
-        if (w instanceof TopicScreen) {
-          ChangeSetsBlock cb = new ChangeSetsBlock((TopicScreen) w);
-          cb = (ChangeSetsBlock) csb;
-          cb.updateButtons();
+        try {
+
+          // Get the ChangeSetsBlock widget
+          // break when the widget is found or null
+          Widget csbParent = getParent();
+          while (csbParent.getParent() != null) {
+            csbParent = csbParent.getParent();
+            if (csbParent instanceof ChangeSetsBlock) {
+              csb = csbParent;
+              break;
+            }
+          }
+
+          // Get the TopicScreen widget
+          // break when the widget is found or null
+          Widget parent = getParent();
+          while (parent.getParent() != null) {
+            parent = parent.getParent();
+            if (parent instanceof TopicScreen) {
+              w = parent;
+              break;
+            }
+          }
+
+          if (w != null && csb != null) {
+            ChangeSetsBlock cb = new ChangeSetsBlock((TopicScreen) w);
+            cb = (ChangeSetsBlock) csb;
+            cb.updateButtons();
+          }
+
+        } catch (Exception unimportant) {
         }
       }
     };
@@ -446,6 +468,7 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
 
   /**
    * Get the changeSet reviews
+   *
    * @return true if no false exist in list
    */
   public boolean getChangeSetIsReviewed() {
@@ -548,12 +571,12 @@ public class ChangeTable extends NavigationTable<ChangeInfo> {
           case NONE:
             break;
           case USER:
-            PatchUtil.DETAIL_SVC.userApprovals(cids, ownerId, parent
-                .approvalFormatter(dataBegin, rows, true));
+            PatchUtil.DETAIL_SVC.userApprovals(cids, ownerId,
+                parent.approvalFormatter(dataBegin, rows, true));
             break;
           case STRONGEST:
-            PatchUtil.DETAIL_SVC.strongestApprovals(cids, parent
-                .approvalFormatter(dataBegin, rows, false));
+            PatchUtil.DETAIL_SVC.strongestApprovals(cids,
+                parent.approvalFormatter(dataBegin, rows, false));
             break;
         }
       }
