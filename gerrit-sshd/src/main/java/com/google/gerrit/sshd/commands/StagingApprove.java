@@ -243,7 +243,8 @@ public class StagingApprove extends BaseCommand {
       // Iterate through each open change and publish message.
       for (PatchSet patchSet : toApprove) {
         final PatchSet.Id patchSetId = patchSet.getId();
-        publishMessage(patchSetId);
+        // Publish message but only send mail if not passed
+        publishMessage(patchSetId, !passed);
 
         if (passed) {
           // Set change status to merged.
@@ -340,12 +341,12 @@ public class StagingApprove extends BaseCommand {
     }
   }
 
-  private void publishMessage(final PatchSet.Id patchSetId)
+  private void publishMessage(final PatchSet.Id patchSetId, final boolean sendMail)
       throws NoSuchChangeException, OrmException, NoSuchRefException,
       IOException, InvalidChangeOperationException {
     if (message != null && message.length() > 0) {
       publishCommentsFactory.create(patchSetId, message,
-          new HashSet<ApprovalCategoryValue.Id>(), false).call();
+          new HashSet<ApprovalCategoryValue.Id>(), sendMail).call();
     }
   }
 
