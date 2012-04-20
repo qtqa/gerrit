@@ -18,11 +18,13 @@ import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.common.data.TopicDetail;
 import com.google.gerrit.common.errors.NoSuchEntityException;
 import com.google.gerrit.httpd.rpc.Handler;
-import com.google.gerrit.reviewdb.*;
+import com.google.gerrit.reviewdb.ChangeSet;
+import com.google.gerrit.reviewdb.ReviewDb;
+import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.TopicUtil;
-import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.EmailException;
+import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchTopicException;
@@ -41,7 +43,7 @@ class RestoreTopic extends Handler<TopicDetail> {
   private final TopicControl.Factory topicControlFactory;
   private final ReviewDb db;
   private final IdentifiedUser currentUser;
-  private final AbandonedSender.Factory restoredSenderFactory;
+  private final RestoredSender.Factory restoredSenderFactory;
   private final TopicDetailFactory.Factory topicDetailFactory;
 
   private final ChangeSet.Id changeSetId;
@@ -53,7 +55,7 @@ class RestoreTopic extends Handler<TopicDetail> {
   @Inject
   RestoreTopic(final TopicControl.Factory topicControlFactory,
       final ReviewDb db, final IdentifiedUser currentUser,
-      final AbandonedSender.Factory restoredSenderFactory,
+      final RestoredSender.Factory restoredSenderFactory,
       final TopicDetailFactory.Factory topicDetailFactory,
       @Assisted final ChangeSet.Id changeSetId,
       @Assisted @Nullable final String message, final ChangeHookRunner hooks) {
