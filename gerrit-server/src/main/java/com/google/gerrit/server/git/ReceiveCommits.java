@@ -29,11 +29,11 @@ import com.google.gerrit.reviewdb.ApprovalCategory;
 import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeMessage;
-import com.google.gerrit.reviewdb.ContributorAgreement;
 import com.google.gerrit.reviewdb.ChangeSet;
 import com.google.gerrit.reviewdb.ChangeSetApproval;
 import com.google.gerrit.reviewdb.ChangeSetElement;
 import com.google.gerrit.reviewdb.ChangeSetInfo;
+import com.google.gerrit.reviewdb.ContributorAgreement;
 import com.google.gerrit.reviewdb.PatchSet;
 import com.google.gerrit.reviewdb.PatchSetAncestor;
 import com.google.gerrit.reviewdb.PatchSetApproval;
@@ -54,12 +54,13 @@ import com.google.gerrit.server.mail.CreateChangeSender;
 import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.mail.MergedSender;
 import com.google.gerrit.server.mail.ReplacePatchSetSender;
+import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
-import com.google.gerrit.server.project.ProjectCache;
 import com.google.gerrit.server.project.NoSuchRefException;
+import com.google.gerrit.server.project.ProjectCache;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.server.project.ProjectState;
 import com.google.gerrit.server.project.RefControl;
@@ -90,8 +91,8 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.transport.PostReceiveHook;
 import org.eclipse.jgit.transport.PreReceiveHook;
 import org.eclipse.jgit.transport.ReceiveCommand;
-import org.eclipse.jgit.transport.ReceivePack;
 import org.eclipse.jgit.transport.ReceiveCommand.Result;
+import org.eclipse.jgit.transport.ReceivePack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,6 +152,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   private final CreateChangeSender.Factory createChangeSenderFactory;
   private final MergedSender.Factory mergedSenderFactory;
   private final ReplacePatchSetSender.Factory replacePatchSetFactory;
+  private final RestoredSender.Factory restoredSenderFactory;
   private final ReplicationQueue replication;
   private final PatchSetInfoFactory patchSetInfoFactory;
   private final ChangeHookRunner hooks;
@@ -191,6 +193,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       final CreateChangeSender.Factory createChangeSenderFactory,
       final MergedSender.Factory mergedSenderFactory,
       final ReplacePatchSetSender.Factory replacePatchSetFactory,
+      final RestoredSender.Factory restoredSenderFactory,
       final ReplicationQueue replication,
       final PatchSetInfoFactory patchSetInfoFactory,
       final ChangeHookRunner hooks, final ProjectCache projectCache,
@@ -209,6 +212,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
     this.createChangeSenderFactory = createChangeSenderFactory;
     this.mergedSenderFactory = mergedSenderFactory;
     this.replacePatchSetFactory = replacePatchSetFactory;
+    this.restoredSenderFactory = restoredSenderFactory;
     this.replication = replication;
     this.patchSetInfoFactory = patchSetInfoFactory;
     this.hooks = hooks;
@@ -1620,7 +1624,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       }
       try {
         ChangeUtil.restore(change.currentPatchSetId(), currentUser,
-            restoreMessage + request.topicId.get(), db, null, hooks, false);
+            restoreMessage + request.topicId.get(), db, restoredSenderFactory, hooks, false);
       } catch (NoSuchChangeException e) {
         reject(request.cmd, "change " + request.ontoChange + " not found");
         return null;
@@ -1629,9 +1633,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
             + request.ontoChange);
         return null;
       } catch (EmailException e) {
-        // This should never happen, as it will never send any email
-        //
-        return null;
+        log.error("Cannot send email!", e);
       }
     }
 
