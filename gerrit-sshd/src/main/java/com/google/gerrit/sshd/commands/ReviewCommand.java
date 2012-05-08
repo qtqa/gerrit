@@ -34,6 +34,7 @@ import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.git.StagingUtil;
 import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.EmailException;
+import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.patch.PublishComments;
 import com.google.gerrit.server.project.CanSubmitResult;
 import com.google.gerrit.server.project.ChangeControl;
@@ -128,6 +129,9 @@ public class ReviewCommand extends BaseCommand {
 
   @Inject
   private AbandonedSender.Factory abandonedSenderFactory;
+
+  @Inject
+  private RestoredSender.Factory restoredSenderFactory;
 
   @Inject
   private FunctionState.Factory functionStateFactory;
@@ -307,7 +311,7 @@ public class ReviewCommand extends BaseCommand {
       if (restoreChange) {
         if (changeControl.canRestore()) {
           ChangeUtil.restore(patchSetId, currentUser, changeComment, db,
-              abandonedSenderFactory, hooks);
+              restoredSenderFactory, hooks);
         } else {
           throw error("Not permitted to restore change");
         }

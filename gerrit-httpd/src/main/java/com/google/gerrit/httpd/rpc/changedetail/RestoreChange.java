@@ -21,8 +21,8 @@ import com.google.gerrit.httpd.rpc.Handler;
 import com.google.gerrit.reviewdb.*;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
-import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.EmailException;
+import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
@@ -41,7 +41,7 @@ class RestoreChange extends Handler<ChangeDetail> {
   private final ChangeControl.Factory changeControlFactory;
   private final ReviewDb db;
   private final IdentifiedUser currentUser;
-  private final AbandonedSender.Factory abandonedSenderFactory;
+  private final RestoredSender.Factory restoredSenderFactory;
   private final ChangeDetailFactory.Factory changeDetailFactory;
 
   private final PatchSet.Id patchSetId;
@@ -53,14 +53,14 @@ class RestoreChange extends Handler<ChangeDetail> {
   @Inject
   RestoreChange(final ChangeControl.Factory changeControlFactory,
       final ReviewDb db, final IdentifiedUser currentUser,
-      final AbandonedSender.Factory abandonedSenderFactory,
+      final RestoredSender.Factory restoredSenderFactory,
       final ChangeDetailFactory.Factory changeDetailFactory,
       @Assisted final PatchSet.Id patchSetId,
       @Assisted @Nullable final String message, final ChangeHookRunner hooks) {
     this.changeControlFactory = changeControlFactory;
     this.db = db;
     this.currentUser = currentUser;
-    this.abandonedSenderFactory = abandonedSenderFactory;
+    this.restoredSenderFactory = restoredSenderFactory;
     this.changeDetailFactory = changeDetailFactory;
 
     this.patchSetId = patchSetId;
@@ -80,7 +80,7 @@ class RestoreChange extends Handler<ChangeDetail> {
     }
 
     ChangeUtil.restore(patchSetId, currentUser, message, db,
-       abandonedSenderFactory, hooks);
+       restoredSenderFactory, hooks);
 
     return changeDetailFactory.create(changeId).call();
   }

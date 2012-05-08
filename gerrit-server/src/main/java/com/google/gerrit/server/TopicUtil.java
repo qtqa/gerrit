@@ -46,6 +46,7 @@ import com.google.gerrit.server.project.TopicControl;
 import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.AddReviewerSender;
 import com.google.gerrit.server.mail.EmailException;
+import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.mail.RevertedSender;
 import com.google.gwtorm.client.AtomicUpdate;
 import com.google.gwtorm.client.OrmConcurrencyException;
@@ -382,7 +383,7 @@ public static ChangeSetApproval createStagingApproval(
 
   public static void restore(final ChangeSet.Id changeSetId,
       final IdentifiedUser user, final String message, final ReviewDb db,
-      final AbandonedSender.Factory restoredSenderFactory,
+      final RestoredSender.Factory restoredSenderFactory,
       final ChangeHookRunner hooks) throws NoSuchChangeException,
       NoSuchTopicException, InvalidChangeOperationException,
       EmailException, OrmException {
@@ -442,10 +443,9 @@ public static ChangeSetApproval createStagingApproval(
     }
     db.changeSetApprovals().update(approvals);
 
-    // TODO Topic support in AbandonedSender
     // Meanwhile, sending mails in "behalf" of the last change of the topic
     if (lastChange != null) {
-      final AbandonedSender cm = restoredSenderFactory.create(lastChange);
+      final RestoredSender cm = restoredSenderFactory.create(lastChange);
       cm.setFrom(user.getAccountId());
       cm.setTopicMessage(tmsg);
       cm.send();

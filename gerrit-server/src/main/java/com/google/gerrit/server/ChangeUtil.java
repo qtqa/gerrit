@@ -14,13 +14,13 @@
 
 package com.google.gerrit.server;
 
-import static com.google.gerrit.reviewdb.ApprovalCategory.SUBMIT;
 import static com.google.gerrit.reviewdb.ApprovalCategory.STAGING;
+import static com.google.gerrit.reviewdb.ApprovalCategory.SUBMIT;
 
 import com.google.gerrit.common.ChangeHookRunner;
 import com.google.gerrit.reviewdb.Account;
-import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.ApprovalCategory;
+import com.google.gerrit.reviewdb.Branch;
 import com.google.gerrit.reviewdb.Change;
 import com.google.gerrit.reviewdb.ChangeMessage;
 import com.google.gerrit.reviewdb.ChangeSet;
@@ -32,36 +32,36 @@ import com.google.gerrit.reviewdb.RevId;
 import com.google.gerrit.reviewdb.ReviewDb;
 import com.google.gerrit.reviewdb.Topic;
 import com.google.gerrit.reviewdb.TrackingId;
-import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.config.TrackingFooter;
 import com.google.gerrit.server.config.TrackingFooters;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.git.ReplicationQueue;
-import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.git.StagingUtil;
-import com.google.gerrit.server.project.NoSuchRefException;
+import com.google.gerrit.server.mail.AbandonedSender;
+import com.google.gerrit.server.mail.EmailException;
+import com.google.gerrit.server.mail.RestoredSender;
+import com.google.gerrit.server.mail.RevertedSender;
+import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
-import com.google.gerrit.server.mail.AbandonedSender;
-import com.google.gerrit.server.mail.EmailException;
-import com.google.gerrit.server.mail.RevertedSender;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gwtorm.client.AtomicUpdate;
 import com.google.gwtorm.client.OrmConcurrencyException;
 import com.google.gwtorm.client.OrmException;
 
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.CommitBuilder;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.PersonIdent;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.FooterLine;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -291,7 +291,7 @@ public class ChangeUtil {
       cm.setChangeMessage(cmsg);
       cm.send();
     } else {
-      log.error("Abandoned sender factory is null!");
+      log.error("Cannot send email when restoring a change belonging to topic.");
     }
 
     hooks.doChangeAbandonedHook(updatedChange, user.getAccount(), message);
@@ -427,7 +427,7 @@ public class ChangeUtil {
 
   public static void restore(final PatchSet.Id patchSetId,
       final IdentifiedUser user, final String message, final ReviewDb db,
-      final AbandonedSender.Factory senderFactory,
+      final RestoredSender.Factory senderFactory,
       final ChangeHookRunner hooks) throws NoSuchChangeException,
       InvalidChangeOperationException, EmailException, OrmException {
     restore(patchSetId, user, message, db, senderFactory, hooks, true);
@@ -435,7 +435,7 @@ public class ChangeUtil {
 
   public static void restore(final PatchSet.Id patchSetId,
       final IdentifiedUser user, final String message, final ReviewDb db,
-      final AbandonedSender.Factory senderFactory,
+      final RestoredSender.Factory senderFactory,
       final ChangeHookRunner hooks, final boolean sendMail) throws NoSuchChangeException,
       InvalidChangeOperationException, EmailException, OrmException {
     final Change.Id changeId = patchSetId.getParentKey();
@@ -484,11 +484,15 @@ public class ChangeUtil {
     }
     db.patchSetApprovals().update(approvals);
 
-    // Email the reviewers
-    final AbandonedSender cm = senderFactory.create(updatedChange);
+    if (senderFactory != null) {
+      // Email the reviewers
+      final RestoredSender cm = senderFactory.create(updatedChange);
       cm.setFrom(user.getAccountId());
       cm.setChangeMessage(cmsg);
       cm.send();
+    } else {
+      log.error("Cannot send email!");
+    }
 
     hooks.doChangeRestoreHook(updatedChange, user.getAccount(), message);
   }
