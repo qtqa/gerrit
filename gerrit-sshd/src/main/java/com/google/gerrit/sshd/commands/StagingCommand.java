@@ -149,6 +149,11 @@ public class StagingCommand {
       }
       RevCommit firstCommit = revWalk.parseCommit(ref.getObjectId());
       revWalk.markStart(firstCommit);
+      // Read destination HEAD to make it the walker end point
+      Ref refDest = git.getRef(destination.get());
+      if (refDest != null) {
+        revWalk.markUninteresting(revWalk.parseCommit(refDest.getObjectId()));
+      }
       Iterator<RevCommit> i = revWalk.iterator();
 
       final String changeIdFooter = "Change-Id";
