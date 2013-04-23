@@ -32,6 +32,7 @@ import com.google.gerrit.server.TopicUtil;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
+import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.BuildApprovedSender;
 import com.google.gerrit.server.mail.BuildRejectedSender;
 import com.google.gerrit.server.mail.EmailException;
@@ -144,6 +145,9 @@ public class StagingApprove extends BaseCommand {
   @Inject
   private BuildRejectedSender.Factory buildRejectedFactory;
 
+  @Inject
+  private AbandonedSender.Factory abandonedSenderFactory;
+
   @Option(name = "--project", aliases = {"-p"},
       required = true, usage = "project name")
   private String project;
@@ -215,9 +219,6 @@ public class StagingApprove extends BaseCommand {
         throw new UnloggedFailure(1, "No open changes in the build branch");
       }
 
-      // Validate change status and destination branch.
-      validateChanges();
-
       // Use current message or read it from stdin.
       prepareMessage();
 
@@ -243,6 +244,19 @@ public class StagingApprove extends BaseCommand {
       // Iterate through each open change and publish message.
       for (PatchSet patchSet : toApprove) {
         final PatchSet.Id patchSetId = patchSet.getId();
+
+        // If change not in state INTEGRATING it will be abandoned
+        final Change change = db.changes().get(patchSetId.getParentKey());
+        if (change.getStatus() != Change.Status.INTEGRATING) {
+          try {
+            ChangeUtil.abandon(patchSetId, currentUser, getAbandonMessage(change), db,
+                abandonedSenderFactory, hooks, true);
+          } catch (EmailException e) {
+            log.error("Cannot send email about abandoning change " + change.getId(), e);
+          }
+          continue;
+        }
+
         // Publish message but only send mail if not passed
         publishMessage(patchSetId, !passed);
 
@@ -281,16 +295,29 @@ public class StagingApprove extends BaseCommand {
     }
   }
 
-  private void validateChanges() throws OrmException, UnloggedFailure {
-    for (PatchSet patchSet : toApprove) {
-      final Change change = db.changes().get(patchSet.getId().getParentKey());
-
-      // All changes must be in state INTEGRATING.
-      if (change.getStatus() != Change.Status.INTEGRATING) {
-        throw new UnloggedFailure(1,
-            "Change not in INTEGRATING state (" + change.getKey() + ")");
+  private String getAbandonMessage(Change change) throws OrmException {
+    // Search all changes from database where change id matches to incoming one.
+    // Pick first merged one where destination doesn't match and use that for
+    // abandon message.
+    String source_branch = "other branch"; // This is used if branch name not found
+    List<Change> changes = db.changes().byKey(change.getKey()).toList();
+    for (Change c : changes) {
+      if (!c.getDest().equals(destination) && c.getStatus() == Change.Status.MERGED) {
+        source_branch = "branch '"
+            + StagingCommand.getShortNameKey(project, R_HEADS, c.getDest().get()).get()
+            + "'";
+        break;
       }
     }
+    String abandonMessage =
+        "This change has been abandoned because it was already integrated in "
+        + source_branch + " which was merged into branch '"
+        + destination.getShortName() +"'.";
+    // Add original message also to help solving the problem
+    if (message != null && message.length() > 0) {
+      abandonMessage += "\n\n" + message;
+    }
+    return abandonMessage;
   }
 
   private void openRepository(final String project) throws RepositoryNotFoundException {
@@ -303,6 +330,11 @@ public class StagingApprove extends BaseCommand {
     for (PatchSet patchSet : toApprove) {
       final Change.Id changeId = patchSet.getId().getParentKey();
       final Change change = db.changes().get(changeId);
+
+      // Changes not in state INTEGRATING will be rejected later
+      if (change.getStatus() != Change.Status.INTEGRATING) {
+        continue;
+      }
 
       final Topic.Id topicId = change.getTopicId();
       // Check only topic status for changes in topic.
