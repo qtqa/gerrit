@@ -22,6 +22,7 @@ public interface ChangeConstants extends Constants {
   String statusLongSubmitted();
   String statusLongMerged();
   String statusLongAbandoned();
+  String statusLongDeferred();
 
   String changesRecentlyClosed();
 
@@ -30,6 +31,7 @@ public interface ChangeConstants extends Constants {
   String draftsHeading();
   String allOpenChanges();
   String allAbandonedChanges();
+  String allDeferredChanges();
   String allMergedChanges();
 
   String changeTableColumnID();
@@ -119,6 +121,12 @@ public interface ChangeConstants extends Constants {
   String abandonChangeTitle();
   String oldVersionHistory();
   String baseDiffItem();
+
+  String buttonDeferChangeBegin();
+  String buttonDeferChangeSend();
+  String buttonDeferChangeCancel();
+  String headingDeferMessage();
+  String deferChangeTitle();
 
   String buttonReview();
   String buttonPublishCommentsSend();

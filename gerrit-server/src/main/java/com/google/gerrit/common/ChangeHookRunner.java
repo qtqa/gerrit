@@ -31,6 +31,7 @@ import com.google.gerrit.server.config.GerritServerConfig;
 import com.google.gerrit.server.config.SitePaths;
 import com.google.gerrit.server.events.ApprovalAttribute;
 import com.google.gerrit.server.events.ChangeAbandonedEvent;
+import com.google.gerrit.server.events.ChangeDeferredEvent;
 import com.google.gerrit.server.events.ChangeEvent;
 import com.google.gerrit.server.events.ChangeMergedEvent;
 import com.google.gerrit.server.events.ChangeRestoreEvent;
@@ -98,6 +99,9 @@ public class ChangeHookRunner {
     /** Filename of the change abandoned hook. */
     private final File changeAbandonedHook;
 
+    /** Filename of the change deferred hook. */
+    private final File changeDeferredHook;
+
     /** Filename of the change abandoned hook. */
     private final File changeRestoredHook;
 
@@ -148,6 +152,7 @@ public class ChangeHookRunner {
         commentAddedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "commentAddedHook", "comment-added")).getPath());
         changeMergedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeMergedHook", "change-merged")).getPath());
         changeAbandonedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeAbandonedHook", "change-abandoned")).getPath());
+        changeDeferredHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeDeferredHook", "change-deferred")).getPath());
         changeRestoredHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeRestoredHook", "change-restored")).getPath());
         refUpdatedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "refUpdatedHook", "ref-updated")).getPath());
     }
@@ -325,6 +330,32 @@ public class ChangeHookRunner {
         addArg(args, "--reason", reason == null ? "" : reason);
 
         runHook(openRepository(change), changeAbandonedHook, args);
+    }
+
+    /**
+     * Fire the Change Deferred Hook.
+     *
+     * @param change The change itself.
+     * @param account The gerrit user who deferred the change.
+     * @param reason Reason for deferring the change.
+     */
+    public void doChangeDeferredHook(final Change change, final Account account, final String reason) {
+        final ChangeDeferredEvent event = new ChangeDeferredEvent();
+
+        event.change = eventFactory.asChangeAttribute(change);
+        event.deferrer = eventFactory.asAccountAttribute(account);
+        event.reason = reason;
+        fireEvent(change, event);
+
+        final List<String> args = new ArrayList<String>();
+        addArg(args, "--change", event.change.id);
+        addArg(args, "--change-url", event.change.url);
+        addArg(args, "--project", event.change.project);
+        addArg(args, "--branch", event.change.branch);
+        addArg(args, "--deferrer", getDisplayName(account));
+        addArg(args, "--reason", reason == null ? "" : reason);
+
+        runHook(openRepository(change), changeDeferredHook, args);
     }
 
     /**

@@ -50,6 +50,13 @@ Comment.vm
 The `Comment.vm` template will determine the contents of the email related to
 a user submitting comments on changes.  It is a `ChangeEmail`: see
 
+Deferred.vm
+~~~~~~~~~~~~
+
+The `Deferred.vm` template will determine the contents of the email related
+to a change being deferred.  It is a `ChangeEmail`: see `ChangeSubject.vm` and
+`ChangeFooter.vm`.
+
 Merged.vm
 ~~~~~~~~~
 

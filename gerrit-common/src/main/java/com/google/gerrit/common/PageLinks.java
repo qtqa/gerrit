@@ -80,6 +80,9 @@ public class PageLinks {
       case ABANDONED:
         return "status:abandoned " + op("project", proj.get());
 
+      case DEFERRED:
+        return "status:deferred " + op("project", proj.get());
+
       case MERGED:
         return "status:merged " + op("project", proj.get());
 

@@ -34,6 +34,7 @@ import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.git.StagingUtil;
 import com.google.gerrit.server.mail.AbandonedSender;
+import com.google.gerrit.server.mail.DeferredSender;
 import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.patch.PublishComments;
@@ -101,6 +102,9 @@ public class ReviewCommand extends BaseCommand {
   @Option(name = "--abandon", usage = "abandon the patch set")
   private boolean abandonChange;
 
+  @Option(name = "--defer", usage = "defer the patch set")
+  private boolean deferChange;
+
   @Option(name = "--restore", usage = "restore an abandoned the patch set")
   private boolean restoreChange;
 
@@ -130,6 +134,9 @@ public class ReviewCommand extends BaseCommand {
 
   @Inject
   private AbandonedSender.Factory abandonedSenderFactory;
+
+  @Inject
+  private DeferredSender.Factory deferredSenderFactory;
 
   @Inject
   private RestoredSender.Factory restoredSenderFactory;
@@ -172,6 +179,18 @@ public class ReviewCommand extends BaseCommand {
           }
           if (submitChange) {
             throw error("abandon and submit actions are mutually exclusive");
+          }
+          if (deferChange) {
+            throw error("abandon and defer actions are mutually exclusive");
+          }
+        }
+
+        if (deferChange) {
+          if (restoreChange) {
+            throw error("defer and restore actions are mutually exclusive");
+          }
+          if (submitChange) {
+            throw error("defer and submit actions are mutually exclusive");
           }
         }
 
@@ -306,6 +325,15 @@ public class ReviewCommand extends BaseCommand {
               abandonedSenderFactory, hooks);
         } else {
           throw error("Not permitted to abandon change");
+        }
+      }
+
+      if (deferChange) {
+        if (changeControl.canDefer()) {
+          ChangeUtil.defer(patchSetId, currentUser, changeComment, db,
+              deferredSenderFactory, hooks);
+        } else {
+          throw error("Not permitted to defer change");
         }
       }
 

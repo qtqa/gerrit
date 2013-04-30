@@ -283,6 +283,25 @@ class PatchSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       actionsPanel.add(b);
     }
 
+    if (changeDetail.canDefer()) {
+      final Button b = new Button(Util.C.buttonDeferChangeBegin());
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(final ClickEvent event) {
+          b.setEnabled(false);
+          new CommentedChangeActionDialog<ChangeDetail>(patchSet.getId(), createCommentedCallback(b),
+              Util.C.deferChangeTitle(), Util.C.headingDeferMessage(),
+              Util.C.buttonDeferChangeSend(), Util.C.buttonDeferChangeCancel(),
+              Gerrit.RESOURCES.css().deferChangeDialog(), Gerrit.RESOURCES.css().deferMessage()) {
+                public void onSend() {
+                  Util.MANAGE_SVC.deferChange(getPatchSetId() , getMessageText(), createCallback());
+                }
+              }.center();
+        }
+      });
+      actionsPanel.add(b);
+    }
+
     if (changeDetail.canAbandon()) {
       final Button b = new Button(Util.C.buttonAbandonChangeBegin());
       b.addClickHandler(new ClickHandler() {

@@ -36,6 +36,12 @@ public interface TopicConstants extends Constants {
   String headingAbandonMessage();
   String abandonTopicTitle();
 
+  String buttonDeferTopicBegin();
+  String buttonDeferTopicSend();
+  String buttonDeferTopicCancel();
+  String headingDeferMessage();
+  String deferTopicTitle();
+
   String buttonRestoreTopicBegin();
   String restoreTopicTitle();
   String buttonRestoreTopicCancel();

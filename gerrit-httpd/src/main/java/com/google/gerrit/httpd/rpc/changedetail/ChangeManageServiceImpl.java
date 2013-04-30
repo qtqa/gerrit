@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 class ChangeManageServiceImpl implements ChangeManageService {
   private final SubmitAction.Factory submitAction;
   private final AbandonChange.Factory abandonChangeFactory;
+  private final DeferChange.Factory deferChangeFactory;
   private final RestoreChange.Factory restoreChangeFactory;
   private final RevertChange.Factory revertChangeFactory;
   private final StagingAction.Factory stagingActionFactory;
@@ -32,12 +33,14 @@ class ChangeManageServiceImpl implements ChangeManageService {
   @Inject
   ChangeManageServiceImpl(final SubmitAction.Factory patchSetAction,
       final AbandonChange.Factory abandonChangeFactory,
+      final DeferChange.Factory deferChangeFactory,
       final RestoreChange.Factory restoreChangeFactory,
       final RevertChange.Factory revertChangeFactory,
       final StagingAction.Factory stagingActionFactory,
       final UnstageChange.Factory unstageChangeFactory) {
     this.submitAction = patchSetAction;
     this.abandonChangeFactory = abandonChangeFactory;
+    this.deferChangeFactory = deferChangeFactory;
     this.restoreChangeFactory = restoreChangeFactory;
     this.revertChangeFactory = revertChangeFactory;
     this.stagingActionFactory = stagingActionFactory;
@@ -52,6 +55,11 @@ class ChangeManageServiceImpl implements ChangeManageService {
   public void abandonChange(final PatchSet.Id patchSetId, final String message,
       final AsyncCallback<ChangeDetail> callback) {
     abandonChangeFactory.create(patchSetId, message).to(callback);
+  }
+
+  public void deferChange(final PatchSet.Id patchSetId, final String message,
+      final AsyncCallback<ChangeDetail> callback) {
+    deferChangeFactory.create(patchSetId, message).to(callback);
   }
 
   public void revertChange(final PatchSet.Id patchSetId, final String message,

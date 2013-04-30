@@ -46,6 +46,8 @@ status:: Current state of this change.
 
   ABANDONED;; Change was abandoned by its owner or administrator.
 
+  DEFERRED;; Change was deferred by its owner or administrator.
+
 trackingIds:: Issue tracking system links in
 <<trackingid,trackingid attribute>>, scraped out of the commit
 message based on the server's

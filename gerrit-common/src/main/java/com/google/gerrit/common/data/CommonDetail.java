@@ -25,6 +25,7 @@ public abstract class CommonDetail {
   protected AccountInfoCache accounts;
   protected boolean allowsAnonymous;
   protected boolean canAbandon;
+  protected boolean canDefer;
   protected boolean canRestore;
   protected boolean canRevert;
   protected boolean starred;
@@ -57,6 +58,14 @@ public abstract class CommonDetail {
 
   public void setCanAbandon(final boolean a) {
     canAbandon = a;
+  }
+
+  public boolean canDefer() {
+    return canDefer;
+  }
+
+  public void setCanDefer(final boolean a) {
+    canDefer = a;
   }
 
   public boolean canRestore() {

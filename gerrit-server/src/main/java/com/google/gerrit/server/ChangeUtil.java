@@ -41,6 +41,7 @@ import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.git.ReplicationQueue;
 import com.google.gerrit.server.git.StagingUtil;
 import com.google.gerrit.server.mail.AbandonedSender;
+import com.google.gerrit.server.mail.DeferredSender;
 import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.mail.RevertedSender;
@@ -260,7 +261,8 @@ public class ChangeUtil {
         new AtomicUpdate<Change>() {
       @Override
       public Change update(Change change) {
-        if (change.getStatus().isOpen()
+        if ((change.getStatus().isOpen()
+            || change.getStatus() == Change.Status.DEFERRED)
             && change.currentPatchSetId().equals(patchSetId)) {
           change.setStatus(Change.Status.ABANDONED);
           ChangeUtil.updated(change);
@@ -296,6 +298,79 @@ public class ChangeUtil {
     }
 
     hooks.doChangeAbandonedHook(updatedChange, user.getAccount(), message);
+  }
+
+  public static void defer(final PatchSet.Id patchSetId,
+      final IdentifiedUser user, final String message, final ReviewDb db,
+      final DeferredSender.Factory senderFactory,
+      final ChangeHookRunner hooks) throws NoSuchChangeException,
+      InvalidChangeOperationException, EmailException, OrmException {
+    defer(patchSetId, user, message, db, senderFactory, hooks, true);
+  }
+
+  public static void defer(final PatchSet.Id patchSetId,
+      final IdentifiedUser user, final String message, final ReviewDb db,
+      final DeferredSender.Factory senderFactory,
+      final ChangeHookRunner hooks, final boolean sendMail) throws NoSuchChangeException,
+      InvalidChangeOperationException, EmailException, OrmException {
+    final Change.Id changeId = patchSetId.getParentKey();
+    final PatchSet patch = db.patchSets().get(patchSetId);
+    if (patch == null) {
+      throw new NoSuchChangeException(changeId);
+    }
+
+    final ChangeMessage cmsg =
+        new ChangeMessage(new ChangeMessage.Key(changeId, ChangeUtil
+            .messageUUID(db)), user.getAccountId());
+    final StringBuilder msgBuf =
+        new StringBuilder("Patch Set " + patchSetId.get() + ": Deferred");
+    if (message != null && message.length() > 0) {
+      msgBuf.append("\n\n");
+      msgBuf.append(message);
+    }
+    cmsg.setMessage(msgBuf.toString());
+
+    final Change updatedChange = db.changes().atomicUpdate(changeId,
+        new AtomicUpdate<Change>() {
+      @Override
+      public Change update(Change change) {
+        if ((change.getStatus().isOpen()
+            || change.getStatus() == Change.Status.ABANDONED)
+            && change.currentPatchSetId().equals(patchSetId)) {
+          change.setStatus(Change.Status.DEFERRED);
+          ChangeUtil.updated(change);
+          return change;
+        } else {
+          return null;
+        }
+      }
+    });
+
+    if (updatedChange == null) {
+      throw new InvalidChangeOperationException(
+          "Change is no longer open or patchset is not latest");
+    }
+
+    db.changeMessages().insert(Collections.singleton(cmsg));
+
+    final List<PatchSetApproval> approvals =
+        db.patchSetApprovals().byChange(changeId).toList();
+    for (PatchSetApproval a : approvals) {
+      a.cache(updatedChange);
+    }
+    db.patchSetApprovals().update(approvals);
+
+    if (senderFactory != null) {
+      // Email the reviewers
+      final DeferredSender cm = senderFactory.create(updatedChange);
+      cm.setFrom(user.getAccountId());
+      cm.setChangeMessage(cmsg);
+      cm.send();
+    } else {
+      log.error("Cannot send email when deferring a change.");
+    }
+
+    hooks.doChangeDeferredHook(updatedChange, user.getAccount(), message);
   }
 
   public static void revert(final PatchSet.Id patchSetId,
@@ -460,7 +535,8 @@ public class ChangeUtil {
         new AtomicUpdate<Change>() {
       @Override
       public Change update(Change change) {
-        if (change.getStatus() == Change.Status.ABANDONED
+        if ((change.getStatus() == Change.Status.ABANDONED ||
+            change.getStatus() == Change.Status.DEFERRED)
             && change.currentPatchSetId().equals(patchSetId)) {
           change.setStatus(Change.Status.NEW);
           ChangeUtil.updated(change);
@@ -473,7 +549,7 @@ public class ChangeUtil {
 
     if (updatedChange == null) {
       throw new InvalidChangeOperationException(
-          "Change is not abandoned or patchset is not latest");
+          "Change is not abandoned/deferred or patchset is not latest");
     }
 
     db.changeMessages().insert(Collections.singleton(cmsg));

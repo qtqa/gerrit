@@ -166,9 +166,25 @@ public class ChangeControl {
       && (change.getStatus() != Change.Status.INTEGRATING);
   }
 
+  /** Can this user defer this change? */
+  public boolean canDefer() {
+    if (change.getTopicId() != null) return false;
+    boolean userCan = isOwner() // owner (aka creator) of the change can defer
+        || getRefControl().isOwner() // branch owner can defer
+        || getProjectControl().isOwner() // project owner can defer
+        || getCurrentUser().isAdministrator() // site administers are god
+    ;
+
+    // Cannot defer changes that are already processed by the continuous
+    // integration system.
+    return userCan
+      && (change.getStatus() != Change.Status.INTEGRATING);
+  }
+
   /** Can this user restore this change? */
   public boolean canRestore() {
-    return canAbandon(); // Anyone who can abandon the change can restore it back
+    // Anyone who can abandon or defer the change can restore it back
+    return canAbandon() || canDefer();
   }
 
   /** All value ranges of any allowed label permission. */

@@ -30,6 +30,7 @@ import com.google.gerrit.server.git.ReceiveCommits;
 import com.google.gerrit.server.git.StagingMergeDelegate;
 import com.google.gerrit.server.git.SubmitMergeDelegate;
 import com.google.gerrit.server.mail.AbandonedSender;
+import com.google.gerrit.server.mail.DeferredSender;
 import com.google.gerrit.server.mail.AddReviewerSender;
 import com.google.gerrit.server.mail.BuildApprovedSender;
 import com.google.gerrit.server.mail.BuildRejectedSender;
@@ -81,6 +82,7 @@ public class GerritRequestModule extends FactoryModule {
     factory(PublishTopicComments.Factory.class);
     factory(ReplacePatchSetSender.Factory.class);
     factory(AbandonedSender.Factory.class);
+    factory(DeferredSender.Factory.class);
     factory(RevertedSender.Factory.class);
     factory(RestoredSender.Factory.class);
     factory(CommentSender.Factory.class);

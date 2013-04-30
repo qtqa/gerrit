@@ -955,6 +955,11 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       reject(cmd, "change " + change.getId() + " closed");
       return false;
     }
+    if (change.getStatus().equals(AbstractEntity.Status.DEFERRED)
+        && topic == null) {
+      reject(cmd, "change " + change.getId() + " closed");
+      return false;
+    }
 
     Topic.Id topicId = topic != null ? topic.getId() : null;
     ChangeSet.Id csId = topic != null ? topic.currentChangeSetId() : null;
@@ -983,6 +988,10 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       return false;
     }
     if (change.getStatus().equals(AbstractEntity.Status.ABANDONED) && !topic) {
+      reject(cmd, "change " + change.getId() + " closed");
+      return false;
+    }
+    if (change.getStatus().equals(AbstractEntity.Status.DEFERRED) && !topic) {
       reject(cmd, "change " + change.getId() + " closed");
       return false;
     }

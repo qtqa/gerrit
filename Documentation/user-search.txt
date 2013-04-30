@@ -11,16 +11,18 @@ matches the search, the change will be presented instead of a list.
 
 
 [options="header"]
-|=================================================
-|Description          | Default Query
-|All > Open           | status:open '(or is:open)'
-|All > Merged         | status:merged
-|All > Abandoned      | status:abandoned
-|My > Dafts           | has:draft
-|My > Watched Changes | status:open is:watched
-|My > Starred Changes | is:starred
-|Open changes in Foo  | status:open project:Foo
-|=================================================
+|========================================================
+|Description           | Default Query
+|All > Open            | status:open '(or is:open)'
+|All > Merged          | status:merged
+|All > Deferred        | status:deferred
+|All > Abandoned       | status:abandoned
+|My > Dafts            | has:draft
+|My > Deferred Changes | owner:'username' status:deferred
+|My > Watched Changes  | status:open is:watched
+|My > Starred Changes  | is:starred
+|Open changes in Foo   | status:open project:Foo
+|========================================================
 
 Basic Change Search
 -------------------
@@ -222,9 +224,9 @@ True if the change is other open or submitted, merge pending.
 
 is:closed::
 +
-True if the change is either merged or abandoned.
+True if the change is either merged, deferred or abandoned.
 
-is:submitted, is:merged, is:abandoned::
+is:submitted, is:merged, is:deferred, is:abandoned::
 +
 Same as <<status,status:'STATE'>>.
 
@@ -245,7 +247,7 @@ Change has been submitted, but is waiting for a dependency.
 
 status:closed::
 +
-True if the change is either 'merged' or 'abandoned'.
+True if the change is either 'merged', 'deferred' or 'abandoned'.
 
 status:merged::
 +
@@ -254,6 +256,10 @@ Change has been merged into the branch.
 status:abandoned::
 +
 Change has been abandoned by the change owner, or administrator.
+
+status:deferred::
++
+Change has been deferred by the change owner, or administrator.
 
 
 Boolean Operators

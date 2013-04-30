@@ -202,6 +202,9 @@ public class Dispatcher {
     } else if ("mine,drafts".equals(token)) {
       return QueryScreen.forQuery("has:draft");
 
+    } else if ("mine,deferred".equals(token)) {
+      return QueryScreen.forQuery("owner:" + Gerrit.getUserAccount().getUserName() + " status:deferred");
+
     } else {
       String p = "mine,watched,";
       if (token.startsWith(p)) {
@@ -214,6 +217,11 @@ public class Dispatcher {
 
   private static Screen all(final String token) {
     String p;
+
+    p = "all,deferred,";
+    if (token.startsWith(p)) {
+      return QueryScreen.forQuery("status:deferred", skip(p, token));
+    }
 
     p = "all,abandoned,";
     if (token.startsWith(p)) {
@@ -263,6 +271,16 @@ public class Dispatcher {
       Project.NameKey proj = Project.NameKey.parse(s.substring(0, c));
       return QueryScreen.forQuery( //
           "status:abandoned " + op("project", proj.get()), //
+          s.substring(c + 1));
+    }
+
+    p = "project,deferred,";
+    if (token.startsWith(p)) {
+      final String s = skip(p, token);
+      final int c = s.indexOf(',');
+      Project.NameKey proj = Project.NameKey.parse(s.substring(0, c));
+      return QueryScreen.forQuery( //
+          "status:deferred " + op("project", proj.get()), //
           s.substring(c + 1));
     }
 

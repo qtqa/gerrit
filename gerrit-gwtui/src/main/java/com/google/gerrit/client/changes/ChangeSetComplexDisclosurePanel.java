@@ -243,6 +243,25 @@ class ChangeSetComplexDisclosurePanel extends CommonComplexDisclosurePanel {
       actionsPanel.add(b);
     }
 
+    if (topicDetail.canDefer()) {
+      final Button b = new Button(Util.TC.buttonDeferTopicBegin());
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(final ClickEvent event) {
+          b.setEnabled(false);
+          new CommentedChangeActionDialog<TopicDetail>(changeSet.getId(), createCommentedCallback(b),
+              Util.TC.deferTopicTitle(), Util.TC.headingDeferMessage(),
+              Util.TC.buttonDeferTopicSend(), Util.TC.buttonDeferTopicCancel(),
+              Gerrit.RESOURCES.css().deferChangeDialog(), Gerrit.RESOURCES.css().deferMessage()) {
+                public void onSend() {
+                  Util.T_MANAGE_SVC.deferTopic(getChangeSetId() , getMessageText(), createCallback());
+                }
+              }.center();
+        }
+      });
+      actionsPanel.add(b);
+    }
+
     if (topicDetail.canAbandon()) {
       final Button b = new Button(Util.TC.buttonAbandonTopicBegin());
       b.addClickHandler(new ClickHandler() {

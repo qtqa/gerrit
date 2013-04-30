@@ -44,6 +44,12 @@ class JumpKeys {
         Gerrit.display(PageLinks.toChangeQuery("status:abandoned"));
       }
     });
+    jumps.add(new KeyCommand(0, 'f', Gerrit.C.jumpAllDeferred()) {
+      @Override
+      public void onKeyPress(final KeyPressEvent event) {
+        Gerrit.display(PageLinks.toChangeQuery("status:deferred"));
+      }
+    });
 
     if (Gerrit.isSignedIn()) {
       jumps.add(new KeyCommand(0, 'i', Gerrit.C.jumpMine()) {

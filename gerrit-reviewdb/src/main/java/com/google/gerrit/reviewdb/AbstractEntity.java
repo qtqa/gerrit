@@ -200,7 +200,16 @@ public abstract class AbstractEntity {
      * a replacement patch/change set, and it cannot be merged. Draft comments however
      * may be published, permitting reviewers to send constructive feedback.
      */
-    ABANDONED('A');
+    ABANDONED('A'),
+    /**
+     * Change/topic is closed, but was not submitted to its destination branch.
+     *
+     * <p>
+     * Once a change/topic has been deferred, it cannot be further modified by adding
+     * a replacement patch/change set, and it cannot be merged. Draft comments however
+     * may be published, permitting reviewers to send constructive feedback.
+     */
+    DEFERRED('D');
 
     private final char code;
     private final boolean closed;

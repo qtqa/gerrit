@@ -113,8 +113,9 @@ public class TopicDetailFactory extends Handler<TopicDetail> {
     detail.setTopic(topic);
     detail.setAllowsAnonymous(control.forUser(anonymousUser).isVisible());
 
-    detail.setCanAbandon(topic.getStatus().isOpen() && control.canAbandon());
-    detail.setCanRestore(topic.getStatus() == AbstractEntity.Status.ABANDONED && control.canRestore());
+    detail.setCanAbandon((topic.getStatus() == AbstractEntity.Status.DEFERRED || topic.getStatus().isOpen()) && control.canAbandon());
+    detail.setCanDefer((topic.getStatus() == AbstractEntity.Status.ABANDONED || topic.getStatus().isOpen()) && control.canDefer());
+    detail.setCanRestore((topic.getStatus() == AbstractEntity.Status.ABANDONED || topic.getStatus() == AbstractEntity.Status.DEFERRED) && control.canRestore());
     detail.setStarred(control.getCurrentUser().getStarredChanges().contains(
         topicId));
 

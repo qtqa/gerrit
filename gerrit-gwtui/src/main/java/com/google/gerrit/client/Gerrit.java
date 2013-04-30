@@ -457,6 +457,7 @@ public class Gerrit implements EntryPoint {
     addLink(m, C.menuAllStaged(), PageLinks.toChangeQuery("status:staged"));
     addLink(m, C.menuAllIntegrating(), PageLinks.toChangeQuery("status:integrating"));
     addLink(m, C.menuAllMerged(), PageLinks.toChangeQuery("status:merged"));
+    addLink(m, C.menuAllDeferred(), PageLinks.toChangeQuery("status:deferred"));
     addLink(m, C.menuAllAbandoned(), PageLinks.toChangeQuery("status:abandoned"));
     menuLeft.add(m, C.menuAll());
 
@@ -464,6 +465,8 @@ public class Gerrit implements EntryPoint {
       m = new LinkMenuBar();
       addLink(m, C.menuMyChanges(), PageLinks.MINE);
       addLink(m, C.menuMyDrafts(), PageLinks.toChangeQuery("has:draft"));
+      addLink(m, C.menuMyDeferredChanges(), PageLinks.toChangeQuery(
+          "owner:" + Gerrit.getUserAccount().getUserName() + " status:deferred"));
       addLink(m, C.menuMyWatchedChanges(), PageLinks.toChangeQuery("is:watched status:open"));
       addLink(m, C.menuMyStarredChanges(), PageLinks.toChangeQuery("is:starred"));
       menuLeft.add(m, C.menuMine());

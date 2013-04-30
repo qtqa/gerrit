@@ -45,6 +45,7 @@ import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.NoSuchTopicException;
 import com.google.gerrit.server.project.TopicControl;
 import com.google.gerrit.server.mail.AbandonedSender;
+import com.google.gerrit.server.mail.DeferredSender;
 import com.google.gerrit.server.mail.AddReviewerSender;
 import com.google.gerrit.server.mail.EmailException;
 import com.google.gerrit.server.mail.RestoredSender;
@@ -281,6 +282,79 @@ public static ChangeSetApproval createStagingApproval(
     // Meanwhile, sending mails in "behalf" of the last change of the topic
     if (lastChange != null) {
       final AbandonedSender cm = abandonedSenderFactory.create(lastChange);
+      cm.setFrom(user.getAccountId());
+      cm.setTopicMessage(tmsg);
+      cm.send();
+    }
+  }
+
+  public static void defer(final ChangeSet.Id changeSetId,
+      final IdentifiedUser user, final String message, final ReviewDb db,
+      final DeferredSender.Factory deferredSenderFactory,
+      final ChangeHookRunner hooks) throws NoSuchTopicException,
+      NoSuchChangeException, InvalidChangeOperationException,
+      EmailException, OrmException  {
+    final Topic.Id topicId = changeSetId.getParentKey();
+    final ChangeSet changeSet = db.changeSets().get(changeSetId);
+    if (changeSet == null) {
+      throw new NoSuchTopicException(topicId);
+    }
+
+    final TopicMessage tmsg =
+        new TopicMessage(new TopicMessage.Key(topicId, ChangeUtil
+            .messageUUID(db)), user.getAccountId());
+    final StringBuilder msgBuf =
+        new StringBuilder("Change Set " + changeSetId.get() + ": Deferred");
+    if (message != null && message.length() > 0) {
+      msgBuf.append("\n\n");
+      msgBuf.append(message);
+    }
+    tmsg.setMessage(msgBuf.toString());
+
+    final Topic updatedTopic = db.topics().atomicUpdate(topicId,
+        new AtomicUpdate<Topic>() {
+      @Override
+      public Topic update(Topic topic) {
+        if (topic.getStatus().isOpen()
+            && topic.currentChangeSetId().equals(changeSetId)) {
+          topic.setStatus(Change.Status.DEFERRED);
+          TopicUtil.updated(topic);
+          return topic;
+        } else {
+          return null;
+        }
+      }
+    });
+
+    Change lastChange = null;
+    if (updatedTopic == null) {
+      throw new InvalidChangeOperationException(
+          "Topic is no longer open or changeset is not latest");
+    } else {
+      // Defer the changes belonging to the Topic
+      //
+      List<Change> toDefer = db.changes().byTopicOpenAll(topicId).toList();
+      for (Change c : toDefer) {
+        ChangeUtil.defer(c.currentPatchSetId(), user, message, db,
+            deferredSenderFactory, hooks, false);
+      }
+      lastChange = toDefer.get(toDefer.size() - 1);
+    }
+
+    db.topicMessages().insert(Collections.singleton(tmsg));
+
+    final List<ChangeSetApproval> approvals =
+        db.changeSetApprovals().byTopic(topicId).toList();
+    for (ChangeSetApproval a : approvals) {
+      a.cache(updatedTopic);
+    }
+    db.changeSetApprovals().update(approvals);
+
+    // Email the reviewers
+    // TODO Topic support
+    // Meanwhile, sending mails in "behalf" of the last change of the topic
+    if (lastChange != null) {
+      final DeferredSender cm = deferredSenderFactory.create(lastChange);
       cm.setFrom(user.getAccountId());
       cm.setTopicMessage(tmsg);
       cm.send();
@@ -560,10 +634,11 @@ public static ChangeSetApproval createStagingApproval(
         final AbstractEntity.Status tStatus = t.getStatus();
         if (t.getTopic().equals(topicName)) {
           if (tStatus.equals(AbstractEntity.Status.ABANDONED) ||
+              tStatus.equals(AbstractEntity.Status.DEFERRED) ||
             tStatus.equals(AbstractEntity.Status.MERGED)) continue;
           // If we don't have a mess in our DB, we must have only
           // one topic with the same String in a different status than
-          // MERGED or ABANDONED
+          // MERGED, ABANDONED or DEFERRED
           //
           else return t;
         }

@@ -30,6 +30,7 @@ public class TopicModule extends RpcServletModule {
       @Override
       protected void configure() {
         factory(AbandonTopic.Factory.class);
+        factory(DeferTopic.Factory.class);
         factory(RestoreTopic.Factory.class);
         factory(RevertTopic.Factory.class);
         factory(AddTopicReviewer.Factory.class);

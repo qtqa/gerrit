@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 class TopicManageServiceImpl implements TopicManageService {
   private final SubmitAction.Factory submitAction;
   private final AbandonTopic.Factory abandonTopicFactory;
+  private final DeferTopic.Factory deferTopicFactory;
   private final RestoreTopic.Factory restoreTopicFactory;
   private final RevertTopic.Factory revertTopicFactory;
   private final StagingAction.Factory stagingActionFactory;
@@ -32,12 +33,14 @@ class TopicManageServiceImpl implements TopicManageService {
   @Inject
   TopicManageServiceImpl(final SubmitAction.Factory changeSetAction,
       final AbandonTopic.Factory abandonTopicFactory,
+      final DeferTopic.Factory deferTopicFactory,
       final RestoreTopic.Factory restoreTopicFactory,
       final RevertTopic.Factory revertTopicFactory,
       final StagingAction.Factory stagingActionFactory,
       final UnstageAction.Factory unstageActionFactory) {
     this.submitAction = changeSetAction;
     this.abandonTopicFactory = abandonTopicFactory;
+    this.deferTopicFactory = deferTopicFactory;
     this.restoreTopicFactory = restoreTopicFactory;
     this.revertTopicFactory = revertTopicFactory;
     this.stagingActionFactory = stagingActionFactory;
@@ -52,6 +55,11 @@ class TopicManageServiceImpl implements TopicManageService {
   public void abandonTopic(final ChangeSet.Id csid, final String message,
       final AsyncCallback<TopicDetail> cb) {
     abandonTopicFactory.create(csid, message).to(cb);
+  }
+
+  public void deferTopic(final ChangeSet.Id csid, final String message,
+      final AsyncCallback<TopicDetail> cb) {
+    deferTopicFactory.create(csid, message).to(cb);
   }
 
   public void revertTopic(final ChangeSet.Id csid, final String message,

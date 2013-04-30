@@ -30,6 +30,7 @@ public class ChangeModule extends RpcServletModule {
       @Override
       protected void configure() {
         factory(AbandonChange.Factory.class);
+        factory(DeferChange.Factory.class);
         factory(RestoreChange.Factory.class);
         factory(RevertChange.Factory.class);
         factory(ChangeDetailFactory.Factory.class);

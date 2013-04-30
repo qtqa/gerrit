@@ -152,9 +152,19 @@ public class TopicControl {
     ;
   }
 
+  /** Can this user defer this topic? */
+  public boolean canDefer() {
+    return isOwner() // owner (aka creator) of the change can defer
+        || getRefControl().isOwner() // branch owner can defer
+        || getProjectControl().isOwner() // project owner can defer
+        || getCurrentUser().isAdministrator() // site administers are god
+    ;
+  }
+
   /** Can this user restore this topic? */
   public boolean canRestore() {
-    return canAbandon(); // Anyone who can abandon the change can restore it back
+    // Anyone who can abandon or defer the change can restore it back
+    return canAbandon() || canDefer();
   }
 
   /** All value ranges of any allowed label permission. */
