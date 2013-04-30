@@ -212,9 +212,19 @@ public class ChangeControl {
         || getRefControl().canRebase();
   }
 
+  /** Can this user defer this change? */
+  public boolean canDefer() {
+    return isOwner() // owner (aka creator) of the change can defer
+        || getRefControl().isOwner() // branch owner can defer
+        || getProjectControl().isOwner() // project owner can defer
+        || getCurrentUser().getCapabilities().canAdministrateServer() // site administers are god
+        || getRefControl().canDefer() // user can defer a specific ref
+    ;
+  }
+
   /** Can this user restore this change? */
   public boolean canRestore() {
-    return canAbandon() // Anyone who can abandon the change can restore it back
+    return (canAbandon() || canDefer()) // Anyone who can abandon or defer the change can restore it back
         && getRefControl().canUpload(); // as long as you can upload too
   }
 

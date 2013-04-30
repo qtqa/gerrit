@@ -263,6 +263,10 @@ public class Dispatcher {
       return PageLinks.toChangeQuery("is:starred");
     }
 
+    if (matchExact("mine,deferred", token)) {
+      return PageLinks.toChangeQuery("owner:" + Gerrit.getUserAccount().getUserName() + " status:deferred");
+    }
+
     if (matchExact("mine,drafts", token)) {
       return PageLinks.toChangeQuery("is:draft");
     }
@@ -273,6 +277,10 @@ public class Dispatcher {
 
     if (matchPrefix("mine,watched,", token)) {
       return PageLinks.toChangeQuery("is:watched status:open", skip(token));
+    }
+
+    if (matchPrefix("all,deferred", token)) {
+      return PageLinks.toChangeQuery("status:deferred", skip(token));
     }
 
     return null;
@@ -319,6 +327,15 @@ public class Dispatcher {
       Project.NameKey proj = Project.NameKey.parse(s.substring(0, c));
       return PageLinks.toChangeQuery( //
           "status:abandoned " + op("project", proj.get()), //
+          s.substring(c + 1));
+    }
+
+    if (matchPrefix("project,deferred,", token)) {
+      final String s = skip(token);
+      final int c = s.indexOf(',');
+      Project.NameKey proj = Project.NameKey.parse(s.substring(0, c));
+      return PageLinks.toChangeQuery( //
+          "status:deferred " + op("project", proj.get()), //
           s.substring(c + 1));
     }
 

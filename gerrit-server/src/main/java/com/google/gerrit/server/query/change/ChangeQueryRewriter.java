@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,13 +78,22 @@ public class ChangeQueryRewriter extends QueryRewriter<ChangeData> {
   @Rewrite("-status:merged")
   public Predicate<ChangeData> r00_notMerged() {
     return or(ChangeStatusPredicate.open(dbProvider),
-        new ChangeStatusPredicate(dbProvider, Change.Status.ABANDONED));
+        new ChangeStatusPredicate(dbProvider, Change.Status.ABANDONED),
+        new ChangeStatusPredicate(dbProvider, Change.Status.DEFERRED));
   }
 
   @SuppressWarnings("unchecked")
   @NoCostComputation
   @Rewrite("-status:abandoned")
   public Predicate<ChangeData> r00_notAbandoned() {
+    return or(ChangeStatusPredicate.open(dbProvider),
+        new ChangeStatusPredicate(dbProvider, Change.Status.MERGED));
+  }
+
+  @SuppressWarnings("unchecked")
+  @NoCostComputation
+  @Rewrite("-status:deferred")
+  public Predicate<ChangeData> r00_notDeferred() {
     return or(ChangeStatusPredicate.open(dbProvider),
         new ChangeStatusPredicate(dbProvider, Change.Status.MERGED));
   }
@@ -318,6 +328,50 @@ public class ChangeQueryRewriter extends QueryRewriter<ChangeData> {
     };
   }
 
+  @Rewrite("status:deferred P=(project:*) S=(sortkey_after:*) L=(limit:*)")
+  public Predicate<ChangeData> r10_byProjectDeferredPrev(
+      @Named("P") final ProjectPredicate p,
+      @Named("S") final SortKeyPredicate.After s,
+      @Named("L") final IntPredicate<ChangeData> l) {
+    return new PaginatedSource(40000, s.getValue(), l.intValue()) {
+      @Override
+      ResultSet<Change> scan(ChangeAccess a, String key, int limit)
+          throws OrmException {
+        return a.byProjectClosedPrev(Change.Status.DEFERRED.getCode(), //
+            p.getValueKey(), key, limit);
+      }
+
+      @Override
+      public boolean match(ChangeData cd) throws OrmException {
+        return cd.change(dbProvider).getStatus() == Change.Status.DEFERRED
+            && p.match(cd) //
+            && s.match(cd);
+      }
+    };
+  }
+
+  @Rewrite("status:deferred P=(project:*) S=(sortkey_before:*) L=(limit:*)")
+  public Predicate<ChangeData> r10_byProjectDeferredNext(
+      @Named("P") final ProjectPredicate p,
+      @Named("S") final SortKeyPredicate.Before s,
+      @Named("L") final IntPredicate<ChangeData> l) {
+    return new PaginatedSource(40000, s.getValue(), l.intValue()) {
+      @Override
+      ResultSet<Change> scan(ChangeAccess a, String key, int limit)
+          throws OrmException {
+        return a.byProjectClosedNext(Change.Status.DEFERRED.getCode(), //
+            p.getValueKey(), key, limit);
+      }
+
+      @Override
+      public boolean match(ChangeData cd) throws OrmException {
+        return cd.change(dbProvider).getStatus() == Change.Status.DEFERRED
+            && p.match(cd) //
+            && s.match(cd);
+      }
+    };
+  }
+
   @Rewrite("status:open S=(sortkey_after:*) L=(limit:*)")
   public Predicate<ChangeData> r20_byOpenPrev(
       @Named("S") final SortKeyPredicate.After s,
@@ -451,11 +505,59 @@ public class ChangeQueryRewriter extends QueryRewriter<ChangeData> {
   }
 
   @SuppressWarnings("unchecked")
+  @Rewrite("status:deferred S=(sortkey_after:*) L=(limit:*)")
+  public Predicate<ChangeData> r20_byDeferredPrev(
+      @Named("S") final SortKeyPredicate.After s,
+      @Named("L") final IntPredicate<ChangeData> l) {
+    return new PaginatedSource(50000, s.getValue(), l.intValue()) {
+      {
+        init("r20_byDeferredPrev", s, l);
+      }
+
+      @Override
+      ResultSet<Change> scan(ChangeAccess a, String key, int limit)
+          throws OrmException {
+        return a.allClosedPrev(Change.Status.DEFERRED.getCode(), key, limit);
+      }
+
+      @Override
+      public boolean match(ChangeData cd) throws OrmException {
+        return cd.change(dbProvider).getStatus() == Change.Status.DEFERRED
+            && s.match(cd);
+      }
+    };
+  }
+
+  @SuppressWarnings("unchecked")
+  @Rewrite("status:deferred S=(sortkey_before:*) L=(limit:*)")
+  public Predicate<ChangeData> r20_byDeferredNext(
+      @Named("S") final SortKeyPredicate.Before s,
+      @Named("L") final IntPredicate<ChangeData> l) {
+    return new PaginatedSource(50000, s.getValue(), l.intValue()) {
+      {
+        init("r20_byDeferredNext", s, l);
+      }
+
+      @Override
+      ResultSet<Change> scan(ChangeAccess a, String key, int limit)
+          throws OrmException {
+        return a.allClosedNext(Change.Status.DEFERRED.getCode(), key, limit);
+      }
+
+      @Override
+      public boolean match(ChangeData cd) throws OrmException {
+        return cd.change(dbProvider).getStatus() == Change.Status.DEFERRED
+            && s.match(cd);
+      }
+    };
+  }
+
+  @SuppressWarnings("unchecked")
   @Rewrite("status:closed S=(sortkey_after:*) L=(limit:*)")
   public Predicate<ChangeData> r20_byClosedPrev(
       @Named("S") final SortKeyPredicate.After s,
       @Named("L") final IntPredicate<ChangeData> l) {
-    return or(r20_byMergedPrev(s, l), r20_byAbandonedPrev(s, l));
+    return or(r20_byMergedPrev(s, l), r20_byAbandonedPrev(s, l), r20_byDeferredPrev(s, l));
   }
 
   @SuppressWarnings("unchecked")
@@ -463,7 +565,7 @@ public class ChangeQueryRewriter extends QueryRewriter<ChangeData> {
   public Predicate<ChangeData> r20_byClosedNext(
       @Named("S") final SortKeyPredicate.Before s,
       @Named("L") final IntPredicate<ChangeData> l) {
-    return or(r20_byMergedNext(s, l), r20_byAbandonedNext(s, l));
+    return or(r20_byMergedNext(s, l), r20_byAbandonedNext(s, l), r20_byDeferredNext(s, l));
   }
 
   @SuppressWarnings("unchecked")

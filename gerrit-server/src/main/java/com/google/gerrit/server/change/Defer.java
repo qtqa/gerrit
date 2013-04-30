@@ -18,19 +18,19 @@ package com.google.gerrit.server.change;
 import com.google.common.base.Strings;
 import com.google.gerrit.common.ChangeHooks;
 import com.google.gerrit.extensions.restapi.AuthException;
+import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.DefaultInput;
 import com.google.gerrit.extensions.restapi.ResourceConflictException;
 import com.google.gerrit.extensions.restapi.RestModifyView;
 import com.google.gerrit.reviewdb.client.Change;
-import com.google.gerrit.reviewdb.client.Change.Status;
 import com.google.gerrit.reviewdb.client.ChangeMessage;
 import com.google.gerrit.reviewdb.server.ReviewDb;
 import com.google.gerrit.server.ApprovalsUtil;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
-import com.google.gerrit.server.change.Restore.Input;
+import com.google.gerrit.server.change.Defer.Input;
+import com.google.gerrit.server.mail.DeferredSender;
 import com.google.gerrit.server.mail.ReplyToChangeSender;
-import com.google.gerrit.server.mail.RestoredSender;
 import com.google.gerrit.server.project.ChangeControl;
 import com.google.gwtorm.server.AtomicUpdate;
 import com.google.gwtorm.server.OrmException;
@@ -42,11 +42,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 
-public class Restore implements RestModifyView<ChangeResource, Input> {
-  private static final Logger log = LoggerFactory.getLogger(Restore.class);
+public class Defer implements RestModifyView<ChangeResource, Input> {
+  private static final Logger log = LoggerFactory.getLogger(Defer.class);
 
   private final ChangeHooks hooks;
-  private final RestoredSender.Factory restoredSenderFactory;
+  private final DeferredSender.Factory deferredSenderFactory;
   private final Provider<ReviewDb> dbProvider;
   private final ChangeJson json;
 
@@ -56,26 +56,26 @@ public class Restore implements RestModifyView<ChangeResource, Input> {
   }
 
   @Inject
-  Restore(ChangeHooks hooks,
-      RestoredSender.Factory restoredSenderFactory,
+  Defer(ChangeHooks hooks,
+      DeferredSender.Factory deferredSenderFactory,
       Provider<ReviewDb> dbProvider,
       ChangeJson json) {
     this.hooks = hooks;
-    this.restoredSenderFactory = restoredSenderFactory;
+    this.deferredSenderFactory = deferredSenderFactory;
     this.dbProvider = dbProvider;
     this.json = json;
   }
 
   @Override
   public Object apply(ChangeResource req, Input input)
-      throws Exception {
+      throws BadRequestException, AuthException,
+      ResourceConflictException, Exception {
     ChangeControl control = req.getControl();
     IdentifiedUser caller = (IdentifiedUser) control.getCurrentUser();
     Change change = req.getChange();
-    if (!control.canRestore()) {
-      throw new AuthException("restore not permitted");
-    } else if (change.getStatus() != Status.ABANDONED
-        && change.getStatus() != Status.DEFERRED) {
+    if (!control.canDefer()) {
+      throw new AuthException("defer not permitted");
+    } else if (!change.getStatus().isOpen() && change.getStatus() != Change.Status.ABANDONED) {
       throw new ResourceConflictException("change is " + status(change));
     }
 
@@ -88,9 +88,8 @@ public class Restore implements RestModifyView<ChangeResource, Input> {
         new AtomicUpdate<Change>() {
           @Override
           public Change update(Change change) {
-            if (change.getStatus() == Change.Status.ABANDONED
-                || change.getStatus() == Change.Status.DEFERRED) {
-              change.setStatus(Change.Status.NEW);
+            if (change.getStatus().isOpen() || change.getStatus() == Change.Status.ABANDONED) {
+              change.setStatus(Change.Status.DEFERRED);
               ChangeUtil.updated(change);
               return change;
             }
@@ -110,24 +109,24 @@ public class Restore implements RestModifyView<ChangeResource, Input> {
     }
 
     try {
-      ReplyToChangeSender cm = restoredSenderFactory.create(change);
+      ReplyToChangeSender cm = deferredSenderFactory.create(change);
       cm.setFrom(caller.getAccountId());
       cm.setChangeMessage(message);
       cm.send();
     } catch (Exception e) {
       log.error("Cannot email update for change " + change.getChangeId(), e);
     }
-    hooks.doChangeRestoredHook(change,
+    hooks.doChangeDeferredHook(change,
         caller.getAccount(),
         Strings.emptyToNull(input.message),
-        dbProvider.get());
+        db);
     return json.format(change);
   }
 
   private ChangeMessage newMessage(Input input, IdentifiedUser caller,
       Change change) throws OrmException {
     StringBuilder msg = new StringBuilder();
-    msg.append("Restored");
+    msg.append("Deferred");
     if (!Strings.nullToEmpty(input.message).trim().isEmpty()) {
       msg.append("\n\n");
       msg.append(input.message.trim());

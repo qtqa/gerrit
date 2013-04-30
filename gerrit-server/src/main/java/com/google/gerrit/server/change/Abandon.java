@@ -86,7 +86,7 @@ public class Abandon implements RestModifyView<ChangeResource, Input> {
     Change change = req.getChange();
     if (!control.canAbandon()) {
       throw new AuthException("abandon not permitted");
-    } else if (!change.getStatus().isOpen()) {
+    } else if (!change.getStatus().isOpen() && change.getStatus() != Change.Status.DEFERRED) {
       throw new ResourceConflictException("change is " + status(change));
     }
 
@@ -101,7 +101,7 @@ public class Abandon implements RestModifyView<ChangeResource, Input> {
         new AtomicUpdate<Change>() {
           @Override
           public Change update(Change change) {
-            if (change.getStatus().isOpen()) {
+            if (change.getStatus().isOpen() || change.getStatus() == Change.Status.DEFERRED) {
               change.setStatus(Change.Status.ABANDONED);
               ChangeUtil.updated(change);
               return change;
