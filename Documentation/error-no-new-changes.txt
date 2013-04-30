@@ -26,8 +26,8 @@ Please note that each commit can really be pushed only once. This
 means:
 
 . you cannot push a commit again even if the change for which the
-  commit was pushed before was abandoned (but you may restore the
-  abandoned change)
+  commit was pushed before was deferred or abandoned (but you may
+  restore the deferred/abandoned change)
 . you cannot reset a change to an old patch set by pushing the old
   commit for this change again
 . if a commit was pushed to one branch you cannot push this commit

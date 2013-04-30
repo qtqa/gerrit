@@ -86,6 +86,7 @@ public class SitePathInitializer {
     chmod(0700, site.tmp_dir);
 
     extractMailExample("Abandoned.vm");
+    extractMailExample("Deferred.vm");
     extractMailExample("ChangeFooter.vm");
     extractMailExample("ChangeSubject.vm");
     extractMailExample("Comment.vm");

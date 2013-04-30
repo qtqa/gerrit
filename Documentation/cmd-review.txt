@@ -13,7 +13,7 @@ SYNOPSIS
   [--message <MESSAGE> | -m <MESSAGE>]
   [--force-message]
   [--submit | -s]
-  [--abandon | --restore]
+  [--abandon | --defer | --restore]
   [--publish]
   [--delete]
   [--verified <N>] [--code-review <N>]
@@ -74,24 +74,30 @@ fails because the user is not permitted to change the label.
 
 --abandon::
 	Abandon the specified change(s).
-	(option is mutually exclusive with --submit and --restore)
+	(option is mutually exclusive with --defer, --submit and
+	--restore)
+
+--defer::
+	Defer the specified patch set(s).
+	(option is mutually exclusive with --abandon, --submit and
+	--restore)
 
 --restore::
-	Restore the specified abandoned change(s).
-	(option is mutually exclusive with --abandon)
+	Restore the specified deferred or abandoned change(s).
+	(option is mutually exclusive with --defer and --abandon)
 
 --submit::
 -s::
 	Submit the specified patch set(s) for merging.
-	(option is mutually exclusive with --abandon)
+	(option is mutually exclusive with --defer and --abandon)
 
 --publish::
 	Publish the specified draft patch set(s).
-	(option is mutually exclusive with --submit, --restore, --abandon, and --delete)
+	(option is mutually exclusive with --submit, --restore, --defer, --abandon, and --publish)
 
 --delete::
 	Delete the specified draft patch set(s).
-	(option is mutually exclusive with --submit, --restore, --abandon, and --publish)
+	(option is mutually exclusive with --submit, --restore, --defer, --abandon, and --publish)
 
 --code-review::
 --verified::

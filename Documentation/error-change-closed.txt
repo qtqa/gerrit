@@ -10,7 +10,7 @@ When Pushing a Commit
 This error occurs if you are trying to push a commit that contains
 the Change-Id of a closed change in its commit message. A change can
 be closed either because it was already submitted and merged or
-because it was abandoned.
+because it was deferred or abandoned.
 
 If the change for which you wanted to upload a new patch set was
 already submitted and merged you may want to push your commit as a
@@ -21,11 +21,12 @@ recommended to do a link:http://www.kernel.org/pub/software/scm/git/docs/git-reb
 change. Pushing again should now create a new change in Gerrit.
 
 If the change for which you wanted to upload a new patch set was
-abandoned and your new changes overcome the reasons for abandoning
-this change you may want to restore the change in the Gerrit WebUI
-(browse the abandoned change in the Gerrit WebUI and click on the
-'Restore Change' button). Afterwards the push should succeed and a
-new patch set for this change will be created.
+deferred or abandoned and your new changes overcome the reasons for
+deferring/abandoning this change you may want to restore the change
+in the Gerrit WebUI (browse the deferred/abandoned change in the
+Gerrit WebUI and click on the 'Restore Change' button). Afterwards
+the push should succeed and a new patch set for this change will be
+created.
 
 When Submitting a Review Label
 ------------------------------

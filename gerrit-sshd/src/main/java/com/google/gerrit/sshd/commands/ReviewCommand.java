@@ -32,6 +32,7 @@ import com.google.gerrit.reviewdb.client.RevId;
 import com.google.gerrit.reviewdb.server.ReviewDb;
 import com.google.gerrit.server.change.Abandon;
 import com.google.gerrit.server.change.ChangeResource;
+import com.google.gerrit.server.change.Defer;
 import com.google.gerrit.server.change.PostReview;
 import com.google.gerrit.server.change.Restore;
 import com.google.gerrit.server.change.RevisionResource;
@@ -101,7 +102,10 @@ public class ReviewCommand extends SshCommand {
   @Option(name = "--abandon", usage = "abandon the specified change(s)")
   private boolean abandonChange;
 
-  @Option(name = "--restore", usage = "restore the specified abandoned change(s)")
+  @Option(name = "--defer", usage = "defer the specified change(s)")
+  private boolean deferChange;
+
+  @Option(name = "--restore", usage = "restore the specified abandoned or deferred change(s)")
   private boolean restoreChange;
 
   @Option(name = "--submit", aliases = "-s", usage = "submit the specified patch set(s)")
@@ -155,6 +159,9 @@ public class ReviewCommand extends SshCommand {
   private Provider<Abandon> abandonProvider;
 
   @Inject
+  private Provider<Defer> deferProvider;
+
+  @Inject
   private Provider<PostReview> reviewProvider;
 
   @Inject
@@ -181,6 +188,9 @@ public class ReviewCommand extends SshCommand {
       if (submitChange) {
         throw error("abandon and submit actions are mutually exclusive");
       }
+      if (deferChange) {
+        throw error("abandon and defer actions are mutually exclusive");
+      }
       if (publishPatchSet) {
         throw error("abandon and publish actions are mutually exclusive");
       }
@@ -189,6 +199,20 @@ public class ReviewCommand extends SshCommand {
       }
       if (stageChange) {
         throw error("abandon and stage actions are mutually exclusive");
+      }
+    }
+    if (deferChange) {
+      if (restoreChange) {
+        throw error("defer and restore actions are mutually exclusive");
+      }
+      if (submitChange) {
+        throw error("defer and submit actions are mutually exclusive");
+      }
+      if (publishPatchSet) {
+        throw error("defer and publish actions are mutually exclusive");
+      }
+      if (deleteDraftPatchSet) {
+        throw error("defer and delete actions are mutually exclusive");
       }
     }
     if (publishPatchSet) {
@@ -261,9 +285,9 @@ public class ReviewCommand extends SshCommand {
     review.labels.putAll(customLabels);
 
     // If review labels are being applied, the comment will be included
-    // on the review note. We don't need to add it again on the abandon
-    // or restore comment.
-    if (!review.labels.isEmpty() && (abandonChange || restoreChange)) {
+    // on the review note. We don't need to add it again on the abandon,
+    // defer or restore comment.
+    if (!review.labels.isEmpty() && (abandonChange || deferChange || restoreChange)) {
       changeComment = null;
     }
 
@@ -281,6 +305,18 @@ public class ReviewCommand extends SshCommand {
           abandon.apply(new ChangeResource(ctl), input);
         } catch (AuthException e) {
           writeError("error: " + parseError(Type.ABANDON_NOT_PERMITTED) + "\n");
+        } catch (ResourceConflictException e) {
+          writeError("error: " + parseError(Type.CHANGE_IS_CLOSED) + "\n");
+        }
+      } else if (deferChange) {
+        final Defer defer = deferProvider.get();
+        final Defer.Input input = new Defer.Input();
+        input.message = changeComment;
+        applyReview(ctl, patchSet, review);
+        try {
+          defer.apply(new ChangeResource(ctl), input);
+        } catch (AuthException e) {
+          writeError("error: " + parseError(Type.DEFER_NOT_PERMITTED) + "\n");
         } catch (ResourceConflictException e) {
           writeError("error: " + parseError(Type.CHANGE_IS_CLOSED) + "\n");
         }
@@ -354,6 +390,8 @@ public class ReviewCommand extends SshCommand {
     switch (type) {
       case ABANDON_NOT_PERMITTED:
         return "not permitted to abandon change";
+      case DEFER_NOT_PERMITTED:
+        return "not permitted to defer change";
       case RESTORE_NOT_PERMITTED:
         return "not permitted to restore change";
       case SUBMIT_NOT_PERMITTED:
@@ -364,6 +402,8 @@ public class ReviewCommand extends SshCommand {
         return "change is closed";
       case CHANGE_NOT_ABANDONED:
         return "change is not abandoned";
+      case CHANGE_NOT_DEFERRED:
+        return "change is not deferred";
       case PUBLISH_NOT_PERMITTED:
         return "not permitted to publish change";
       case DELETE_NOT_PERMITTED:

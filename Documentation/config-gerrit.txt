@@ -1414,6 +1414,11 @@ Optional filename for the merge failed hook, if not specified then
 Optional filename for the change abandoned hook, if not specified then
 `change-abandoned` will be used.
 
+[[hooks.changeDeferredHook]]hooks.changeDeferredHook::
++
+Optional filename for the change deferred hook, if not specified then
+`change-deferred` will be used.
+
 [[hooks.changeRestoredHook]]hooks.changeRestoredHook::
 +
 Optional filename for the change restored hook, if not specified then

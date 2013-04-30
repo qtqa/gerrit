@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,6 +107,8 @@ public class PageLinks {
     switch (status) {
       case ABANDONED:
         return "status:abandoned";
+      case DEFERRED:
+        return "status:deferred";
       case MERGED:
         return "status:merged";
       case NEW:

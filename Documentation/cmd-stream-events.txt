@@ -45,7 +45,7 @@ SCHEMA
 The JSON messages consist of nested objects referencing the *change*,
 *patchSet*, *account* involved, and other attributes as appropriate.
 The currently supported message types are *patchset-created*,
-*draft-published*, *change-abandoned*, *change-restored*,
+*draft-published*, *change-deferred*, *change-abandoned*, *change-restored*,
 *change-merged*, *merge-failed*, *comment-added*, *ref-updated* and
 *reviewer-added*.
 
@@ -73,6 +73,18 @@ change:: link:json.html#change[change attribute]
 patchset:: link:json.html#patchSet[patchset attribute]
 
 uploader:: link:json.html#account[account attribute]
+
+Change Deferred
+^^^^^^^^^^^^^^^
+type:: "change-deferred"
+
+change:: link:json.html#change[change attribute]
+
+patchSet:: link:json.html#patchset[patchset attribute]
+
+deferrer:: link:json.html#account[account attribute]
+
+reason:: Reason for deferring the change.
 
 Change Abandoned
 ^^^^^^^^^^^^^^^^

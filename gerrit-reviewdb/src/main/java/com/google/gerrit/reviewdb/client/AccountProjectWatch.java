@@ -23,7 +23,7 @@ public final class AccountProjectWatch {
 
   public enum NotifyType {
     NEW_CHANGES, NEW_PATCHSETS, ALL_COMMENTS, SUBMITTED_CHANGES,
-    ABANDONED_CHANGES, ALL
+    ABANDONED_CHANGES, DEFERRED_CHANGES, ALL
   }
 
   public static final String FILTER_ALL = "*";
@@ -116,6 +116,9 @@ public final class AccountProjectWatch {
   @Column(id = 6)
   protected boolean notifyAbandonedChanges;
 
+  @Column(id = 7)
+  protected boolean notifyDeferredChanges;
+
   protected AccountProjectWatch() {
   }
 
@@ -156,6 +159,9 @@ public final class AccountProjectWatch {
       case ABANDONED_CHANGES:
         return notifyAbandonedChanges;
 
+      case DEFERRED_CHANGES:
+        return notifyDeferredChanges;
+
       case ALL:
         break;
     }
@@ -184,12 +190,17 @@ public final class AccountProjectWatch {
         notifyAbandonedChanges = v;
         break;
 
+      case DEFERRED_CHANGES:
+        notifyDeferredChanges = v;
+        break;
+
       case ALL:
         notifyNewChanges = v;
         notifyNewPatchSets = v;
         notifyAllComments = v;
         notifySubmittedChanges = v;
         notifyAbandonedChanges = v;
+        notifyDeferredChanges = v;
         break;
     }
   }

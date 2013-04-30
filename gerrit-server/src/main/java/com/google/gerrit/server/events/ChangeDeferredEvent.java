@@ -1,4 +1,4 @@
-// Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2010 The Android Open Source Project,
 // Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,19 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.google.gerrit.server.mail;
+package com.google.gerrit.server.events;
 
-import com.google.gerrit.server.config.FactoryModule;
+import com.google.gerrit.server.data.AccountAttribute;
+import com.google.gerrit.server.data.ChangeAttribute;
+import com.google.gerrit.server.data.PatchSetAttribute;
 
-public class EmailModule extends FactoryModule {
-  @Override
-  protected void configure() {
-    factory(AbandonedSender.Factory.class);
-    factory(DeferredSender.Factory.class);
-    factory(CommentSender.Factory.class);
-    factory(RevertedSender.Factory.class);
-    factory(RestoredSender.Factory.class);
-    factory(BuildApprovedSender.Factory.class);
-    factory(BuildRejectedSender.Factory.class);
-  }
+public class ChangeDeferredEvent extends ChangeEvent {
+    public final String type = "change-deferred";
+    public ChangeAttribute change;
+    public PatchSetAttribute patchSet;
+    public AccountAttribute deferrer;
+    public String reason;
 }

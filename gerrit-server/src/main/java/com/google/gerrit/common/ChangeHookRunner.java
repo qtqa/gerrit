@@ -1,4 +1,5 @@
 // Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +35,7 @@ import com.google.gerrit.server.config.GerritServerConfig;
 import com.google.gerrit.server.config.SitePaths;
 import com.google.gerrit.server.data.ApprovalAttribute;
 import com.google.gerrit.server.events.ChangeAbandonedEvent;
+import com.google.gerrit.server.events.ChangeDeferredEvent;
 import com.google.gerrit.server.events.ChangeEvent;
 import com.google.gerrit.server.events.ChangeMergedEvent;
 import com.google.gerrit.server.events.ChangeRestoredEvent;
@@ -177,6 +179,9 @@ public class ChangeHookRunner implements ChangeHooks, LifecycleListener {
     /** Filename of the change abandoned hook. */
     private final File changeAbandonedHook;
 
+    /** Filename of the change deferred hook. */
+    private final File changeDeferredHook;
+
     /** Filename of the change restored hook. */
     private final File changeRestoredHook;
 
@@ -251,6 +256,7 @@ public class ChangeHookRunner implements ChangeHooks, LifecycleListener {
         changeMergedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeMergedHook", "change-merged")).getPath());
         mergeFailedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "mergeFailed", "merge-failed")).getPath());
         changeAbandonedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeAbandonedHook", "change-abandoned")).getPath());
+        changeDeferredHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeDeferredHook", "change-deferred")).getPath());
         changeRestoredHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "changeRestoredHook", "change-restored")).getPath());
         refUpdatedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "refUpdatedHook", "ref-updated")).getPath());
         reviewerAddedHook = sitePath.resolve(new File(hooksPath, getValue(config, "hooks", "reviewerAddedHook", "reviewer-added")).getPath());
@@ -487,6 +493,34 @@ public class ChangeHookRunner implements ChangeHooks, LifecycleListener {
         addArg(args, "--reason", reason == null ? "" : reason);
 
         runHook(change.getProject(), changeAbandonedHook, args);
+    }
+
+    /**
+     * Fire the Change Deferred Hook.
+     *
+     * @param change The change itself.
+     * @param account The gerrit user who deferred the change.
+     * @param reason Reason for deferring the change.
+     */
+    public void doChangeDeferredHook(final Change change, final Account account,
+          final String reason, final ReviewDb db) throws OrmException {
+        final ChangeDeferredEvent event = new ChangeDeferredEvent();
+
+        event.change = eventFactory.asChangeAttribute(change);
+        event.deferrer = eventFactory.asAccountAttribute(account);
+        event.reason = reason;
+        fireEvent(change, event, db);
+
+        final List<String> args = new ArrayList<String>();
+        addArg(args, "--change", event.change.id);
+        addArg(args, "--change-url", event.change.url);
+        addArg(args, "--project", event.change.project);
+        addArg(args, "--branch", event.change.branch);
+        addArg(args, "--topic", event.change.topic);
+        addArg(args, "--deferrer", getDisplayName(account));
+        addArg(args, "--reason", reason == null ? "" : reason);
+
+        runHook(change.getProject(), changeDeferredHook, args);
     }
 
     public void doChangeRestoredHook(final Change change, final Account account,

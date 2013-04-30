@@ -219,13 +219,14 @@ public final class Change {
      * <p>
      * This is the default state assigned to a change when it is first created
      * in the database. A change stays in the NEW state throughout its review
-     * cycle, until the change is submitted or abandoned.
+     * cycle, until the change is submitted, abandoned or deferred.
      *
      * <p>
      * Changes in the NEW state can be moved to:
      * <ul>
      * <li>{@link #SUBMITTED} - when the Submit Patch Set action is used;
      * <li>{@link #ABANDONED} - when the Abandon action is used.
+     * <li>{@link #DEFERRED} - when the Defer action is used.
      * </ul>
      */
     NEW(STATUS_NEW),
@@ -309,7 +310,17 @@ public final class Change {
      * a replacement patch set, and it cannot be merged. Draft comments however
      * may be published, permitting reviewers to send constructive feedback.
      */
-    ABANDONED('A');
+    ABANDONED('A'),
+
+    /**
+     * Change is closed, but was not submitted to its destination branch.
+     *
+     * <p>
+     * Once a change has been deferred, it cannot be further modified by adding
+     * a replacement patch/change set, and it cannot be merged. Draft comments however
+     * may be published, permitting reviewers to send constructive feedback.
+     */
+    DEFERRED('D');
 
     private final char code;
     private final boolean closed;

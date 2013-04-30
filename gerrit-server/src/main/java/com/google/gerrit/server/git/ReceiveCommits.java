@@ -2224,6 +2224,7 @@ public class ReceiveCommits {
 
     if (change.getStatus() == Change.Status.MERGED ||
         change.getStatus() == Change.Status.ABANDONED ||
+        change.getStatus() == Change.Status.DEFERRED ||
         !change.getDest().get().equals(refName)) {
       // If it's already merged or the commit is not aimed for
       // this change's destination, don't make further updates.

@@ -474,6 +474,46 @@ class PatchSetComplexDisclosurePanel extends ComplexDisclosurePanel
       actionsPanel.add(b);
     }
 
+    if (changeDetail.canDefer()) {
+      final Button b = new Button(Util.C.buttonDeferChangeBegin());
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(final ClickEvent event) {
+          b.setEnabled(false);
+          new ActionDialog(b, false, Util.C.deferChangeTitle(),
+              Util.C.headingDeferMessage()) {
+            {
+              sendButton.setText(Util.C.buttonDeferChangeSend());
+            }
+
+            @Override
+            public void onSend() {
+              // TODO: once the other users of ActionDialog have converted to
+              // REST APIs, we can use createCallback() rather than providing
+              // them directly.
+              ChangeApi.defer(changeDetail.getChange().getChangeId(),
+                  getMessageText(), new GerritCallback<ChangeInfo>() {
+                    @Override
+                    public void onSuccess(ChangeInfo result) {
+                      sent = true;
+                      Gerrit.display(PageLinks.toChange(new Change.Id(result
+                          ._number())));
+                      hide();
+                    }
+
+                    @Override
+                    public void onFailure(Throwable caught) {
+                      enableButtons(true);
+                      super.onFailure(caught);
+                    }
+                  });
+            }
+          }.center();
+        }
+      });
+      actionsPanel.add(b);
+    }
+
     if (changeDetail.canAbandon()) {
       final Button b = new Button(Util.C.buttonAbandonChangeBegin());
       b.addClickHandler(new ClickHandler() {

@@ -57,10 +57,12 @@ public interface GerritConstants extends Constants {
   String menuAllIntegrating();
   String menuAllMerged();
   String menuAllAbandoned();
+  String menuAllDeferred();
 
   String menuMine();
   String menuMyChanges();
   String menuMyDrafts();
+  String menuMyDeferredChanges();
   String menuMyWatchedChanges();
   String menuMyStarredChanges();
   String menuMyDraftComments();
@@ -107,6 +109,7 @@ public interface GerritConstants extends Constants {
   String jumpAllOpen();
   String jumpAllMerged();
   String jumpAllAbandoned();
+  String jumpAllDeferred();
   String jumpMine();
   String jumpMineDrafts();
   String jumpMineWatched();

@@ -1,4 +1,5 @@
 // Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,11 +58,13 @@ public class MyWatchesTable extends FancyFlexTable<AccountProjectWatchInfo> {
     table.setText(1, 2, Util.C.watchedProjectColumnAllComments());
     table.setText(1, 3, Util.C.watchedProjectColumnSubmittedChanges());
     table.setText(1, 4, Util.C.watchedProjectColumnAbandonedChanges());
+    table.setText(1, 5, Util.C.watchedProjectColumnDeferredChanges());
     fmt.addStyleName(1, 0, Gerrit.RESOURCES.css().dataHeader());
     fmt.addStyleName(1, 1, Gerrit.RESOURCES.css().dataHeader());
     fmt.addStyleName(1, 2, Gerrit.RESOURCES.css().dataHeader());
     fmt.addStyleName(1, 3, Gerrit.RESOURCES.css().dataHeader());
     fmt.addStyleName(1, 4, Gerrit.RESOURCES.css().dataHeader());
+    fmt.addStyleName(1, 5, Gerrit.RESOURCES.css().dataHeader());
   }
 
   public void deleteChecked() {
@@ -143,6 +146,7 @@ public class MyWatchesTable extends FancyFlexTable<AccountProjectWatchInfo> {
     addNotifyButton(AccountProjectWatch.NotifyType.ALL_COMMENTS, info, row, 5);
     addNotifyButton(AccountProjectWatch.NotifyType.SUBMITTED_CHANGES, info, row, 6);
     addNotifyButton(AccountProjectWatch.NotifyType.ABANDONED_CHANGES, info, row, 7);
+    addNotifyButton(AccountProjectWatch.NotifyType.DEFERRED_CHANGES, info, row, 8);
 
     final FlexCellFormatter fmt = table.getFlexCellFormatter();
     fmt.addStyleName(row, 1, Gerrit.RESOURCES.css().iconCell());
@@ -152,6 +156,7 @@ public class MyWatchesTable extends FancyFlexTable<AccountProjectWatchInfo> {
     fmt.addStyleName(row, 5, Gerrit.RESOURCES.css().dataCell());
     fmt.addStyleName(row, 6, Gerrit.RESOURCES.css().dataCell());
     fmt.addStyleName(row, 7, Gerrit.RESOURCES.css().dataCell());
+    fmt.addStyleName(row, 8, Gerrit.RESOURCES.css().dataCell());
 
     setRowItem(row, info);
   }
