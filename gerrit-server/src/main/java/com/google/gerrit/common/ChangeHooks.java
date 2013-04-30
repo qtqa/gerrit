@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -103,6 +104,17 @@ public interface ChangeHooks {
    * @throws OrmException
    */
   public void doChangeAbandonedHook(Change change, Account account,
+      String reason, ReviewDb db) throws OrmException;
+
+  /**
+   * Fire the Change Deferred Hook.
+   *
+   * @param change The change itself.
+   * @param account The gerrit user who deferred the change.
+   * @param reason Reason for deferring the change.
+   * @throws OrmException
+   */
+  public void doChangeDeferredHook(Change change, Account account,
       String reason, ReviewDb db) throws OrmException;
 
   /**

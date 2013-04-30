@@ -350,6 +350,11 @@ public class RefControl {
     return canPerform(Permission.ABANDON);
   }
 
+  /** @return true if this user can defer a change for this ref */
+  public boolean canDefer() {
+    return canPerform(Permission.DEFER);
+  }
+
   /** @return true if this user can remove a reviewer for a change. */
   public boolean canRemoveReviewer() {
     return canPerform(Permission.REMOVE_REVIEWER);

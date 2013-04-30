@@ -22,6 +22,7 @@ public interface ChangeMessages extends Messages {
   String changesOpenInProject(String string);
   String changesMergedInProject(String string);
   String changesAbandonedInProject(String string);
+  String changesDeferredInProject(String string);
 
   String revertChangeDefaultMessage(String commitMsg, String commitId);
 

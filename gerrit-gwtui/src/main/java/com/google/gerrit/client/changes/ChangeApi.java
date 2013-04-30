@@ -33,7 +33,14 @@ public class ChangeApi {
     call(id, "abandon").post(input, cb);
   }
 
-  /** Restore a previously abandoned change to be open again. */
+  /** Defer the change, ending its review. */
+  public static void defer(int id, String msg, AsyncCallback<ChangeInfo> cb) {
+    Input input = Input.create();
+    input.message(emptyToNull(msg));
+    call(id, "defer").post(input, cb);
+  }
+
+  /** Restore a previously abandoned or deferred change to be open again. */
   public static void restore(int id, String msg, AsyncCallback<ChangeInfo> cb) {
     Input input = Input.create();
     input.message(emptyToNull(msg));
