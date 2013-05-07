@@ -1276,10 +1276,12 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       }
     }
 
+    boolean createChangeSetApproval = true;
     for (final RevCommit c : toCreate) {
       try {
         final int position = cOrder.indexOf(c) + toUpdate.size();
-        createChange(walk, c, topicId, position);
+        createChange(walk, c, topicId, position, createChangeSetApproval);
+        createChangeSetApproval = false;
       } catch (IOException e) {
         log.error("Error computing patch of commit " + c.name(), e);
         reject(newChange, "diff error");
@@ -1416,7 +1418,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
   }
 
   private void createChange(final RevWalk walk, final RevCommit c,
-      final Topic.Id topicId, final int pos) throws OrmException, IOException {
+      final Topic.Id topicId, final int pos, boolean createChangeSetApproval) throws OrmException, IOException {
     walk.parseBody(c);
     warnMalformedMessage(c);
 
@@ -1488,14 +1490,14 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
           allTypes.get(allTypes.size() - 1).getCategory().getId();
       if (authorId != null && haveApprovals.add(authorId)) {
         insertDummyApproval(change, ps.getId(), authorId, catId, db);
-        if (topicId != null) {
+        if (topicId != null  && createChangeSetApproval) {
           insertDummyApproval(db.topics().get(topicId), db.topics()
               .get(topicId).currentChangeSetId(), authorId, catId, db);
         }
       }
       if (committerId != null && haveApprovals.add(committerId)) {
         insertDummyApproval(change, ps.getId(), committerId, catId, db);
-        if (topicId != null) {
+        if (topicId != null  && createChangeSetApproval) {
           insertDummyApproval(db.topics().get(topicId), db.topics()
               .get(topicId).currentChangeSetId(), committerId, catId, db);
         }
@@ -1503,7 +1505,7 @@ public class ReceiveCommits implements PreReceiveHook, PostReceiveHook {
       for (final Account.Id reviewer : reviewers) {
         if (haveApprovals.add(reviewer)) {
           insertDummyApproval(change, ps.getId(), reviewer, catId, db);
-          if (topicId != null) {
+          if (topicId != null && createChangeSetApproval) {
             insertDummyApproval(db.topics().get(topicId),
                 db.topics().get(topicId).currentChangeSetId(), reviewer, catId,
                 db);
