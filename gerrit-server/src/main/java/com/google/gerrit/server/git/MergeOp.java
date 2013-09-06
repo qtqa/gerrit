@@ -267,10 +267,12 @@ public class MergeOp {
     try {
       openSchema();
       openRepository();
-      openBranch();
+
+      RefUpdate branchUpdate = openBranch();
+      boolean reopen = false;
+
       final ListMultimap<SubmitType, Change> toSubmit =
           validateChangeList(db.changes().submitted(destBranch).toList());
-
       final ListMultimap<SubmitType, CodeReviewCommit> toMergeNextTurn =
           ArrayListMultimap.create();
       final List<CodeReviewCommit> potentiallyStillSubmittableOnNextRun =
@@ -280,10 +282,14 @@ public class MergeOp {
         final Set<SubmitType> submitTypes =
             new HashSet<Project.SubmitType>(toMerge.keySet());
         for (final SubmitType submitType : submitTypes) {
-          final RefUpdate branchUpdate = openBranch();
+          if (reopen) {
+            branchUpdate = openBranch();
+          }
           final SubmitStrategy strategy = createStrategy(submitType);
           preMerge(strategy, toMerge.get(submitType));
           updateBranch(strategy, branchUpdate);
+          reopen = true;
+
           updateChangeStatus(toSubmit.get(submitType));
           updateSubscriptions(toSubmit.get(submitType));
 
