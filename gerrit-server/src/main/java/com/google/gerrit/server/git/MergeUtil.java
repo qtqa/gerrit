@@ -189,20 +189,18 @@ public class MergeUtil {
 
     m.setBase(originalCommit.getParent(0));
     if (m.merge(mergeTip, originalCommit)) {
+      ObjectId tree = m.getResultTreeId();
+      if (tree.equals(mergeTip.getTree())) {
+        return null;
+      }
 
-      final CommitBuilder mergeCommit = new CommitBuilder();
-
-      mergeCommit.setTreeId(m.getResultTreeId());
+      CommitBuilder mergeCommit = new CommitBuilder();
+      mergeCommit.setTreeId(tree);
       mergeCommit.setParentId(mergeTip);
       mergeCommit.setAuthor(originalCommit.getAuthorIdent());
       mergeCommit.setCommitter(cherryPickCommitterIdent);
       mergeCommit.setMessage(commitMsg);
-
-      final ObjectId id = commit(inserter, mergeCommit);
-      final CodeReviewCommit newCommit =
-          (CodeReviewCommit) rw.parseCommit(id);
-
-      return newCommit;
+      return (CodeReviewCommit) rw.parseCommit(commit(inserter, mergeCommit));
     } else {
       return null;
     }
