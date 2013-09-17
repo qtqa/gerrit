@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +18,14 @@ package com.google.gerrit.server.git;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gerrit.reviewdb.client.PatchSet;
 
+import org.eclipse.jgit.diff.Sequence;
 import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.merge.MergeResult;
 import org.eclipse.jgit.revwalk.RevCommit;
 
 import java.util.List;
+import java.util.Map;
 
 /** Extended commit entity with code review specific metadata. */
 class CodeReviewCommit extends RevCommit {
@@ -58,6 +62,9 @@ class CodeReviewCommit extends RevCommit {
 
   /** Commits which are missing ancestors of this commit. */
   List<CodeReviewCommit> missing;
+
+  /** Merge results. */
+  Map<String, MergeResult<? extends Sequence>> mergeResults;
 
   CodeReviewCommit(final AnyObjectId id) {
     super(id);

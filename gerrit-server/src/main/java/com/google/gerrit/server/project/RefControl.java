@@ -1,4 +1,5 @@
 // Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -171,6 +172,12 @@ public class RefControl {
       return projectControl.isOwner();
     }
     return canPerform(Permission.SUBMIT)
+        && canWrite();
+  }
+
+  /** @return true if this user can merge to staging patch sets to this ref */
+  public boolean canStage() {
+    return canPerform(Permission.STAGE)
         && canWrite();
   }
 

@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +29,7 @@ public class PatchSetPublishDetail {
   protected List<SubmitRecord> submitRecords;
   protected SubmitTypeRecord submitTypeRecord;
   protected boolean canSubmit;
+  protected boolean canStage;
 
   public void setSubmitTypeRecord(SubmitTypeRecord submitTypeRecord) {
     this.submitTypeRecord = submitTypeRecord;
@@ -75,5 +77,13 @@ public class PatchSetPublishDetail {
 
   public boolean canSubmit() {
     return canSubmit;
+  }
+
+  public void setCanStage(boolean allowed) {
+    canStage = allowed;
+  }
+
+  public boolean canStage() {
+    return canStage;
   }
 }

@@ -70,7 +70,7 @@ public class Revisions implements ChildCollection<ChangeResource, RevisionResour
         match.add(ps);
       }
     }
-    if (match.size() != 1) {
+    if (match.size() == 0) {
       throw new ResourceNotFoundException(id);
     }
     return new RevisionResource(change, match.get(0));

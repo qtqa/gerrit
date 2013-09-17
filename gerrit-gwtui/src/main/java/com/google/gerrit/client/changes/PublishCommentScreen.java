@@ -67,6 +67,8 @@ public class PublishCommentScreen extends AccountScreen implements
     ClickHandler, CommentEditorContainer {
   private static SavedState lastState;
 
+  private enum Action { NOOP, SUBMIT, STAGE };
+
   private final PatchSet.Id patchSetId;
   private String revision;
   private Collection<ValueRadioButton> approvalButtons;
@@ -77,6 +79,7 @@ public class PublishCommentScreen extends AccountScreen implements
   private FlowPanel draftsPanel;
   private Button send;
   private Button submit;
+  private Button stage;
   private Button cancel;
   private boolean saveStateOnUnload = true;
   private List<CommentEditorPanel> commentEditors;
@@ -125,6 +128,10 @@ public class PublishCommentScreen extends AccountScreen implements
     send.addClickHandler(this);
     buttonRow.add(send);
 
+    stage = new Button(Util.C.buttonPublishStagingSend());
+    stage.addClickHandler(this);
+    buttonRow.add(stage);
+
     submit = new Button(Util.C.buttonPublishSubmitSend());
     submit.addClickHandler(this);
     buttonRow.add(submit);
@@ -143,6 +150,7 @@ public class PublishCommentScreen extends AccountScreen implements
       commentEditor.enableButtons(enabled);
     }
     send.setEnabled(enabled);
+    stage.setEnabled(enabled);
     submit.setEnabled(enabled);
     cancel.setEnabled(enabled);
   }
@@ -208,12 +216,14 @@ public class PublishCommentScreen extends AccountScreen implements
   public void onClick(final ClickEvent event) {
     final Widget sender = (Widget) event.getSource();
     if (send == sender) {
-      onSend(false);
+      onSend(Action.NOOP);
     } else if (submit == sender) {
-      onSend(true);
+      onSend(Action.SUBMIT);
     } else if (cancel == sender) {
       saveStateOnUnload = false;
       goChange();
+    } else if (stage == sender) {
+      onSend(Action.STAGE);
     }
   }
 
@@ -378,14 +388,17 @@ public class PublishCommentScreen extends AccountScreen implements
     }
 
     submit.setVisible(r.canSubmit());
+    stage.setVisible(r.canStage());
     if (Gerrit.getConfig().testChangeMerge()) {
-      submit.setEnabled(r.getChange().isMergeable());
+      final boolean mergeable = r.getChange().isMergeable();
+      submit.setEnabled(mergeable);
+      stage.setEnabled(mergeable);
     }
   }
 
-  private void onSend(final boolean submit) {
+  private void onSend(final Action action) {
     if (commentEditors.isEmpty()) {
-      onSend2(submit);
+      onSend2(action);
     } else {
       final GerritCallback<VoidResult> afterSaveDraft =
           new GerritCallback<VoidResult>() {
@@ -394,7 +407,7 @@ public class PublishCommentScreen extends AccountScreen implements
             @Override
             public void onSuccess(final VoidResult result) {
               if (++done == commentEditors.size()) {
-                onSend2(submit);
+                onSend2(action);
               }
             }
           };
@@ -404,7 +417,7 @@ public class PublishCommentScreen extends AccountScreen implements
     }
   }
 
-  private void onSend2(final boolean submit) {
+  private void onSend2(final Action action) {
     ReviewInput data = ReviewInput.create();
     data.message(ChangeApi.emptyToNull(message.getText().trim()));
     data.init();
@@ -421,8 +434,10 @@ public class PublishCommentScreen extends AccountScreen implements
       .post(data, new GerritCallback<ReviewInput>() {
           @Override
           public void onSuccess(ReviewInput result) {
-            if (submit) {
+            if (action == Action.SUBMIT) {
               submit();
+            } else if (action == Action.STAGE) {
+              staging();
             } else {
               saveStateOnUnload = false;
               goChange();
@@ -472,6 +487,26 @@ public class PublishCommentScreen extends AccountScreen implements
             goChange();
           }
         });
+  }
+
+  private void staging() {
+    ChangeApi.stage(patchSetId.getParentKey().get(), revision,
+        new GerritCallback<SubmitInfo>() {
+            public void onSuccess(SubmitInfo result) {
+              saveStateOnUnload = false;
+              goChange();
+            }
+
+            @Override
+            public void onFailure(Throwable err) {
+              if (SubmitFailureDialog.isConflict(err)) {
+                new SubmitFailureDialog(err.getMessage()).center();
+              } else {
+                super.onFailure(err);
+              }
+              goChange();
+            }
+          });
   }
 
   private void goChange() {

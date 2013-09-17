@@ -1,4 +1,5 @@
 // Copyright (C) 2013 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +79,7 @@ public class LabelNormalizer {
       checkArgument(changeId.equals(ctl.getChange().getId()),
           "Approval %s does not match change %s",
           psa.getKey(), ctl.getChange().getKey());
-      if (psa.isSubmit()) {
+      if (psa.isSubmit() || psa.isStaged()) {
         result.add(copy(psa, ctl));
         continue;
       }

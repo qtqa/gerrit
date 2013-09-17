@@ -15,9 +15,9 @@
 
 package com.google.gerrit.client.changes;
 
-public class SubmitFailureDialog extends ConflictErrorDialog {
+class UnstageFailureDialog extends ConflictErrorDialog {
 
-  public SubmitFailureDialog(String msg) {
-    super(msg, Util.C.submitFailed());
+  UnstageFailureDialog(String msg) {
+    super(msg, Util.C.stageFailed());
   }
 }

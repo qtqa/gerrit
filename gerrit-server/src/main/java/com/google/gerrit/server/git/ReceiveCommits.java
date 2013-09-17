@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,6 +83,7 @@ import com.google.gerrit.server.mail.MergedSender;
 import com.google.gerrit.server.mail.ReplacePatchSetSender;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.project.ChangeControl;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.ProjectCache;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.server.project.ProjectState;
@@ -268,6 +270,7 @@ public class ReceiveCommits {
   private final SshInfo sshInfo;
   private final AllProjectsName allProjectsName;
   private final ReceiveConfig receiveConfig;
+  private final MergeQueue merger;
 
   private final ProjectControl projectControl;
   private final Project project;
@@ -322,6 +325,7 @@ public class ReceiveCommits {
       @CanonicalWebUrl @Nullable final String canonicalWebUrl,
       @GerritPersonIdent final PersonIdent gerritIdent,
       final TrackingFooters trackingFooters,
+      final MergeQueue merger,
       final WorkQueue workQueue,
       @ChangeUpdateExecutor ListeningExecutorService changeUpdateExector,
       final RequestScopePropagator requestScopePropagator,
@@ -349,6 +353,7 @@ public class ReceiveCommits {
     this.repoManager = repoManager;
     this.canonicalWebUrl = canonicalWebUrl;
     this.trackingFooters = trackingFooters;
+    this.merger = merger;
     this.tagCache = tagCache;
     this.changeInserter = changeInserter;
     this.commitValidatorsFactory = commitValidatorsFactory;
@@ -1798,7 +1803,7 @@ public class ReceiveCommits {
       ListenableFuture<PatchSet.Id> future = changeUpdateExector.submit(
           requestScopePropagator.wrap(new Callable<PatchSet.Id>() {
         @Override
-        public PatchSet.Id call() throws OrmException {
+        public PatchSet.Id call() throws OrmException, IOException {
           try {
             if (caller == Thread.currentThread()) {
               return insertPatchSet(db);
@@ -1820,7 +1825,7 @@ public class ReceiveCommits {
       return Futures.makeChecked(future, ORM_EXCEPTION);
     }
 
-    PatchSet.Id insertPatchSet(ReviewDb db) throws OrmException {
+    PatchSet.Id insertPatchSet(ReviewDb db) throws OrmException, IOException {
       final Account.Id me = currentUser.getAccountId();
       final List<FooterLine> footerLines = newCommit.getFooterLines();
       final MailRecipients recipients = new MailRecipients();
@@ -1915,6 +1920,10 @@ public class ReceiveCommits {
         db.rollback();
       }
 
+      // Check staging status before change status is updated.
+      boolean inStaging =
+          (change.getStatus() == Change.Status.STAGED || change.getStatus() == Change.Status.STAGING);
+
       if (mergedIntoRef != null) {
         // Change was already submitted to a branch, close it.
         //
@@ -1957,6 +1966,16 @@ public class ReceiveCommits {
           return "send-email newpatchset";
         }
       }));
+
+      if (inStaging) {
+        try {
+          ChangeUtil.rebuildStaging(change.getDest(), currentUser, db, repo,
+              merger, hooks);
+        } catch (NoSuchRefException e) {
+          // Destination branch not available.
+          log.error("Could not rebuild staging branch. No destination branch.", e);
+        }
+      }
 
       if (magicBranch != null && magicBranch.isSubmit()) {
         submit(changeCtl, newPatchSet);

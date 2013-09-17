@@ -1,0 +1,67 @@
+gerrit staging-ls
+=================
+
+NAME
+----
+gerrit staging-ls - List open changes in a staging ref.
+
+SYNOPSIS
+--------
+[verse]
+'ssh' -p <port> <host> 'gerrit staging-ls' <\--project <PROJECT>> <\--branch <BRANCH>>  <\--destination <DESTINATION>>
+
+DESCRIPTION
+-----------
+Prints changes that are considered open from a branch. This command is useful
+to check if there are any changes in the staging branch before creating a build
+reference from it.
+
+The output is printed in the following format:
+<SHA> <Change number>,<Patch set number> <Commit message subject>
+
+No output is printed if there are no open changes in the given branch.
+
+OPTIONS
+-------
+
+\--project::
+-p::
+	Name of the project the intended changes are contained within.
+
+\--branch::
+-b::
+	Name of the branch to search for open changes, e.g. refs/staging/master
+
+\--destination::
+-d::
+	Destination branch filter, e.g. refs/heads/master or just master.
+
+\--help::
+-h::
+	Display usage information.
+
+ACCESS
+------
+Any user who has configured an SSH key.
+
+SCRIPTING
+---------
+This command is intended to be used in scripts.
+
+EXAMPLES
+--------
+
+List open changes in "refs/staging/master"
+=====
+	$ ssh -p 29418 review.example.com gerrit staging-ls --project this/project --branch refs/staging/master
+=====
+
+SEE ALSO
+--------
+
+* link:cmd-staging-new-build.html[Create a new build reference from a staging branch]
+
+GERRIT
+------
+Part of link:index.html[Gerrit Code Review]
+

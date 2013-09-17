@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -86,6 +87,20 @@ public class ChangeApi {
     SubmitInput in = SubmitInput.create();
     in.wait_for_merge(true);
     call(id, commit, "submit").post(in, cb);
+  }
+
+  /** Stage a specific revision of a change. */
+  public static void stage(int id, String commit, AsyncCallback<SubmitInfo> cb) {
+    SubmitInput in = SubmitInput.create();
+    in.wait_for_merge(true);
+    call(id, commit, "stage").post(in, cb);
+  }
+
+  /** Unstage a specific revision of a change. */
+  public static void unstage(int id, String commit, AsyncCallback<SubmitInfo> cb) {
+    SubmitInput in = SubmitInput.create();
+    in.wait_for_merge(true);
+    call(id, commit, "unstage").post(in, cb);
   }
 
   private static class Input extends JavaScriptObject {
