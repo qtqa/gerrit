@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +23,8 @@ import com.google.gerrit.server.changedetail.DeleteDraftPatchSet;
 import com.google.gerrit.server.changedetail.PublishDraft;
 import com.google.gerrit.server.git.BanCommit;
 import com.google.gerrit.server.git.MergeOp;
+import com.google.gerrit.server.git.StagingMergeDelegate;
+import com.google.gerrit.server.git.SubmitMergeDelegate;
 import com.google.gerrit.server.git.SubmoduleOp;
 import com.google.gerrit.server.patch.RemoveReviewer;
 import com.google.gerrit.server.project.ChangeControl;
@@ -44,6 +47,8 @@ public class GerritRequestModule extends FactoryModule {
 
     factory(SubmoduleOp.Factory.class);
     factory(MergeOp.Factory.class);
+    factory(StagingMergeDelegate.Factory.class);
+    factory(SubmitMergeDelegate.Factory.class);
 
     // Not really per-request, but dammit, I don't know where else to
     // easily park this stuff.

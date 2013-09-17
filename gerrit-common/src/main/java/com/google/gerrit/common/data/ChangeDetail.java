@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,6 +49,8 @@ public class ChangeDetail {
   protected PatchSetDetail currentDetail;
   protected boolean canEdit;
   protected boolean canEditTopicName;
+  protected boolean canStage;
+  protected boolean canUnstage;
 
   public ChangeDetail() {
   }
@@ -122,6 +125,22 @@ public class ChangeDetail {
 
   public void setCanSubmit(boolean a) {
     canSubmit = a;
+  }
+
+  public boolean canStage() {
+    return canStage;
+  }
+
+  public void setCanStage(boolean a) {
+    canStage = a;
+  }
+
+  public boolean canUnstage() {
+    return canUnstage;
+  }
+
+  public void setCanUnstage(boolean a) {
+    canUnstage = a;
   }
 
   public boolean canDeleteDraft() {

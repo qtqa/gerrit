@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -187,6 +188,12 @@ public final class Change {
   public static final char STATUS_SUBMITTED = 's';
   /** Database constant for {@link Status#DRAFT}. */
   public static final char STATUS_DRAFT = 'd';
+  /** Database constant for {@link Status#STAGING}. */
+  public static final char STATUS_STAGING = 'q';
+  /** Database constant for {@link Status#STAGED}. */
+  public static final char STATUS_STAGED = 'r';
+  /** Database constant for {@link Status#INTEGRATING}. */
+  public static final char STATUS_INTEGRATING = 'i';
   /** Maximum database status constant for an open change. */
   private static final char MAX_OPEN = 'z';
 
@@ -269,6 +276,22 @@ public final class Change {
     DRAFT(STATUS_DRAFT),
 
     /**
+     * Change is open and ready to be merged into staging the branch.
+     */
+    STAGING(STATUS_STAGING),
+
+    /**
+     * Change is merged into the staging branch.
+     */
+    STAGED(STATUS_STAGED),
+
+    /**
+     * Change is in build branch under refs/builds and is being built
+     * and tested by continuous integration system.
+     */
+    INTEGRATING(STATUS_INTEGRATING),
+
+    /**
      * Change is closed, and submitted to its destination branch.
      *
      * <p>
@@ -306,6 +329,11 @@ public final class Change {
 
     public boolean isClosed() {
       return closed;
+    }
+
+    public boolean isCI() {
+      return (code == STATUS_INTEGRATING
+          || code == STATUS_STAGED || code == STATUS_STAGING);
     }
 
     public static Status forCode(final char c) {

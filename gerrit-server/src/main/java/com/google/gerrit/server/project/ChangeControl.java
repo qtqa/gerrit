@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -181,12 +182,16 @@ public class ChangeControl {
 
   /** Can this user abandon this change? */
   public boolean canAbandon() {
-    return isOwner() // owner (aka creator) of the change can abandon
+    boolean userCan = isOwner() // owner (aka creator) of the change can abandon
         || getRefControl().isOwner() // branch owner can abandon
         || getProjectControl().isOwner() // project owner can abandon
         || getCurrentUser().getCapabilities().canAdministrateServer() // site administers are god
         || getRefControl().canAbandon() // user can abandon a specific ref
     ;
+
+    // Cannot abandon changes that are being processed by the continuous
+    // integration system.
+    return userCan && change.getStatus() != Change.Status.INTEGRATING;
   }
 
   /** Can this user publish this draft change or any draft patch set of this change? */
@@ -317,7 +322,7 @@ public class ChangeControl {
   }
 
   public List<SubmitRecord> getSubmitRecords(ReviewDb db, PatchSet patchSet) {
-    return canSubmit(db, patchSet, null, false, true, false);
+    return canSubmit(db, patchSet, null, false, true, false, true);
   }
 
   public boolean canSubmit() {
@@ -325,12 +330,12 @@ public class ChangeControl {
   }
 
   public List<SubmitRecord> canSubmit(ReviewDb db, PatchSet patchSet) {
-    return canSubmit(db, patchSet, null, false, false, false);
+    return canSubmit(db, patchSet, null, false, false, false, false);
   }
 
   public List<SubmitRecord> canSubmit(ReviewDb db, PatchSet patchSet,
       @Nullable ChangeData cd, boolean fastEvalLabels, boolean allowClosed,
-      boolean allowDraft) {
+      boolean allowDraft, boolean allowStaged) {
     if (!allowClosed && change.getStatus().isClosed()) {
       SubmitRecord rec = new SubmitRecord();
       rec.status = SubmitRecord.Status.CLOSED;
@@ -344,6 +349,12 @@ public class ChangeControl {
     if ((change.getStatus() == Change.Status.DRAFT || patchSet.isDraft())
         && !allowDraft) {
       return cannotSubmitDraft(db, patchSet, cd);
+    }
+
+    if ((change.getStatus() == Change.Status.STAGING
+        || change.getStatus() == Change.Status.STAGED)
+        && !allowStaged) {
+      return cannotSubmitStaged();
     }
 
     List<Term> results;
@@ -387,6 +398,19 @@ public class ChangeControl {
     } catch (OrmException err) {
       return logRuleError("Cannot read patch set " + patchSet.getId(), err);
     }
+  }
+
+  private List<SubmitRecord> cannotSubmitStaged() {
+    return ruleError("Cannot submit, change is merged to staging branch");
+  }
+
+  public boolean canStage() {
+    return getRefControl().canStage();
+  }
+
+  public boolean canUnstage() {
+    // If one can stage, one can unstage
+    return canStage();
   }
 
   /**

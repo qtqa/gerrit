@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,14 +42,18 @@ import com.google.gwt.event.logical.shared.OpenEvent;
 import com.google.gwt.event.logical.shared.OpenHandler;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FocusWidget;
 import com.google.gwt.user.client.ui.Grid;
+import com.google.gwt.user.client.ui.HasAlignment;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 import com.google.gwt.user.client.ui.InlineLabel;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.Panel;
+import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwtjsonrpc.common.VoidResult;
 
 import java.util.HashSet;
@@ -300,6 +305,92 @@ class PatchSetComplexDisclosurePanel extends ComplexDisclosurePanel
 
   private void populateActions(final PatchSetDetail detail) {
     final boolean isOpen = changeDetail.getChange().getStatus().isOpen();
+    final boolean isNew =
+        changeDetail.getChange().getStatus() == Change.Status.NEW;
+
+    // Staging is allowed only for NEW changes. User is required to have
+    // STAGING approval category.
+    if (isNew && changeDetail.canStage()) {
+      // Create new button for staging and add click handler for it.
+      final Button b = new Button(Util.M.mergeToStagingPatchSet(detail.getPatchSet().getPatchSetId()));
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(final ClickEvent event) {
+          // Disable the button until this click is handled.
+          b.setEnabled(false);
+          ChangeApi.stage(
+              patchSet.getId().getParentKey().get(),
+              patchSet.getRevision().get(),
+              new GerritCallback<SubmitInfo>() {
+                  public void onSuccess(SubmitInfo result) {
+                    redisplay();
+                  }
+
+                  public void onFailure(Throwable err) {
+                    if (StageFailureDialog.isConflict(err)) {
+                      // Stage can fail if someone else has already changed
+                      // the status from NEW to something else. Like abandoned,
+                      // deferred or staged the change.
+                      // In this case error is shown and change reloaded.
+                      new StageFailureDialog(err.getMessage()).center();
+                    } else {
+                      b.setEnabled(true);
+                      super.onFailure(err);
+                    }
+                    redisplay();
+                  }
+
+                  private void redisplay() {
+                    Gerrit.display(
+                        PageLinks.toChange(patchSet.getId().getParentKey()),
+                        new ChangeScreen(patchSet.getId().getParentKey()));
+                  }
+              });
+        }
+      });
+      actionsPanel.add(b);
+    }
+
+    if ((changeDetail.getChange().getStatus() == Change.Status.STAGED
+        || changeDetail.getChange().getStatus() == Change.Status.STAGING)
+        && changeDetail.canUnstage()) {
+      final Button b = new Button(Util.C.buttonUnstagingChange());
+      b.addClickHandler(new ClickHandler() {
+        @Override
+        public void onClick(ClickEvent event) {
+          b.setEnabled(false);
+          ChangeApi.unstage(
+              patchSet.getId().getParentKey().get(),
+              patchSet.getRevision().get(),
+              new GerritCallback<SubmitInfo>() {
+                  public void onSuccess(SubmitInfo result) {
+                    redisplay();
+                  }
+
+                  public void onFailure(Throwable err) {
+                    if (UnstageFailureDialog.isConflict(err)) {
+                      // Unstage can fail if someone else has already changed
+                      // the status from STAGED to something else. Like already
+                      // done unstage or integrating has started.
+                      // In this case error is shown and change reloaded.
+                      new UnstageFailureDialog(err.getMessage()).center();
+                    } else {
+                      b.setEnabled(true);
+                      super.onFailure(err);
+                    }
+                    redisplay();
+                  }
+
+                  private void redisplay() {
+                    Gerrit.display(
+                        PageLinks.toChange(patchSet.getId().getParentKey()),
+                        new ChangeScreen(patchSet.getId().getParentKey()));
+                  }
+              });
+        }
+      });
+      actionsPanel.add(b);
+    }
 
     if (isOpen && changeDetail.canSubmit()) {
       final Button b =
@@ -632,6 +723,28 @@ class PatchSetComplexDisclosurePanel extends ComplexDisclosurePanel
     if (patchTable != null) {
       patchTable.setActive(active);
     }
+  }
+
+  protected static DialogBox alertMessageBox(final String header, final String message) {
+    final DialogBox box = new DialogBox();
+    final VerticalPanel panel = new VerticalPanel();
+    panel.add(new Label(message));
+    final Label empty = new Label("");
+    empty.setSize("auto", "16px");
+    panel.add(empty);
+    panel.add(empty);
+    final Button close = new Button(Util.C.buttonClose(), new ClickHandler() {
+      public void onClick(final ClickEvent event) {
+        box.hide();
+      }
+    });
+    panel.add(close);
+    panel.setSpacing(16);
+    panel.setCellHorizontalAlignment(close, HasAlignment.ALIGN_RIGHT);
+    box.setText(header);
+    box.add(panel);
+    box.setGlassEnabled(true);  // Gray out background
+    return box;
   }
 
   private abstract class ActionDialog extends CommentedActionDialog<ChangeDetail> {

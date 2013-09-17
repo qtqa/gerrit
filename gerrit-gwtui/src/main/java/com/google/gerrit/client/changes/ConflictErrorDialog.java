@@ -15,9 +15,18 @@
 
 package com.google.gerrit.client.changes;
 
-public class SubmitFailureDialog extends ConflictErrorDialog {
+import com.google.gerrit.client.ErrorDialog;
+import com.google.gwtexpui.safehtml.client.SafeHtmlBuilder;
+import com.google.gwtjsonrpc.client.RemoteJsonException;
 
-  public SubmitFailureDialog(String msg) {
-    super(msg, Util.C.submitFailed());
+public class ConflictErrorDialog extends ErrorDialog {
+  public static boolean isConflict(Throwable err) {
+    return err instanceof RemoteJsonException
+        && 409 == ((RemoteJsonException) err).getCode();
+  }
+
+  ConflictErrorDialog(String msg, String label) {
+    super(new SafeHtmlBuilder().append(msg.trim()).wikify());
+    setText(label);
   }
 }

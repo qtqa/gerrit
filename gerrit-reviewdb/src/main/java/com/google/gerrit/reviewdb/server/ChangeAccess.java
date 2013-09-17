@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,4 +111,15 @@ public interface ChangeAccess extends Access<Change, Change.Id> {
 
   @Query
   ResultSet<Change> all() throws OrmException;
+
+  @Query("WHERE dest = ? AND status = '" + Change.STATUS_STAGING
+      + "' ORDER BY lastUpdatedOn")
+  ResultSet<Change> staging(Branch.NameKey dest) throws OrmException;
+
+  @Query("WHERE dest = ? AND status = '" + Change.STATUS_STAGED
+      + "' ORDER BY lastUpdatedOn")
+  ResultSet<Change> staged(Branch.NameKey dest) throws OrmException;
+
+  @Query("WHERE status = '" + Change.STATUS_STAGING + "'")
+  ResultSet<Change> allStaging() throws OrmException;
 }

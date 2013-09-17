@@ -1,0 +1,78 @@
+gerrit staging-approve
+======================
+
+NAME
+----
+gerrit staging-approve - Approve or reject changes in a build reference.
+
+SYNOPSIS
+--------
+[verse]
+'ssh' -p <port> <host> 'gerrit staging-approve' <\--project <PROJECT>> <\--build-id <BUILD_ID>> <\--branch <BRANCH>> <\--result <RESULT>> [\--message <-|MESSAGE>]
+
+DESCRIPTION
+-----------
+Submits a result to a build reference. Result can be either pass or fail.
+If result is pass, all changes are submitted to their destination branch.
+If result is fail, all changes are returned to New status and they must be
+fixed and reviewed again.
+
+OPTIONS
+-------
+
+\--project::
+-p::
+	Name of the project the intended changes are contained within.
+
+\--build-id::
+-i::
+	Build branch containing changes, e.g. refs/builds/20140225_1245 or just 20140225_1245
+
+\--branch::
+-b::
+	Destination branch, e.g. refs/heads/master or just master
+
+\--result::
+-r::
+	Result of the build. Only values 'pass' or 'fail' are accepted.
+
+\--message::
+-m::
+	An optional message that is added to each change in the build reference.
+	If value '-' is given, the message is read from STDIN.
+
+\--help::
+-h::
+	Display usage information.
+
+ACCESS
+------
+Any user who has configured an SSH key and has Push access right to destination branch.
+
+SCRIPTING
+---------
+This command is intended to be used in scripts.
+
+EXAMPLES
+--------
+
+Approve changes in build "refs/builds/this/project/2011-05-16".
+=====
+	$ ssh -p 29418 review.example.com gerrit staging-approve --project this/project --build-id this/project/2011-05-16 --result pass
+=====
+
+Reject changes in build "refs/builds/this/project/2011-05-16".
+=====
+	$ ssh -p 29418 review.example.com gerrit staging-approve --project this/project --build-id this/project/2011-05-16 --result fail
+=====
+
+
+SEE ALSO
+--------
+
+* link:cmd-staging-new-build.html[Create a new build reference from a staging branch]
+
+GERRIT
+------
+Part of link:index.html[Gerrit Code Review]
+

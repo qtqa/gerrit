@@ -1,0 +1,59 @@
+gerrit staging-rebuild
+======================
+
+NAME
+----
+gerrit staging-rebuild - Re-creates a staging branch.
+
+SYNOPSIS
+--------
+[verse]
+'ssh' -p <port> <host> 'gerrit staging-rebuild' <\--project <PROJECT>> <\--branch <BRANCH>>
+
+DESCRIPTION
+-----------
+Re-creates a staging branch. All changes in the current staging branch are set
+to staging merge queue and staging branch is re-created from the destination
+branch of the changes. All changes are merged again to the staging branch.
+
+OPTIONS
+-------
+
+\--project::
+-p::
+	Name of the project the intended changes are contained within.
+
+\--branch::
+-b::
+	Name of the branch from which the staging branch is created.
+
+\--help::
+-h::
+	Display usage information.
+
+ACCESS
+------
+Any user who has configured an SSH key.
+
+SCRIPTING
+---------
+This command is intended to be used in scripts.
+
+EXAMPLES
+--------
+
+Re-create staging branch "refs/staging/master"
+=====
+	$ ssh -p 29418 review.example.com gerrit staging-rebuild --project this/project --branch refs/heads/master
+=====
+
+SEE ALSO
+--------
+
+* link:cmd-staging-ls.html[List changes in staging]
+* link:cmd-staging-approve.html[Approve or reject changes]
+
+GERRIT
+------
+Part of link:index.html[Gerrit Code Review]
+

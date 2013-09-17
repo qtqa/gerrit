@@ -1,0 +1,68 @@
+gerrit staging-new-build
+========================
+
+NAME
+----
+gerrit staging-new-build - Create a new build reference from a staging branch
+
+SYNOPSIS
+--------
+[verse]
+'ssh' -p <port> <host> 'gerrit staging-new-build' <\--project <PROJECT>> <\--staging-branch <BRANCH>> <\--build-id <BUILD_ID>>
+
+DESCRIPTION
+-----------
+Creates a new build reference from a staging branch. Build references are
+stored under "refs/builds". Staging branches are stored in "refs/staging".
+
+A build reference creates a copy of the current state of the staging branch
+and resets the staging branch so it can accept more changes. A build reference
+is meant to be used for building and testing changes. Changes are contained
+in a build reference until they can be approved or rejected.
+
+OPTIONS
+-------
+
+\--project::
+-p::
+	Name of the project the intended changes are contained within.
+
+\--staging-branch::
+-s::
+	Name of the staging branch to create the build reference from.
+
+\--build-id::
+-i::
+	Name of the the build branch. Existing build ids are not overwritten.
+
+\--help::
+-h::
+	Display usage information.
+
+ACCESS
+------
+Any user who has configured an SSH key and has Create Reference access right to "refs/builds" and Push access right to destination branch.
+
+SCRIPTING
+---------
+This command is intended to be used in scripts.
+
+EXAMPLES
+--------
+
+Create a build reference "refs/builds/master-2011-05-16" from "refs/staging/master".
+=====
+	$ ssh -p 29418 review.example.com gerrit staging-new-build --project this/project --staging-branch refs/staging/master --build-id 2011-05-16
+=====
+
+SEE ALSO
+--------
+
+* link:cmd-staging-ls.html[List changes in staging]
+* link:cmd-staging-approve.html[Approve or reject changes]
+* link:cmd-staging-rebuild.html[Rebuild staging branch]
+
+GERRIT
+------
+Part of link:index.html[Gerrit Code Review]
+

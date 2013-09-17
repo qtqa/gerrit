@@ -627,6 +627,8 @@ public class Gerrit implements EntryPoint {
 
     m = new LinkMenuBar();
     addLink(m, C.menuAllOpen(), PageLinks.toChangeQuery("status:open"));
+    addLink(m, C.menuAllStaged(), PageLinks.toChangeQuery("status:staged"));
+    addLink(m, C.menuAllIntegrating(), PageLinks.toChangeQuery("status:integrating"));
     addLink(m, C.menuAllMerged(), PageLinks.toChangeQuery("status:merged"));
     addLink(m, C.menuAllAbandoned(), PageLinks.toChangeQuery("status:abandoned"));
     menuLeft.add(m, C.menuAll());

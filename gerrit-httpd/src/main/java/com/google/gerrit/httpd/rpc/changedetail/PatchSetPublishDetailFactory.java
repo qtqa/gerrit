@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -153,6 +154,9 @@ final class PatchSetPublishDetailFactory extends Handler<PatchSetPublishDetail> 
 
       if (couldSubmit && control.getRefControl().canSubmit()) {
         detail.setCanSubmit(true);
+      }
+      if (couldSubmit && control.getRefControl().canStage()) {
+        detail.setCanStage(true);
       }
     }
 

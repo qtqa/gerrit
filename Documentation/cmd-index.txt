@@ -171,6 +171,18 @@ link:cmd-show-queue.html[ps]::
 link:cmd-suexec.html[suexec]::
 	Execute a command as any registered user account.
 
+link:cmd-staging-ls.html[gerrit staging-ls]::
+	List open changes in a staging branch.
+
+link:cmd-staging-new-build.html[gerrit staging-new-build]::
+	Create a new build ref from a staging branch.
+
+link:cmd-staging-approve.html[gerrit staging-approve]::
+	Approve staging changes in a build ref.
+
+link:cmd-staging-rebuild.html[gerrit staging-rebuild]::
+	Rebuild a staging branch.
+
 GERRIT
 ------
 Part of link:index.html[Gerrit Code Review]

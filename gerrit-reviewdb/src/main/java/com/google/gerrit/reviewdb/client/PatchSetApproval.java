@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +28,7 @@ public final class PatchSetApproval {
     private static final long serialVersionUID = 1L;
 
     public static final LabelId SUBMIT = new LabelId("SUBM");
+    public static final LabelId STAGE = new LabelId("STGN");
 
     @Column(id = 1)
     protected String id;
@@ -202,6 +204,10 @@ public final class PatchSetApproval {
 
   public boolean isSubmit() {
     return LabelId.SUBMIT.get().equals(getLabel());
+  }
+
+  public boolean isStaged() {
+    return LabelId.STAGE.get().equals(getLabel());
   }
 
   @Override

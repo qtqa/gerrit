@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,6 +86,8 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
     /** Who to send email notifications to after review is stored. */
     public NotifyHandling notify = NotifyHandling.ALL;
+
+    public boolean changeReviewable;
   }
 
   public static enum DraftHandling {
@@ -105,6 +108,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
   static class Output {
     Map<String, Short> labels;
+    String message;
   }
 
   private final ReviewDb db;
@@ -177,6 +181,18 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
     Output output = new Output();
     output.labels = input.labels;
+    output.message = "";
+    if (input.labels != null && !input.labels.isEmpty() && input.changeReviewable) {
+      if (change.getStatus().isCI()) {
+        output.message =
+            "The change was staged while you were reviewing it. " +
+            "Due to this, only your comments were published, while your review scores were dropped.";
+      } else if (!revision.getPatchSet().getId().equals(change.currentPatchSetId())) {
+        output.message =
+            "A new patch set was pushed while you were reviewing the change. " +
+            "Due to this, only your comments were published, while your review scores were dropped.";
+      }
+    }
     return output;
   }
 
@@ -358,6 +374,17 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
         // TODO Allow updating some labels even when closed.
         continue;
       }
+      if (change.getStatus().isCI()) {
+        // If the state of a change is INTEGRATING, STAGED or STAGING review
+        // scores are not allowed. This check is necessary here because some
+        // other user may have changed the state of a change while another
+        // user is reviewing it. Scores are dropped but comments are kept.
+        continue;
+      }
+      if (!rsrc.getPatchSet().getId().equals(change.currentPatchSetId())) {
+        // Scores are also dropped if a new patch set is pushed.
+        continue;
+      }
 
       PatchSetApproval c = current.remove(name);
       if (ent.getValue() == null || ent.getValue() == 0) {
@@ -434,7 +461,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
     Map<String, PatchSetApproval> current = Maps.newHashMap();
     for (PatchSetApproval a : db.patchSetApprovals().byPatchSetUser(
           rsrc.getPatchSet().getId(), rsrc.getAccountId())) {
-      if (a.isSubmit()) {
+      if (a.isSubmit() || a.isStaged()) {
         continue;
       }
 

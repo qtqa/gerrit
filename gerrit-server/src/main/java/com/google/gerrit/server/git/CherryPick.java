@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 
 public class CherryPick extends SubmitStrategy {
+  private static final String R_STAGING = "refs/staging/";
   private final PatchSetInfoFactory patchSetInfoFactory;
   private final GitReferenceUpdated gitRefUpdated;
   private final Map<Change.Id, CodeReviewCommit> newCommits;
@@ -161,45 +162,49 @@ public class CherryPick extends SubmitStrategy {
         return null;
     }
 
-    PatchSet.Id id =
-        ChangeUtil.nextPatchSetId(args.repo, n.change.currentPatchSetId());
-    final PatchSet ps = new PatchSet(id);
-    ps.setCreatedOn(new Timestamp(System.currentTimeMillis()));
-    ps.setUploader(submitAudit.getAccountId());
-    ps.setRevision(new RevId(newCommit.getId().getName()));
+    // If this is a commit in a staging branch, no need to create a new patch set.
+    // It just messes dependencies making all dependants outdated.
+    if (!args.destBranch.get().startsWith(R_STAGING)) {
+      PatchSet.Id id =
+          ChangeUtil.nextPatchSetId(args.repo, n.change.currentPatchSetId());
+      PatchSet ps = new PatchSet(id);
+      ps.setCreatedOn(new Timestamp(System.currentTimeMillis()));
+      ps.setUploader(submitAudit.getAccountId());
+      ps.setRevision(new RevId(newCommit.getId().getName()));
 
-    final RefUpdate ru;
+      final RefUpdate ru;
 
-    args.db.changes().beginTransaction(n.change.getId());
-    try {
-      insertAncestors(args.db, ps.getId(), newCommit);
-      args.db.patchSets().insert(Collections.singleton(ps));
-      n.change
-          .setCurrentPatchSet(patchSetInfoFactory.get(newCommit, ps.getId()));
-      args.db.changes().update(Collections.singletonList(n.change));
+      args.db.changes().beginTransaction(n.change.getId());
+      try {
+        insertAncestors(args.db, ps.getId(), newCommit);
+        args.db.patchSets().insert(Collections.singleton(ps));
+        n.change
+            .setCurrentPatchSet(patchSetInfoFactory.get(newCommit, ps.getId()));
+        args.db.changes().update(Collections.singletonList(n.change));
 
-      final List<PatchSetApproval> approvals = Lists.newArrayList();
-      for (PatchSetApproval a : args.mergeUtil.getApprovalsForCommit(n)) {
-        approvals.add(new PatchSetApproval(ps.getId(), a));
+        final List<PatchSetApproval> approvals = Lists.newArrayList();
+        for (PatchSetApproval a : args.mergeUtil.getApprovalsForCommit(n)) {
+          approvals.add(new PatchSetApproval(ps.getId(), a));
+        }
+        args.db.patchSetApprovals().insert(approvals);
+
+        ru = args.repo.updateRef(ps.getRefName());
+        ru.setExpectedOldObjectId(ObjectId.zeroId());
+        ru.setNewObjectId(newCommit);
+        ru.disableRefLog();
+        if (ru.update(args.rw) != RefUpdate.Result.NEW) {
+            throw new IOException(String.format(
+                "Failed to create ref %s in %s: %s", ps.getRefName(), n.change
+                    .getDest().getParentKey().get(), ru.getResult()));
+        }
+
+        args.db.commit();
+      } finally {
+        args.db.rollback();
       }
-      args.db.patchSetApprovals().insert(approvals);
 
-      ru = args.repo.updateRef(ps.getRefName());
-      ru.setExpectedOldObjectId(ObjectId.zeroId());
-      ru.setNewObjectId(newCommit);
-      ru.disableRefLog();
-      if (ru.update(args.rw) != RefUpdate.Result.NEW) {
-        throw new IOException(String.format(
-            "Failed to create ref %s in %s: %s", ps.getRefName(), n.change
-                .getDest().getParentKey().get(), ru.getResult()));
-      }
-
-      args.db.commit();
-    } finally {
-      args.db.rollback();
+      gitRefUpdated.fire(n.change.getProject(), ru);
     }
-
-    gitRefUpdated.fire(n.change.getProject(), ru);
 
     newCommit.copyFrom(n);
     newCommit.statusCode = CommitMergeStatus.CLEAN_PICK;

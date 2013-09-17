@@ -1,4 +1,5 @@
 // Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,6 +39,7 @@ public class Permission implements Comparable<Permission> {
   public static final String READ = "read";
   public static final String REBASE = "rebase";
   public static final String REMOVE_REVIEWER = "removeReviewer";
+  public static final String STAGE = "stage";
   public static final String SUBMIT = "submit";
   public static final String VIEW_DRAFTS = "viewDrafts";
 
@@ -60,6 +62,7 @@ public class Permission implements Comparable<Permission> {
     NAMES_LC.add(LABEL.toLowerCase());
     NAMES_LC.add(REBASE.toLowerCase());
     NAMES_LC.add(REMOVE_REVIEWER.toLowerCase());
+    NAMES_LC.add(STAGE.toLowerCase());
     NAMES_LC.add(SUBMIT.toLowerCase());
     NAMES_LC.add(VIEW_DRAFTS.toLowerCase());
     NAMES_LC.add(EDIT_TOPIC_NAME.toLowerCase());

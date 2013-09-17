@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +19,13 @@ import com.google.gerrit.common.ChangeHooks;
 import com.google.gerrit.common.data.LabelTypes;
 import com.google.gerrit.common.errors.EmailException;
 import com.google.gerrit.reviewdb.client.Account;
+import com.google.gerrit.reviewdb.client.Branch;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gerrit.reviewdb.client.ChangeMessage;
 import com.google.gerrit.reviewdb.client.PatchSet;
 import com.google.gerrit.reviewdb.client.PatchSetAncestor;
+import com.google.gerrit.reviewdb.client.PatchSetApproval;
+import com.google.gerrit.reviewdb.client.PatchSetApproval.LabelId;
 import com.google.gerrit.reviewdb.client.PatchSetInfo;
 import com.google.gerrit.reviewdb.client.RevId;
 import com.google.gerrit.reviewdb.client.TrackingId;
@@ -34,6 +38,8 @@ import com.google.gerrit.server.events.CommitReceivedEvent;
 import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeOp;
+import com.google.gerrit.server.git.MergeQueue;
+import com.google.gerrit.server.git.StagingUtil;
 import com.google.gerrit.server.git.validators.CommitValidationException;
 import com.google.gerrit.server.git.validators.CommitValidators;
 import com.google.gerrit.server.mail.CommitMessageEditedSender;
@@ -45,6 +51,7 @@ import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
 import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchProjectException;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.RefControl;
 import com.google.gerrit.server.util.IdGenerator;
 import com.google.gerrit.server.util.MagicBranch;
@@ -552,6 +559,148 @@ public class ChangeUtil {
     long lastUpdated = c.getLastUpdatedOn().getTime();
     int id = c.getId().get();
     c.setSortKey(sortKey(lastUpdated, id));
+  }
+
+  /**
+   * Removes a commit from staging branch. Status of the change is reset to
+   * NEW.
+   *
+   * @param patchSetId Patch set to be removed from staging.
+   * @param user User taking this action.
+   * @param db Review database.
+   * @throws OrmException If review database cannot be accessed.
+   */
+  public static Change rejectStagedChange(PatchSet.Id patchSetId,
+      IdentifiedUser user, ReviewDb db) throws OrmException {
+    // Delete all STAGING approvals for the patch set.
+    final PatchSetApproval.Key stagingKey =
+      new PatchSetApproval.Key(patchSetId, user.getAccountId(), LabelId.STAGE);
+    db.patchSetApprovals().deleteKeys(Collections.singleton(stagingKey));
+
+    // Set change state to NEW.
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      new AtomicUpdate<Change>() {
+        @Override
+        public Change update(Change change) {
+          if (change.getStatus() == Change.Status.INTEGRATING
+              || change.getStatus() == Change.Status.STAGING
+              || change.getStatus() == Change.Status.STAGED) {
+            change.setStatus(Change.Status.NEW);
+            ChangeUtil.updated(change);
+          }
+          return change;
+        }
+      };
+    return db.changes().atomicUpdate(changeId, atomicUpdate);
+  }
+
+  /**
+   * Moves change from integrating to merged. Only database is updated.
+   *
+   * @param patchSetId Patch set id for accessing the change.
+   * @param user User taking the action.
+   * @param db Review database.
+   * @throws OrmException Thrown, if access to review database fails.
+   */
+  public static void setIntegratingToMerged(PatchSet.Id patchSetId, IdentifiedUser user,
+      ReviewDb db) throws OrmException {
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      getUpdateToState(Change.Status.INTEGRATING, Change.Status.MERGED);
+    Change change = db.changes().atomicUpdate(changeId, atomicUpdate);
+    new ApprovalsUtil(db).syncChangeStatus(change);
+  }
+
+  /**
+   * Moves change from integrating to abandoned. Only database is updated.
+   *
+   * @param patchSetId Patch set id for accessing the change.
+   * @param user User taking the action.
+   * @param db Review database.
+   * @throws OrmException Thrown, if access to review database fails.
+   */
+  public static void setIntegratingToAbandoned(PatchSet.Id patchSetId, IdentifiedUser user,
+      ReviewDb db) throws OrmException {
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate =
+      getUpdateToState(Change.Status.INTEGRATING, Change.Status.ABANDONED);
+    Change change = db.changes().atomicUpdate(changeId, atomicUpdate);
+    new ApprovalsUtil(db).syncChangeStatus(change);
+  }
+
+  /**
+   * Reset the staging branch. This method should be called if some change
+   * is removed from staging branch. For example, this method is called after
+   * abandoning a change.
+   *
+   * @param branch Destination branch. E.g. refs/heads/master
+   * @param user User taking this action.
+   * @param db Review database.
+   * @param git Git repository.
+   * @param mergeFactory Merge operator factory.
+   * @param merger Merge queue.
+   * @param ChangeHookRunner Hooks runner. Ref update will be send as part
+   *        the rebuild.
+   * @throws OrmException Thrown, if review database cannot be accessed.
+   * @throws IOException Thrown, if Git repository cannot be accessed.
+   * @throws NoSuchRefException Thrown, if destination branch is not available.
+   */
+  public static void rebuildStaging(Branch.NameKey branch, IdentifiedUser user,
+      ReviewDb db, Repository git, MergeQueue merger, ChangeHooks hooks)
+      throws OrmException, IOException, NoSuchRefException {
+    final Branch.NameKey stagingBranch = StagingUtil.getStagingBranch(branch);
+
+    // Start staging branch from scratch.
+    Ref ref = git.getRef(stagingBranch.get());
+    ObjectId oldTip = null;
+    if (ref != null) {
+      oldTip = ref.getObjectId();
+    }
+    StagingUtil.createStagingBranch(git, branch);
+    ObjectId newTip = git.getRef(branch.get()).getObjectId();
+    // If tips match, there was nothing in staging branch so no need to rebuild
+    if (newTip.equals(oldTip)) {
+      return;
+    }
+    hooks.doRefUpdatedHook(stagingBranch, oldTip, newTip, user.getAccount());
+
+    // Loop through all changes with status STAGED.
+    List<Change> staged = db.changes().staged(branch).toList();
+    for (Change change : staged) {
+      final PatchSet.Id currentPatchSet = change.currentPatchSetId();
+      final Change.Id changeId = currentPatchSet.getParentKey();
+
+      // Reset status to STAGING.
+      AtomicUpdate<Change> atomicUpdate =
+        getUpdateToState(Change.Status.STAGED, Change.Status.STAGING);
+      db.changes().atomicUpdate(changeId, atomicUpdate);
+    }
+
+    // Merge all changes.
+    merger.merge(stagingBranch);
+  }
+
+  public static void setIntegrating(PatchSet.Id patchSetId, ReviewDb db)
+      throws OrmException {
+    final Change.Id changeId = patchSetId.getParentKey();
+    AtomicUpdate<Change> atomicUpdate = getUpdateToState(Change.Status.STAGED,
+        Change.Status.INTEGRATING);
+    db.changes().atomicUpdate(changeId, atomicUpdate);
+  }
+
+  private static AtomicUpdate<Change> getUpdateToState(final Change.Status from,
+      final Change.Status to) {
+    return new AtomicUpdate<Change>() {
+      @Override
+      public Change update(Change change) {
+        if (change.getStatus() == from) {
+          change.setStatus(to);
+          ChangeUtil.updated(change);
+        }
+        return change;
+      }
+    };
   }
 
   public static PatchSet.Id nextPatchSetId(Map<String, Ref> allRefs,

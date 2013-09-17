@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -125,16 +126,18 @@ public class ChangeDetailFactory extends Handler<ChangeDetail> {
     detail.setChange(change);
     detail.setAllowsAnonymous(control.forUser(anonymousUser).isVisible(db));
 
-    detail.setCanAbandon(change.getStatus() != Change.Status.DRAFT && change.getStatus().isOpen() && control.canAbandon());
+    detail.setCanAbandon(change.getStatus() != Change.Status.DRAFT
+        && change.getStatus().isOpen()
+        && control.canAbandon());
     detail.setCanPublish(control.canPublish(db));
     detail.setCanRestore(change.getStatus() == Change.Status.ABANDONED
         && control.canRestore()
         && ProjectUtil.branchExists(repoManager, change.getDest()));
     detail.setCanDeleteDraft(control.canDeleteDraft(db));
-    detail.setStarred(control.getCurrentUser().getStarredChanges().contains(
-        changeId));
+    detail.setStarred(control.getCurrentUser().getStarredChanges().contains(changeId));
 
-    detail.setCanRevert(change.getStatus() == Change.Status.MERGED && control.canAddPatchSet());
+    detail.setCanRevert(change.getStatus() == Change.Status.MERGED
+        && control.canAddPatchSet());
 
     detail.setCanEdit(control.getRefControl().canWrite());
     detail.setCanEditCommitMessage(change.getStatus().isOpen() && control.canAddPatchSet());
@@ -149,14 +152,22 @@ public class ChangeDetailFactory extends Handler<ChangeDetail> {
       }
       if (detail.getChange().getStatus().isOpen()
           && rec.status == SubmitRecord.Status.OK
-          && control.getRefControl().canSubmit()
           && ProjectUtil.branchExists(repoManager, change.getDest())) {
-        detail.setCanSubmit(true);
+        if (control.getRefControl().canSubmit()) {
+          detail.setCanSubmit(true);
+        }
+        if (control.getRefControl().canStage()) {
+          detail.setCanStage(true);
+        }
       }
     }
     detail.setSubmitRecords(submitRecords);
 
     detail.setSubmitTypeRecord(control.getSubmitTypeRecord(db, patch));
+
+    detail.setCanUnstage((change.getStatus() == Change.Status.STAGED
+        || change.getStatus() == Change.Status.STAGING)
+        && control.canUnstage());
 
     patchsetsById = new HashMap<PatchSet.Id, PatchSet>();
     loadPatchSets();

@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +35,7 @@ import com.google.gerrit.server.change.ChangeResource;
 import com.google.gerrit.server.change.PostReview;
 import com.google.gerrit.server.change.Restore;
 import com.google.gerrit.server.change.RevisionResource;
+import com.google.gerrit.server.change.Stage;
 import com.google.gerrit.server.change.Submit;
 import com.google.gerrit.server.changedetail.DeleteDraftPatchSet;
 import com.google.gerrit.server.changedetail.PublishDraft;
@@ -105,6 +107,9 @@ public class ReviewCommand extends SshCommand {
   @Option(name = "--submit", aliases = "-s", usage = "submit the specified patch set(s)")
   private boolean submitChange;
 
+  @Option(name = "--stage", aliases = "-t", usage = "merge patch set to staging")
+  private boolean stageChange;
+
   @Option(name = "--force-message", usage = "publish the message, "
       + "even if the label score cannot be applied due to the change being closed")
   private boolean forceMessage = false;
@@ -161,6 +166,9 @@ public class ReviewCommand extends SshCommand {
   @Inject
   private Provider<Submit> submitProvider;
 
+  @Inject
+  private Provider<Stage> stageProvider;
+
   private List<ApproveOption> optionList;
   private Map<String, Short> customLabels;
 
@@ -179,6 +187,9 @@ public class ReviewCommand extends SshCommand {
       if (deleteDraftPatchSet) {
         throw error("abandon and delete actions are mutually exclusive");
       }
+      if (stageChange) {
+        throw error("abandon and stage actions are mutually exclusive");
+      }
     }
     if (publishPatchSet) {
       if (restoreChange) {
@@ -187,8 +198,16 @@ public class ReviewCommand extends SshCommand {
       if (submitChange) {
         throw error("publish and submit actions are mutually exclusive");
       }
+      if (stageChange) {
+        throw error("publish and stage actions are mutually exclusive");
+      }
       if (deleteDraftPatchSet) {
         throw error("publish and delete actions are mutually exclusive");
+      }
+    }
+    if (submitChange) {
+      if (stageChange) {
+        throw error("submit and stage actions are mutually exclusive");
       }
     }
 
@@ -251,6 +270,7 @@ public class ReviewCommand extends SshCommand {
     try {
       ChangeControl ctl =
           changeControlFactory.controlFor(patchSet.getId().getParentKey());
+      review.changeReviewable = !ctl.getChange().getStatus().isCI();
 
       if (abandonChange) {
         final Abandon abandon = abandonProvider.get();
@@ -285,6 +305,14 @@ public class ReviewCommand extends SshCommand {
         Submit.Input input = new Submit.Input();
         input.waitForMerge = true;
         submit.apply(new RevisionResource(
+            new ChangeResource(ctl), patchSet),
+          input);
+      }
+      if (stageChange) {
+        Stage stage = stageProvider.get();
+        Stage.Input input = new Stage.Input();
+        input.waitForMerge = true;
+        stage.apply(new RevisionResource(
             new ChangeResource(ctl), patchSet),
           input);
       }

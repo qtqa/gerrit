@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +46,7 @@ import org.eclipse.jgit.lib.ObjectInserter;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.merge.MergeStrategy;
+import org.eclipse.jgit.merge.ResolveMerger;
 import org.eclipse.jgit.merge.ThreeWayMerger;
 import org.eclipse.jgit.revwalk.FooterKey;
 import org.eclipse.jgit.revwalk.FooterLine;
@@ -157,7 +159,13 @@ public class MergeUtil {
   }
 
   public PatchSetApproval getSubmitter(final PatchSet.Id c) {
-    return getSubmitter(db.get(), c);
+    // Assumes that if submit approval is found we can't be in staging...
+    PatchSetApproval psa = getSubmitter(db.get(), c);
+    if (psa == null) {
+      // ...and if not found we may have staging ongoing.
+      psa = getStager(db.get(), c);
+    }
+    return psa;
   }
 
   public static PatchSetApproval getSubmitter(final ReviewDb reviewDb,
@@ -171,6 +179,28 @@ public class MergeUtil {
           reviewDb.patchSetApprovals().byPatchSet(c).toList();
       for (PatchSetApproval a : approvals) {
         if (a.getValue() > 0 && a.isSubmit()) {
+          if (submitter == null
+              || a.getGranted().compareTo(submitter.getGranted()) > 0) {
+            submitter = a;
+          }
+        }
+      }
+    } catch (OrmException e) {
+    }
+    return submitter;
+  }
+
+  public static PatchSetApproval getStager(final ReviewDb reviewDb,
+      final PatchSet.Id c) {
+    if (c == null) {
+      return null;
+    }
+    PatchSetApproval submitter = null;
+    try {
+      final List<PatchSetApproval> approvals =
+          reviewDb.patchSetApprovals().byPatchSet(c).toList();
+      for (PatchSetApproval a : approvals) {
+        if (a.getValue() > 0 && a.isStaged()) {
           if (submitter == null
               || a.getGranted().compareTo(submitter.getGranted()) > 0) {
             submitter = a;
@@ -262,6 +292,10 @@ public class MergeUtil {
             || a.getGranted().compareTo(submitAudit.getGranted()) > 0) {
           submitAudit = a;
         }
+        continue;
+      }
+
+      if (a.isStaged()) {
         continue;
       }
 
@@ -531,6 +565,9 @@ public class MergeUtil {
             mergeTip, m.getResultTreeId(), n);
       } else {
         failed(rw, canMergeFlag, mergeTip, n, CommitMergeStatus.PATH_CONFLICT);
+        if (m instanceof ResolveMerger) {
+           n.mergeResults = ((ResolveMerger) m).getMergeResults();
+        }
       }
     } catch (NoMergeBaseException e) {
       try {
