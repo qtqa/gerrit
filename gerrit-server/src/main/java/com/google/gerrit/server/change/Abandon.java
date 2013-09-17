@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +22,7 @@ import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.extensions.restapi.DefaultInput;
 import com.google.gerrit.extensions.restapi.ResourceConflictException;
 import com.google.gerrit.extensions.restapi.RestModifyView;
+import com.google.gerrit.reviewdb.client.Branch;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gerrit.reviewdb.client.ChangeMessage;
 import com.google.gerrit.reviewdb.server.ReviewDb;
@@ -28,14 +30,18 @@ import com.google.gerrit.server.ApprovalsUtil;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.change.Abandon.Input;
+import com.google.gerrit.server.git.GitRepositoryManager;
+import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.mail.AbandonedSender;
 import com.google.gerrit.server.mail.ReplyToChangeSender;
 import com.google.gerrit.server.project.ChangeControl;
+import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gwtorm.server.AtomicUpdate;
 import com.google.gwtorm.server.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 
+import org.eclipse.jgit.lib.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +53,8 @@ public class Abandon implements RestModifyView<ChangeResource, Input> {
   private final ChangeHooks hooks;
   private final AbandonedSender.Factory abandonedSenderFactory;
   private final Provider<ReviewDb> dbProvider;
+  private final GitRepositoryManager repoManager;
+  private final MergeQueue mergeQueue;
   private final ChangeJson json;
 
   public static class Input {
@@ -58,11 +66,15 @@ public class Abandon implements RestModifyView<ChangeResource, Input> {
   Abandon(ChangeHooks hooks,
       AbandonedSender.Factory abandonedSenderFactory,
       Provider<ReviewDb> dbProvider,
-      ChangeJson json) {
+      ChangeJson json,
+      GitRepositoryManager repoManager,
+      MergeQueue mergeQueue) {
     this.hooks = hooks;
     this.abandonedSenderFactory = abandonedSenderFactory;
     this.dbProvider = dbProvider;
     this.json = json;
+    this.repoManager = repoManager;
+    this.mergeQueue = mergeQueue;
   }
 
   @Override
@@ -77,6 +89,8 @@ public class Abandon implements RestModifyView<ChangeResource, Input> {
     } else if (!change.getStatus().isOpen()) {
       throw new ResourceConflictException("change is " + status(change));
     }
+
+    boolean needStagingBranchRebuild = change.getStatus().equals(Change.Status.STAGED);
 
     ChangeMessage message;
     ReviewDb db = dbProvider.get();
@@ -101,10 +115,35 @@ public class Abandon implements RestModifyView<ChangeResource, Input> {
       }
       message = newMessage(input, caller, change);
       db.changeMessages().insert(Collections.singleton(message));
+      if (needStagingBranchRebuild) {
+        // Removed from staging branch so removing also the latest
+        // dependency information
+        db.patchSetAncestors().delete(db.patchSetAncestors()
+            .byPatchSet(change.currentPatchSetId()));
+      }
+
       new ApprovalsUtil(db).syncChangeStatus(change);
       db.commit();
     } finally {
       db.rollback();
+    }
+
+    if (needStagingBranchRebuild) {
+      // Rebuild staging branch.
+      Repository git = null;
+      try {
+        final Branch.NameKey branch = change.getDest();
+        git = repoManager.openRepository(control.getProject().getNameKey());
+        ChangeUtil.rebuildStaging(branch, caller, db, git, mergeQueue, hooks);
+      } catch (NoSuchRefException e) {
+        throw new IllegalStateException(e.getMessage());
+      } finally {
+        // Make sure that access to Git repository is closed.
+        if (git != null) {
+          git.close();
+        }
+      }
+
     }
 
     try {

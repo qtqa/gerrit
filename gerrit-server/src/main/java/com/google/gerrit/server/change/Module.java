@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,6 +54,8 @@ public class Module extends RestApiModule {
     post(CHANGE_KIND, "restore").to(Restore.class);
     post(CHANGE_KIND, "revert").to(Revert.class);
     post(CHANGE_KIND, "submit").to(Submit.CurrentRevision.class);
+    post(CHANGE_KIND, "stage").to(Stage.CurrentRevision.class);
+    post(CHANGE_KIND, "unstage").to(Unstage.CurrentRevision.class);
 
     post(CHANGE_KIND, "reviewers").to(PostReviewers.class);
     child(CHANGE_KIND, "reviewers").to(Reviewers.class);
@@ -66,6 +69,8 @@ public class Module extends RestApiModule {
     get(REVISION_KIND, "submit_type").to(TestSubmitType.Get.class);
     post(REVISION_KIND, "test.submit_rule").to(TestSubmitRule.class);
     post(REVISION_KIND, "test.submit_type").to(TestSubmitType.class);
+    post(REVISION_KIND, "stage").to(Stage.class);
+    post(REVISION_KIND, "unstage").to(Unstage.class);
 
     child(REVISION_KIND, "drafts").to(Drafts.class);
     put(REVISION_KIND, "drafts").to(CreateDraft.class);

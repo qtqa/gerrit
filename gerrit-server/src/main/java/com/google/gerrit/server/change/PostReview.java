@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -424,7 +425,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
     Map<String, PatchSetApproval> current = Maps.newHashMap();
     for (PatchSetApproval a : db.patchSetApprovals().byPatchSetUser(
           rsrc.getPatchSet().getId(), rsrc.getAccountId())) {
-      if (a.isSubmit()) {
+      if (a.isSubmit() || a.isStaged()) {
         continue;
       }
 

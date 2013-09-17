@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +41,11 @@ public class MasterCommandModule extends CommandModule {
     alias(gerrit, "approve", ReviewCommand.class);
     command(gerrit, SetAccountCommand.class);
     command(gerrit, SetProjectCommand.class);
+    // staging commands
+    command(gerrit, StagingNewBuild.class);
+    command(gerrit, StagingListChanges.class);
+    command(gerrit, StagingApprove.class);
+    command(gerrit, StagingRebuild.class);
 
     command(gerrit, "test-submit").toProvider(new DispatchCommandProvider(testSubmit));
     command(testSubmit, TestSubmitRuleCommand.class);
