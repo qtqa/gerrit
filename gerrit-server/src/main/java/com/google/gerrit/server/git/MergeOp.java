@@ -24,6 +24,7 @@ import com.google.common.base.Objects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gerrit.common.ChangeHooks;
 import com.google.gerrit.common.data.Capable;
@@ -138,6 +139,7 @@ public class MergeOp {
   private final ListMultimap<SubmitType, CodeReviewCommit> toMerge;
   private final List<CodeReviewCommit> potentiallyStillSubmittable;
   private final Map<Change.Id, CodeReviewCommit> commits;
+  private final List<Change> toUpdate;
   private ReviewDb db;
   private Repository repo;
   private RevWalk rw;
@@ -194,6 +196,7 @@ public class MergeOp {
     toMerge = ArrayListMultimap.create();
     potentiallyStillSubmittable = new ArrayList<CodeReviewCommit>();
     commits = new HashMap<Change.Id, CodeReviewCommit>();
+    toUpdate = Lists.newArrayList();
   }
 
   public void verifyMergeability(Change change) throws NoSuchProjectException {
@@ -315,6 +318,8 @@ public class MergeOp {
         toMerge.clear();
         toMerge.putAll(toMergeNextTurn);
       }
+
+      updateChangeStatus(toUpdate);
 
       for (final CodeReviewCommit commit : potentiallyStillSubmittableOnNextRun) {
         final Capable capable = isSubmitStillPossible(commit);
@@ -487,6 +492,7 @@ public class MergeOp {
       if (chg.currentPatchSetId() == null) {
         commits.put(changeId, CodeReviewCommit
             .error(CommitMergeStatus.NO_PATCH_SET));
+        toUpdate.add(chg);
         continue;
       }
 
@@ -500,6 +506,7 @@ public class MergeOp {
           || ps.getRevision().get() == null) {
         commits.put(changeId, CodeReviewCommit
             .error(CommitMergeStatus.NO_PATCH_SET));
+        toUpdate.add(chg);
         continue;
       }
 
@@ -510,6 +517,7 @@ public class MergeOp {
       } catch (IllegalArgumentException iae) {
         commits.put(changeId, CodeReviewCommit
             .error(CommitMergeStatus.NO_PATCH_SET));
+        toUpdate.add(chg);
         continue;
       }
 
@@ -525,6 +533,7 @@ public class MergeOp {
         //
         commits.put(changeId, CodeReviewCommit
             .error(CommitMergeStatus.REVISION_GONE));
+        toUpdate.add(chg);
         continue;
       }
 
@@ -535,6 +544,7 @@ public class MergeOp {
         log.error("Invalid commit " + id.name() + " on " + chg.getKey(), e);
         commits.put(changeId, CodeReviewCommit
             .error(CommitMergeStatus.REVISION_GONE));
+        toUpdate.add(chg);
         continue;
       }
 
@@ -548,6 +558,7 @@ public class MergeOp {
         } catch (Exception e) {
           commits.put(changeId, CodeReviewCommit
               .error(CommitMergeStatus.INVALID_PROJECT_CONFIGURATION));
+          toUpdate.add(chg);
           continue;
         }
         final Project.NameKey oldParent =
@@ -557,6 +568,7 @@ public class MergeOp {
           if (newParent != null) {
             commits.put(changeId, CodeReviewCommit
                 .error(CommitMergeStatus.INVALID_PROJECT_CONFIGURATION_ROOT_PROJECT_CANNOT_HAVE_PARENT));
+            toUpdate.add(chg);
             continue;
           }
         } else {
@@ -565,6 +577,7 @@ public class MergeOp {
             if (psa == null) {
               commits.put(changeId, CodeReviewCommit
                   .error(CommitMergeStatus.SETTING_PARENT_PROJECT_ONLY_ALLOWED_BY_ADMIN));
+              toUpdate.add(chg);
               continue;
             }
             final IdentifiedUser submitter =
@@ -572,12 +585,14 @@ public class MergeOp {
             if (!submitter.getCapabilities().canAdministrateServer()) {
               commits.put(changeId, CodeReviewCommit
                   .error(CommitMergeStatus.SETTING_PARENT_PROJECT_ONLY_ALLOWED_BY_ADMIN));
+              toUpdate.add(chg);
               continue;
             }
 
             if (projectCache.get(newParent) == null) {
               commits.put(changeId, CodeReviewCommit
                   .error(CommitMergeStatus.INVALID_PROJECT_CONFIGURATION_PARENT_PROJECT_NOT_FOUND));
+              toUpdate.add(chg);
               continue;
             }
           }
@@ -613,6 +628,7 @@ public class MergeOp {
       if (submitType == null) {
         commits.put(changeId,
             CodeReviewCommit.error(CommitMergeStatus.NO_SUBMIT_TYPE));
+        toUpdate.add(chg);
         continue;
       }
 
