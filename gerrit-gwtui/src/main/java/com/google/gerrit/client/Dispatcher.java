@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,7 +72,9 @@ import com.google.gerrit.client.dashboards.DashboardInfo;
 import com.google.gerrit.client.dashboards.DashboardList;
 import com.google.gerrit.client.groups.GroupApi;
 import com.google.gerrit.client.groups.GroupInfo;
+import com.google.gerrit.client.patches.AllInOnePatchScreen;
 import com.google.gerrit.client.patches.PatchScreen;
+import com.google.gerrit.client.patches.AbstractPatchScreen;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.rpc.RestApi;
 import com.google.gerrit.client.ui.Screen;
@@ -90,6 +93,16 @@ import com.google.gwt.user.client.Window;
 import com.google.gwtorm.client.KeyUtil;
 
 public class Dispatcher {
+  public static String toPatchAll(final AbstractPatchScreen.Type type,
+      final PatchSet.Id diffBase, final PatchSetDetail detail) {
+    Patch.Key id = new Patch.Key(detail.getPatchSet().getId(), Patch.ALL);
+    if (type == AbstractPatchScreen.Type.SIDE_BY_SIDE) {
+      return toPatchSideBySide(diffBase, id);
+    } else {
+      return toPatchUnified(diffBase, id);
+    }
+  }
+
   public static String toPatchSideBySide(final Patch.Key id) {
     return toPatch("", null, id);
   }
@@ -330,6 +343,15 @@ public class Dispatcher {
       return toPatchUnified(Patch.Key.parse(skip(token)));
     }
 
+    if (/* LEGACY URL */matchPrefix("patch,all_sidebyside,", token)) {
+      token += "," + Patch.ALL;
+      return toPatchSideBySide(Patch.Key.parse(skip(token)));
+    }
+    if (/* LEGACY URL */matchPrefix("patch,all_unified,", token)) {
+      token += "," + Patch.ALL;
+      return toPatchUnified(Patch.Key.parse(skip(token)));
+    }
+
     return null;
   }
 
@@ -518,7 +540,7 @@ public class Dispatcher {
 
   public static void patch(String token, PatchSet.Id base, Patch.Key id,
       int patchIndex, PatchSetDetail patchSetDetail,
-      PatchTable patchTable, PatchScreen.TopView topView) {
+      PatchTable patchTable, AbstractPatchScreen.TopView topView) {
     patch(token, base, id, patchIndex, patchSetDetail, patchTable, topView, null);
   }
 
@@ -531,7 +553,7 @@ public class Dispatcher {
 
   public static void patch(String token, final PatchSet.Id baseId, final Patch.Key id,
       final int patchIndex, final PatchSetDetail patchSetDetail,
-      final PatchTable patchTable, final PatchScreen.TopView topView,
+      final PatchTable patchTable, final AbstractPatchScreen.TopView topView,
       final String panelType) {
     final PatchScreen.TopView top =  topView == null ?
         Gerrit.getPatchScreenTopView() : topView;
@@ -550,23 +572,47 @@ public class Dispatcher {
           }
 
           if ("".equals(panel)) {
-            return new PatchScreen.SideBySide( //
-                id, //
-                patchIndex, //
-                patchSetDetail, //
-                patchTable, //
-                top, //
-                baseId //
-            );
+            if (!id.get().equals(Patch.ALL)) {
+              return new PatchScreen.SideBySide( //
+                  id, //
+                  patchIndex, //
+                  patchSetDetail, //
+                  patchTable, //
+                  top, //
+                  baseId //
+              );
+            }
+            else {
+              return new AllInOnePatchScreen(
+                  id,
+                  patchSetDetail,
+                  patchTable,
+                  top,
+                  baseId,
+                  AbstractPatchScreen.Type.SIDE_BY_SIDE
+              );
+            }
           } else if ("unified".equals(panel)) {
-            return new PatchScreen.Unified( //
-                id, //
-                patchIndex, //
-                patchSetDetail, //
-                patchTable, //
-                top, //
-                baseId //
-            );
+            if (!id.get().equals(Patch.ALL)) {
+              return new PatchScreen.Unified( //
+                  id, //
+                  patchIndex, //
+                  patchSetDetail, //
+                  patchTable, //
+                  top, //
+                  baseId //
+              );
+            }
+            else {
+              return new AllInOnePatchScreen(
+                  id,
+                  patchSetDetail,
+                  patchTable,
+                  top,
+                  baseId,
+                  AbstractPatchScreen.Type.UNIFIED
+              );
+            }
           }
         }
 
