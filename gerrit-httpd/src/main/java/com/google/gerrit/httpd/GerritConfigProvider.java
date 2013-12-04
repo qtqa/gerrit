@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,6 +106,7 @@ class GerritConfigProvider implements Provider<GerritConfig> {
     config.setGitDaemonUrl(cfg.getString("gerrit", null, "canonicalgiturl"));
     config.setGitHttpUrl(cfg.getString("gerrit", null, "gitHttpUrl"));
     config.setHideRebase(cfg.getBoolean("gerrit", "hiderebase", false));
+    config.setUseOnePageReview(cfg.getBoolean("gerrit", "onepagereview", false));
     config.setUseContactInfo(contactStore != null && contactStore.isEnabled());
     config.setDownloadSchemes(downloadConfig.getDownloadSchemes());
     config.setDownloadCommands(downloadConfig.getDownloadCommands());

@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +24,8 @@ import com.google.gerrit.client.account.AccountInfo;
 import com.google.gerrit.client.admin.ProjectScreen;
 import com.google.gerrit.client.changes.ChangeConstants;
 import com.google.gerrit.client.changes.ChangeListScreen;
+import com.google.gerrit.client.patches.AbstractPatchScreen;
+import com.google.gerrit.client.patches.AllInOnePatchScreen;
 import com.google.gerrit.client.patches.PatchScreen;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.ui.LinkMenuBar;
@@ -114,7 +117,7 @@ public class Gerrit implements EntryPoint {
   private static SearchPanel searchPanel;
   private static final Dispatcher dispatcher = new Dispatcher();
   private static ViewSite<Screen> body;
-  private static PatchScreen patchScreen;
+  private static AbstractPatchScreen patchScreen;
   private static String lastChangeListToken;
 
   static {
@@ -188,8 +191,9 @@ public class Gerrit implements EntryPoint {
    * @param view the loaded view.
    */
   public static void updateMenus(Screen view) {
-    if (view instanceof PatchScreen) {
-      patchScreen = (PatchScreen) view;
+    if ((view instanceof PatchScreen)
+        || (view instanceof AllInOnePatchScreen)) {
+      patchScreen = (AbstractPatchScreen) view;
       menuLeft.setVisible(diffBar, true);
       menuLeft.selectTab(menuLeft.getWidgetIndex(diffBar));
     } else {
@@ -868,7 +872,7 @@ public class Gerrit implements EntryPoint {
   }
 
   private static void addDiffLink(final LinkMenuBar m, final String text,
-      final PatchScreen.Type type) {
+      final AbstractPatchScreen.Type type) {
     m.addItem(new LinkMenuItem(text, "") {
         @Override
         public void go() {
