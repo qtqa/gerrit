@@ -17,33 +17,63 @@ package com.google.gerrit.client.patches;
 import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.ErrorDialog;
 import com.google.gerrit.client.Gerrit;
+import com.google.gerrit.client.changes.ChangeApi;
+import com.google.gerrit.client.changes.ChangeInfo;
+import com.google.gerrit.client.changes.ChangeScreen;
 import com.google.gerrit.client.changes.PatchTable;
+import com.google.gerrit.client.changes.ChangeInfo.ApprovalInfo;
+import com.google.gerrit.client.changes.ChangeInfo.LabelInfo;
+import com.google.gerrit.client.changes.SubmitFailureDialog;
+import com.google.gerrit.client.changes.SubmitInfo;
 import com.google.gerrit.client.changes.Util;
 import com.google.gerrit.client.patches.AbstractPatchContentTable.CommentList;
 import com.google.gerrit.client.projects.ConfigInfoCache;
 import com.google.gerrit.client.rpc.CallbackGroup;
 import com.google.gerrit.client.rpc.GerritCallback;
+import com.google.gerrit.client.rpc.Natives;
+import com.google.gerrit.client.rpc.RestApi;
+import com.google.gerrit.client.rpc.ScreenLoadCallback;
 import com.google.gerrit.client.ui.ContentTableKeyNavigation;
 import com.google.gerrit.client.ui.Diff;
+import com.google.gerrit.client.ui.SmallHeading;
+import com.google.gerrit.common.PageLinks;
 import com.google.gerrit.common.data.PatchScript;
 import com.google.gerrit.common.data.PatchSetDetail;
+import com.google.gerrit.common.data.PatchSetPublishDetail;
 import com.google.gerrit.reviewdb.client.AccountDiffPreference;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gerrit.reviewdb.client.Patch;
 import com.google.gerrit.reviewdb.client.PatchSet;
 import com.google.gerrit.reviewdb.client.PatchSet.Id;
+import com.google.gwt.core.client.JavaScriptObject;
+import com.google.gwt.core.client.JsArrayString;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyPressEvent;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
+import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.FlowPanel;
+import com.google.gwt.user.client.ui.FormPanel;
+import com.google.gwt.user.client.ui.Panel;
+import com.google.gwt.user.client.ui.RadioButton;
+import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.user.client.ui.FormPanel.SubmitEvent;
 import com.google.gwtexpui.globalkey.client.KeyCommand;
+import com.google.gwtexpui.globalkey.client.NpTextArea;
+import com.google.gwtexpui.safehtml.client.SafeHtml;
+import com.google.gwtexpui.safehtml.client.SafeHtmlBuilder;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AllInOnePatchScreen extends AbstractPatchScreen implements
-    Diff.Delegate {
+    Diff.Delegate, ClickHandler {
 
 
   private class KeyNavigation extends ContentTableKeyNavigation {
@@ -206,10 +236,21 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
 
   private boolean intralineFailure;
   private FlowPanel files;
+  private Panel approvalPanel;
+  private static SavedState lastState;
+  private String revision;
+  private Collection<ValueRadioButton> approvalButtons;
+  private NpTextArea message;
+  private Button send;
+  private Button submit;
+  private Button cancel;
+  boolean saveStateOnUnload = false;
   private KeyNavigation keyNavigation;
   private List<Diff> diffs;
   private Diff.Factory diffFactory;
   private Id id;
+
+  ChangeInfo change;
 
   public AllInOnePatchScreen(final Patch.Key id,
       final PatchSetDetail detail, final PatchTable patchTable,
@@ -281,9 +322,9 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     keyNavigation.clear();
     loadDiffs();
 
-    CallbackGroup cb = new CallbackGroup();
+    CallbackGroup cbs = new CallbackGroup();
     ConfigInfoCache.get(patchSetDetail.getProject(),
-        cb.add(new AsyncCallback<ConfigInfoCache.Entry>() {
+        cbs.add(new AsyncCallback<ConfigInfoCache.Entry>() {
           @Override
           public void onSuccess(ConfigInfoCache.Entry result) {
             commentLinkProcessor = result.getCommentLinkProcessor();
@@ -300,6 +341,33 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
             // Handled by ScreenLoadCallback.onFailure.
           }
         }));
+
+    if (Gerrit.isSignedIn()) {
+      Util.DETAIL_SVC.patchSetPublishDetail(getPatchId(), cbs.addGwtjsonrpc(
+          new ScreenLoadCallback<PatchSetPublishDetail>(this) {
+            @Override
+            protected void preDisplay(final PatchSetPublishDetail result) {
+              send.setEnabled(true);
+              if (result.getChange().getStatus().isOpen()) {
+                initApprovals(approvalPanel);
+              }
+              if (lastState != null && getPatchId().equals(lastState.patchSetId)) {
+                message.setText(lastState.message);
+              }
+              revision = result.getPatchSetInfo().getRevId();
+
+              submit.setVisible(result.canSubmit());
+              if (Gerrit.getConfig().testChangeMerge()) {
+                submit.setEnabled(result.getChange().isMergeable());
+              }
+            }
+
+            @Override
+            protected void postDisplay() {
+              message.setFocus(true);
+            }
+          }));
+    }
 
     updateHistory(patchKey);
   }
@@ -377,10 +445,26 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
 
   private void loadFileList() {
     if (patchSetDetail == null) {
-      Util.DETAIL_SVC.patchSetDetail(getPatchId(),
-          new GerritCallback<PatchSetDetail>() {
+      CallbackGroup cbs = new CallbackGroup();
+      ChangeApi.revision(getPatchId()).view("review")
+          .get(cbs.add(new AsyncCallback<ChangeInfo>() {
             @Override
-            public void onSuccess(PatchSetDetail result) {
+            public void onSuccess(ChangeInfo result) {
+              result.init();
+              setChange(result);
+            }
+
+            @Override
+            public void onFailure(Throwable caught) {
+              // Handled by ScreenLoadCallback.onFailure().
+            }
+          }));
+
+      Util.DETAIL_SVC.patchSetDetail(getPatchId(), cbs.addGwtjsonrpc(
+          new ScreenLoadCallback<PatchSetDetail>(this) {
+
+            @Override
+            protected void preDisplay(PatchSetDetail result) {
               patchSetDetail = result;
 
               if (fileList == null) {
@@ -395,7 +479,8 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
               }
               refresh(true);
             }
-          });
+          }));
+
     } else {
       refresh(true);
     }
@@ -438,6 +523,10 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
         });
   }
 
+  void setChange(ChangeInfo result) {
+    change = result;
+  }
+
   @Override
   protected void onInitUI() {
     super.onInitUI();
@@ -452,6 +541,42 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     add(topNav);
     add(contentPanel);
     add(bottomNav);
+
+    if (Gerrit.isSignedIn()) {
+      saveStateOnUnload = true;
+      approvalButtons = new ArrayList<ValueRadioButton>();
+
+      final FormPanel form = new FormPanel();
+      final FlowPanel body = new FlowPanel();
+      form.setWidget(body);
+      form.addSubmitHandler(new FormPanel.SubmitHandler() {
+        @Override
+        public void onSubmit(final SubmitEvent event) {
+          event.cancel();
+        }
+      });
+      add(form);
+
+      approvalPanel = new FlowPanel();
+      body.add(approvalPanel);
+      initMessage(body);
+
+      final FlowPanel buttonRow = new FlowPanel();
+      buttonRow.setStyleName(Gerrit.RESOURCES.css().patchSetActions());
+      body.add(buttonRow);
+
+      send = new Button(Util.C.buttonPublishCommentsSend());
+      send.addClickHandler(this);
+      buttonRow.add(send);
+
+      submit = new Button(Util.C.buttonPublishSubmitSend());
+      submit.addClickHandler(this);
+      buttonRow.add(submit);
+
+      cancel = new Button(Util.C.buttonPublishCommentsCancel());
+      cancel.addClickHandler(this);
+      buttonRow.add(cancel);
+    }
 
     keyNavigation.initializeKeys();
   }
@@ -472,6 +597,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   protected void onUnload() {
     super.onUnload();
     keyNavigation.setRegisterKeys(false);
+    lastState = saveStateOnUnload ? new SavedState(this) : null;
   }
 
   protected void update(AccountDiffPreference dp) {
@@ -481,6 +607,214 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   void setReviewedByCurrentUser(boolean reviewed) {
     if (fileList != null) {
       fileList.updateReviewedStatus(patchKey, reviewed);
+    }
+  }
+
+  private void initMessage(final Panel body) {
+    body.add(new SmallHeading(Util.C.headingCoverMessage()));
+
+    final VerticalPanel mwrap = new VerticalPanel();
+    mwrap.setStyleName(Gerrit.RESOURCES.css().coverMessage());
+    body.add(mwrap);
+
+    message = new NpTextArea();
+    message.setCharacterWidth(60);
+    message.setVisibleLines(10);
+    message.setSpellCheck(true);
+    mwrap.add(message);
+  }
+
+  private void initApprovals(Panel body) {
+    for (String labelName : change.labels()) {
+      initLabel(labelName, body);
+    }
+  }
+
+  private void initLabel(String labelName, Panel body) {
+    if (!change.has_permitted_labels()) {
+      return;
+    }
+    JsArrayString nativeValues = change.permitted_values(labelName);
+    if (nativeValues == null || nativeValues.length() == 0) {
+      return;
+    }
+    List<String> values = new ArrayList<String>(nativeValues.length());
+    for (int i = 0; i < nativeValues.length(); i++) {
+      values.add(nativeValues.get(i));
+    }
+    Collections.reverse(values);
+    LabelInfo label = change.label(labelName);
+
+    body.add(new SmallHeading(label.name() + ":"));
+
+    VerticalPanel vp = new VerticalPanel();
+    vp.setStyleName(Gerrit.RESOURCES.css().labelList());
+
+    Short prior = null;
+    if (label.all() != null) {
+      for (ApprovalInfo app : Natives.asList(label.all())) {
+        if (app._account_id() == Gerrit.getUserAccount().getId().get()) {
+          prior = app.value();
+          break;
+        }
+      }
+    }
+
+    for (String value : values) {
+      ValueRadioButton b = new ValueRadioButton(label, value);
+      SafeHtml buf = new SafeHtmlBuilder().append(b.format());
+      buf = commentLinkProcessor.apply(buf);
+      SafeHtml.set(b, buf);
+
+      if (lastState != null && getPatchId().equals(lastState.patchSetId)
+          && lastState.approvals.containsKey(label.name())) {
+        b.setValue(lastState.approvals.get(label.name()) == value);
+      } else {
+        b.setValue(b.parseValue() == (prior != null ? prior : 0));
+      }
+
+      approvalButtons.add(b);
+      vp.add(b);
+    }
+    body.add(vp);
+  }
+
+  @Override
+  public void onClick(final ClickEvent event) {
+    final Widget sender = (Widget) event.getSource();
+    if (send == sender) {
+      onSend(false);
+    } else if (submit == sender) {
+      onSend(true);
+    } else if (cancel == sender) {
+      saveStateOnUnload = false;
+      goChange();
+    }
+  }
+
+  private void onSend(final boolean submit) {
+    ReviewInput data = ReviewInput.create();
+    data.message(ChangeApi.emptyToNull(message.getText().trim()));
+    data.init();
+    for (final ValueRadioButton b : approvalButtons) {
+      if (b.getValue()) {
+        data.label(b.label.name(), b.parseValue());
+      }
+    }
+
+    enableForm(false);
+    new RestApi("/changes/")
+      .id(String.valueOf(getPatchId().getParentKey().get()))
+      .view("revisions").id(revision).view("review")
+      .post(data, new GerritCallback<ReviewInput>() {
+          @Override
+          public void onSuccess(ReviewInput result) {
+            if (submit) {
+              submit();
+            } else {
+              saveStateOnUnload = false;
+              goChange();
+            }
+          }
+
+          @Override
+          public void onFailure(Throwable caught) {
+            super.onFailure(caught);
+            enableForm(true);
+          }
+        });
+  }
+
+  private static class ReviewInput extends JavaScriptObject {
+    static ReviewInput create() {
+      return (ReviewInput) createObject();
+    }
+
+    final native void message(String m) /*-{ if (m) this.message=m; }-*/;
+    final native void label(String n, short v) /*-{ this.labels[n]=v; }-*/;
+    final native void init() /*-{
+      this.labels = {};
+      this.strict_labels = true;
+      this.drafts = 'PUBLISH';
+    }-*/;
+
+    protected ReviewInput() {
+    }
+  }
+
+  private void submit() {
+    ChangeApi.submit(getPatchId().getParentKey().get(), revision,
+      new GerritCallback<SubmitInfo>() {
+          public void onSuccess(SubmitInfo result) {
+            saveStateOnUnload = false;
+            goChange();
+          }
+
+          @Override
+          public void onFailure(Throwable err) {
+            if (SubmitFailureDialog.isConflict(err)) {
+              new SubmitFailureDialog(err.getMessage()).center();
+            } else {
+              super.onFailure(err);
+            }
+            goChange();
+          }
+        });
+  }
+
+  private static class ValueRadioButton extends RadioButton {
+    final LabelInfo label;
+    final String value;
+
+    ValueRadioButton(LabelInfo label, String value) {
+      super(label.name());
+      this.label = label;
+      this.value = value;
+    }
+
+    String format() {
+      return new StringBuilder().append(value).append(' ')
+          .append(label.value_text(value)).toString();
+    }
+
+    short parseValue() {
+      String value = this.value;
+      if (value.startsWith(" ") || value.startsWith("+")) {
+        value = value.substring(1);
+      }
+      return Short.parseShort(value);
+    }
+  }
+
+  private void goChange() {
+    final Change.Id ck = getPatchId().getParentKey();
+    Gerrit.display(PageLinks.toChange(ck), new ChangeScreen(ck));
+  }
+
+  private void enableForm(final boolean enabled) {
+    for (final ValueRadioButton approvalButton : approvalButtons) {
+      approvalButton.setEnabled(enabled);
+    }
+    message.setEnabled(enabled);
+    send.setEnabled(enabled);
+    submit.setEnabled(enabled);
+    cancel.setEnabled(enabled);
+  }
+
+  private static class SavedState {
+    final PatchSet.Id patchSetId;
+    final String message;
+    final Map<String, String> approvals;
+
+    SavedState(final AllInOnePatchScreen p) {
+      patchSetId = p.getPatchId();
+      message = p.message.getText();
+      approvals = new HashMap<String, String>();
+      for (final ValueRadioButton b : p.approvalButtons) {
+        if (b.getValue()) {
+          approvals.put(b.label.name(), b.value);
+        }
+      }
     }
   }
 }

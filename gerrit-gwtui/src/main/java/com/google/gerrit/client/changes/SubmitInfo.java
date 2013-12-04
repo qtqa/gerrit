@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +18,7 @@ package com.google.gerrit.client.changes;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gwt.core.client.JavaScriptObject;
 
-class SubmitInfo extends JavaScriptObject {
+public class SubmitInfo extends JavaScriptObject {
   final Change.Status status() {
     return Change.Status.valueOf(statusRaw());
   }
