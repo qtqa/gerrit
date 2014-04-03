@@ -15,9 +15,9 @@
 
 package com.google.gerrit.client.changes;
 
-class StageFailureDialog extends ConflictErrorDialog {
+public class StageFailureDialog extends ConflictErrorDialog {
 
-  StageFailureDialog(String msg) {
+  public StageFailureDialog(String msg) {
     super(msg, Util.C.stageFailed());
   }
 }
