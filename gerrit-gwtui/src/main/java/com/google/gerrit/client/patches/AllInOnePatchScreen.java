@@ -23,6 +23,7 @@ import com.google.gerrit.client.changes.ChangeScreen;
 import com.google.gerrit.client.changes.PatchTable;
 import com.google.gerrit.client.changes.ChangeInfo.ApprovalInfo;
 import com.google.gerrit.client.changes.ChangeInfo.LabelInfo;
+import com.google.gerrit.client.changes.StageFailureDialog;
 import com.google.gerrit.client.changes.SubmitFailureDialog;
 import com.google.gerrit.client.changes.SubmitInfo;
 import com.google.gerrit.client.changes.Util;
@@ -234,6 +235,8 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     }
   }
 
+  private enum Action { NOOP, SUBMIT, STAGE };
+
   private boolean intralineFailure;
   private FlowPanel files;
   private Panel approvalPanel;
@@ -242,6 +245,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   private Collection<ValueRadioButton> approvalButtons;
   private NpTextArea message;
   private Button send;
+  private Button stage;
   private Button submit;
   private Button cancel;
   boolean saveStateOnUnload = false;
@@ -356,8 +360,10 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
               }
               revision = result.getPatchSetInfo().getRevId();
 
+              stage.setVisible(result.canStage());
               submit.setVisible(result.canSubmit());
               if (Gerrit.getConfig().testChangeMerge()) {
+                stage.setEnabled(result.getChange().isMergeable());
                 submit.setEnabled(result.getChange().isMergeable());
               }
             }
@@ -569,6 +575,10 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
       send.addClickHandler(this);
       buttonRow.add(send);
 
+      stage = new Button(Util.C.buttonPublishStagingSend());
+      stage.addClickHandler(this);
+      buttonRow.add(stage);
+
       submit = new Button(Util.C.buttonPublishSubmitSend());
       submit.addClickHandler(this);
       buttonRow.add(submit);
@@ -683,16 +693,18 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   public void onClick(final ClickEvent event) {
     final Widget sender = (Widget) event.getSource();
     if (send == sender) {
-      onSend(false);
+      onSend(Action.NOOP);
+    } else if (stage == sender) {
+      onSend(Action.STAGE);
     } else if (submit == sender) {
-      onSend(true);
+      onSend(Action.SUBMIT);
     } else if (cancel == sender) {
       saveStateOnUnload = false;
       goChange();
     }
   }
 
-  private void onSend(final boolean submit) {
+  private void onSend(final Action action) {
     ReviewInput data = ReviewInput.create();
     data.message(ChangeApi.emptyToNull(message.getText().trim()));
     data.init();
@@ -709,8 +721,10 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
       .post(data, new GerritCallback<ReviewInput>() {
           @Override
           public void onSuccess(ReviewInput result) {
-            if (submit) {
+            if (action == Action.SUBMIT) {
               submit();
+            } else if (action == Action.STAGE) {
+              stage();
             } else {
               saveStateOnUnload = false;
               goChange();
@@ -740,6 +754,26 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
 
     protected ReviewInput() {
     }
+  }
+
+  private void stage() {
+    ChangeApi.stage(getPatchId().getParentKey().get(), revision,
+      new GerritCallback<SubmitInfo>() {
+          public void onSuccess(SubmitInfo result) {
+            saveStateOnUnload = false;
+            goChange();
+          }
+
+          @Override
+          public void onFailure(Throwable err) {
+            if (StageFailureDialog.isConflict(err)) {
+              new StageFailureDialog(err.getMessage()).center();
+            } else {
+              super.onFailure(err);
+            }
+            goChange();
+          }
+        });
   }
 
   private void submit() {
@@ -797,6 +831,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     }
     message.setEnabled(enabled);
     send.setEnabled(enabled);
+    stage.setEnabled(enabled);
     submit.setEnabled(enabled);
     cancel.setEnabled(enabled);
   }
