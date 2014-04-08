@@ -1,4 +1,5 @@
 // Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +27,7 @@ import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gwtorm.server.OrmException;
 
+import org.eclipse.jgit.errors.ConfigInvalidException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.RefUpdate;
@@ -121,13 +123,15 @@ public class CherryPick extends SubmitStrategy {
         throw new MergeException("Cannot merge " + n.name(), e);
       } catch (OrmException e) {
         throw new MergeException("Cannot merge " + n.name(), e);
+      } catch (ConfigInvalidException e) {
+        throw new MergeException("Cannot merge " + n.name(), e);
       }
     }
     return mergeTip;
   }
 
   private CodeReviewCommit writeCherryPickCommit(final CodeReviewCommit mergeTip, final CodeReviewCommit n)
-      throws IOException, OrmException {
+      throws IOException, OrmException, ConfigInvalidException {
 
     args.rw.parseBody(n);
 
@@ -144,7 +148,10 @@ public class CherryPick extends SubmitStrategy {
       cherryPickCommitterIdent = args.myIdent;
     }
 
-    final String cherryPickCmtMsg = args.mergeUtil.createCherryPickCommitMessage(n);
+    final ProjectConfig cfg = new ProjectConfig(n.change.getProject());
+    cfg.load(args.repo);
+    final String cherryPickCmtMsg =
+        args.mergeUtil.createCherryPickCommitMessage(n, cfg.getProject());
 
     final CodeReviewCommit newCommit =
         args.mergeUtil.createCherryPickFromCommit(args.repo, args.inserter, mergeTip, n,

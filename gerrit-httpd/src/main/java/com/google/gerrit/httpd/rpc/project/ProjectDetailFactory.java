@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,6 +70,7 @@ class ProjectDetailFactory extends Handler<ProjectDetail> {
     detail.setCanModifyDescription(userIsOwner);
     detail.setCanModifyMergeType(userIsOwner);
     detail.setCanModifyState(userIsOwner);
+    detail.setCanModifyCherryPickOptions(userIsOwner);
 
     final InheritedBoolean useContributorAgreements = new InheritedBoolean();
     final InheritedBoolean useSignedOffBy = new InheritedBoolean();
