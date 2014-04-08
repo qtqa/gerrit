@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +17,11 @@ package com.google.gerrit.reviewdb.client;
 
 import com.google.gwtorm.client.Column;
 import com.google.gwtorm.client.StringKey;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /** Projects match a source code repository managed by Gerrit */
 public final class Project {
@@ -62,6 +68,27 @@ public final class Project {
       final NameKey r = new NameKey();
       r.fromString(str);
       return r;
+    }
+  }
+
+  public static class ApprovalFooterValue {
+    String label;
+    boolean hidden;
+
+    protected ApprovalFooterValue() {
+    }
+
+    protected ApprovalFooterValue(final String label, final boolean on) {
+      this.label = label;
+      this.hidden = on;
+    }
+
+    public String getLabel() {
+      return label;
+    }
+
+    public boolean getHidden() {
+      return hidden;
     }
   }
 
@@ -115,13 +142,21 @@ public final class Project {
 
   protected String themeName;
 
+  protected boolean hideReviewedOn;
+
+  protected boolean includeOnlyMaximumApprovals;
+
+  protected List<ApprovalFooterValue> hiddenFooters;
+
   protected Project() {
+    hiddenFooters = new ArrayList<Project.ApprovalFooterValue>();
   }
 
   public Project(Project.NameKey nameKey) {
     name = nameKey;
     submitType = SubmitType.MERGE_IF_NECESSARY;
     state = State.ACTIVE;
+    hiddenFooters = new ArrayList<Project.ApprovalFooterValue>();
     useContributorAgreements = InheritableBoolean.INHERIT;
     useSignedOffBy = InheritableBoolean.INHERIT;
     requireChangeID = InheritableBoolean.INHERIT;
@@ -164,6 +199,22 @@ public final class Project {
     useContributorAgreements = u;
   }
 
+  public boolean isHideReviewedOn() {
+    return hideReviewedOn;
+  }
+
+  public boolean isIncludeOnlyMaxApproval() {
+    return includeOnlyMaximumApprovals;
+  }
+
+  public Map<String, Boolean> getHiddenFooters() {
+    HashMap<String, Boolean> footers = new HashMap<String, Boolean>();
+    for (ApprovalFooterValue value : hiddenFooters) {
+      footers.put(value.getLabel(), value.getHidden());
+    }
+    return footers;
+  }
+
   public void setUseSignedOffBy(final InheritableBoolean sbo) {
     useSignedOffBy = sbo;
   }
@@ -174,6 +225,14 @@ public final class Project {
 
   public void setRequireChangeID(final InheritableBoolean cid) {
     requireChangeID = cid;
+  }
+
+  public void setHideReviewedOn(boolean includeReviewedOn) {
+    this.hideReviewedOn = includeReviewedOn;
+  }
+
+  public void setIncludeOnlyMaxApproval(boolean includeOnlyMaxApproval) {
+    this.includeOnlyMaximumApprovals = includeOnlyMaxApproval;
   }
 
   public SubmitType getSubmitType() {
@@ -190,6 +249,17 @@ public final class Project {
 
   public void setState(final State newState) {
     state = newState;
+  }
+
+  public void addHiddenFooter(final String label, final boolean on) {
+    for (ApprovalFooterValue value : hiddenFooters) {
+      if (value.label.equals(label)) {
+        value.hidden = on;
+        return;
+      }
+    }
+
+    hiddenFooters.add(new ApprovalFooterValue(label, on));
   }
 
   public String getDefaultDashboard() {
@@ -224,6 +294,9 @@ public final class Project {
     requireChangeID = update.requireChangeID;
     submitType = update.submitType;
     state = update.state;
+    includeOnlyMaximumApprovals = update.includeOnlyMaximumApprovals;
+    hideReviewedOn = update.hideReviewedOn;
+    hiddenFooters = update.hiddenFooters;
   }
 
   /**

@@ -21,6 +21,7 @@ import com.google.gerrit.reviewdb.client.Branch;
 import com.google.gerrit.reviewdb.client.PatchSet;
 import com.google.gerrit.reviewdb.client.PatchSetApproval;
 import com.google.gerrit.reviewdb.client.PatchSetApproval.LabelId;
+import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.reviewdb.server.ReviewDb;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.config.CanonicalWebUrl;
@@ -68,6 +69,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 
@@ -238,7 +240,7 @@ public class MergeUtil {
     }
   }
 
-  public String createCherryPickCommitMessage(final CodeReviewCommit n) {
+  public String createCherryPickCommitMessage(final CodeReviewCommit n, final Project p) {
     final List<FooterLine> footers = n.getFooterLines();
     final StringBuilder msgbuf = new StringBuilder();
     msgbuf.append(n.getFullMessage());
@@ -266,7 +268,7 @@ public class MergeUtil {
     }
 
     final String siteUrl = urlProvider.get();
-    if (siteUrl != null) {
+    if (!p.isHideReviewedOn() && siteUrl != null) {
       final String url = siteUrl + n.patchsetId.getParentKey().get();
       if (!contains(footers, REVIEWED_ON, url)) {
         msgbuf.append(REVIEWED_ON.getName());
@@ -277,6 +279,7 @@ public class MergeUtil {
     }
 
     PatchSetApproval submitAudit = null;
+    final Map<String, Boolean> hiddenFooters = p.getHiddenFooters();
 
     for (final PatchSetApproval a : getApprovalsForCommit(n)) {
       if (a.getValue() <= 0) {
@@ -325,6 +328,7 @@ public class MergeUtil {
       }
 
       final String tag;
+      final String tagOrig = a.getLabelId().get();
       if (isCodeReview(a.getLabelId())) {
         tag = "Reviewed-by";
       } else if (isVerified(a.getLabelId())) {
@@ -337,7 +341,18 @@ public class MergeUtil {
         tag = lt.getName();
       }
 
-      if (!contains(footers, new FooterKey(tag), identbuf.toString())) {
+      if (p.isIncludeOnlyMaxApproval()) {
+        final LabelType lt = project.getLabelTypes().byLabel(a.getLabelId());
+        if (lt == null) {
+          continue;
+        }
+        if (a.getValue() < lt.getMax().getValue()) {
+          continue;
+        }
+      }
+
+      if (!hiddenFooters.containsKey(tagOrig)
+          && !contains(footers, new FooterKey(tag), identbuf.toString())) {
         msgbuf.append(tag);
         msgbuf.append(": ");
         msgbuf.append(identbuf);

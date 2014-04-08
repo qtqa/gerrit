@@ -1,4 +1,5 @@
 // Copyright (C) 2008 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +17,13 @@ package com.google.gerrit.client.admin;
 
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.download.DownloadPanel;
+import com.google.gerrit.client.rpc.CallbackGroup;
 import com.google.gerrit.client.rpc.GerritCallback;
 import com.google.gerrit.client.rpc.ScreenLoadCallback;
 import com.google.gerrit.client.ui.OnEditEnabler;
 import com.google.gerrit.client.ui.SmallHeading;
+import com.google.gerrit.common.data.LabelType;
+import com.google.gerrit.common.data.ProjectAccess;
 import com.google.gerrit.common.data.ProjectDetail;
 import com.google.gerrit.reviewdb.client.AccountGeneralPreferences.DownloadCommand;
 import com.google.gerrit.reviewdb.client.InheritedBoolean;
@@ -31,11 +35,18 @@ import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.FlexTable;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.ListBox;
+import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.gwtexpui.globalkey.client.NpTextArea;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 public class ProjectInfoScreen extends ProjectScreen {
   private String projectName;
@@ -52,6 +63,13 @@ public class ProjectInfoScreen extends ProjectScreen {
   // Section: Contributor Agreements
   private ListBox contributorAgreements;
   private ListBox signedOffBy;
+
+  private Label cherryPickHeader;
+  private Panel cherryPickPanel;
+  private CheckBox includeReviewedOn;
+  private CheckBox includeOnlyMaxApproval;
+  private Map<String, CheckBox> approvalsInFooter;
+  private boolean canModifyCherryPickOptions;
 
   private NpTextArea descTxt;
   private Button saveProject;
@@ -80,6 +98,7 @@ public class ProjectInfoScreen extends ProjectScreen {
     initDescription();
     grid = new LabeledWidgetsGrid();
     initProjectOptions();
+    initcherryPickOptions();
     initAgreements();
     add(grid);
     add(saveProject);
@@ -88,19 +107,40 @@ public class ProjectInfoScreen extends ProjectScreen {
   @Override
   protected void onLoad() {
     super.onLoad();
+
+    CallbackGroup cbs = new CallbackGroup();
+    Util.PROJECT_SVC.projectAccess(getProjectKey(),
+        cbs.addGwtjsonrpc(new ScreenLoadCallback<ProjectAccess>(this) {
+          public void preDisplay(final ProjectAccess result) {
+            for (final LabelType t : result.getLabelTypes().getLabelTypes()) {
+              final String footer = t.getName();
+              if (!approvalsInFooter.containsKey(footer)) {
+                final String title = Util.C.footerPrefix() + " " + footer;
+                CheckBox checkBox = new CheckBox(title, true);
+                approvalsInFooter.put(footer, checkBox);
+                saveEnabler.listenTo(checkBox);
+                cherryPickPanel.add(checkBox);
+              }
+            }
+          }
+        }));
+
     Util.PROJECT_SVC.projectDetail(getProjectKey(),
-        new ScreenLoadCallback<ProjectDetail>(this) {
+        cbs.addGwtjsonrpc(new ScreenLoadCallback<ProjectDetail>(this) {
           public void preDisplay(final ProjectDetail result) {
             enableForm(result.canModifyAgreements,
                 result.canModifyDescription, result.canModifyMergeType, result.canModifyState);
+            enableCherryPickOptions(result.canModifyCherryPickOptions);
             saveProject.setVisible(
                 result.canModifyAgreements ||
                 result.canModifyDescription ||
                 result.canModifyMergeType ||
-                result.canModifyState);
+                result.canModifyState ||
+                result.canModifyCherryPickOptions);
+            canModifyCherryPickOptions = result.canModifyCherryPickOptions;
             display(result);
           }
-        });
+        }));
     savedPanel = INFO;
   }
 
@@ -141,6 +181,7 @@ public class ProjectInfoScreen extends ProjectScreen {
       @Override
       public void onChange(ChangeEvent event) {
         setEnabledForUseContentMerge();
+        setEnabledForCherryPick();
       }
     });
     saveEnabler.listenTo(submitType);
@@ -188,6 +229,22 @@ public class ProjectInfoScreen extends ProjectScreen {
     }
   }
 
+  private void setEnabledForCherryPick() {
+    final boolean isCherryPickSubmitType =
+      SubmitType.CHERRY_PICK.equals(Project.SubmitType.valueOf(
+          submitType.getValue(submitType.getSelectedIndex())));
+    enableCherryPickOptions(isCherryPickSubmitType
+        && canModifyCherryPickOptions && Gerrit.isSignedIn());
+  }
+
+  private void enableCherryPickOptions(final boolean enable) {
+    includeReviewedOn.setEnabled(enable);
+    includeOnlyMaxApproval.setEnabled(enable);
+    for (CheckBox checkBox : approvalsInFooter.values()) {
+      checkBox.setEnabled(enable);
+    }
+  }
+
   private void initAgreements() {
     grid.addHeader(new SmallHeading(Util.C.headingAgreements()));
 
@@ -202,6 +259,24 @@ public class ProjectInfoScreen extends ProjectScreen {
     grid.addHtml(Util.C.useSignedOffBy(), signedOffBy);
   }
 
+  private void initcherryPickOptions() {
+    cherryPickHeader = new SmallHeading(Util.C.cherryPickOptions());
+    grid.addHeader(cherryPickHeader);
+    cherryPickPanel = new VerticalPanel();
+
+    includeOnlyMaxApproval = new CheckBox(Util.C.includeOnlyMaxApprovals(), true);
+    saveEnabler.listenTo(includeOnlyMaxApproval);
+    cherryPickPanel.add(includeOnlyMaxApproval);
+
+    includeReviewedOn = new CheckBox(Util.C.includeReviewedOn(), true);
+    saveEnabler.listenTo(includeReviewedOn);
+    cherryPickPanel.add(includeReviewedOn);
+
+    approvalsInFooter = new HashMap<String, CheckBox>();
+
+    grid.add(null, cherryPickPanel);
+  }
+
   private void setSubmitType(final Project.SubmitType newSubmitType) {
     int index = -1;
     if (submitType != null) {
@@ -213,6 +288,7 @@ public class ProjectInfoScreen extends ProjectScreen {
       }
       submitType.setSelectedIndex(index);
       setEnabledForUseContentMerge();
+      setEnabledForCherryPick();
     }
   }
 
@@ -278,6 +354,22 @@ public class ProjectInfoScreen extends ProjectScreen {
     setSubmitType(project.getSubmitType());
     setState(project.getState());
 
+    includeOnlyMaxApproval.setValue(project.isIncludeOnlyMaxApproval());
+    includeReviewedOn.setValue(!project.isHideReviewedOn());
+    final boolean isAll = project.getParent(Gerrit.getConfig().getWildProject()) == null;
+    cherryPickHeader.setVisible(!isAll);
+    cherryPickPanel.setVisible(!isAll);
+
+    Map<String, Boolean> hiddenFooters = project.getHiddenFooters();
+    for (Entry<String, CheckBox> entry : approvalsInFooter.entrySet()) {
+      final CheckBox checkBox = entry.getValue();
+      if (hiddenFooters.containsKey(entry.getKey())) {
+        checkBox.setValue(!hiddenFooters.get(entry.getKey()));
+      } else {
+        checkBox.setValue(true);
+      }
+    }
+
     saveProject.setEnabled(false);
   }
 
@@ -291,12 +383,18 @@ public class ProjectInfoScreen extends ProjectScreen {
       project.setSubmitType(Project.SubmitType.valueOf(submitType
           .getValue(submitType.getSelectedIndex())));
     }
+    project.setIncludeOnlyMaxApproval(includeOnlyMaxApproval.getValue());
+    project.setHideReviewedOn(!includeReviewedOn.getValue());
+    for (Entry<String, CheckBox> entry : approvalsInFooter.entrySet()) {
+      project.addHiddenFooter(entry.getKey(), !entry.getValue().getValue());
+    }
     if (state.getSelectedIndex() >= 0) {
       project.setState(Project.State.valueOf(state
           .getValue(state.getSelectedIndex())));
     }
 
     enableForm(false, false, false, false);
+    enableCherryPickOptions(false);
 
     Util.PROJECT_SVC.changeProjectSettings(project,
         new GerritCallback<ProjectDetail>() {
