@@ -1,4 +1,5 @@
 // Copyright (C) 2010 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,6 +67,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -128,6 +130,11 @@ public class ProjectConfig extends VersionedMetaData {
   private static final String KEY_CAN_OVERRIDE = "canOverride";
   private static final Set<String> LABEL_FUNCTIONS = ImmutableSet.of(
       "MaxWithBlock", "MaxNoBlock", "NoBlock", "NoOp");
+
+  private static final String CHERRY_PICK = "cherryPick";
+  private static final String LABEL_FOOTERS = "labelFooters";
+  private static final String INCLUDE_ONLY_MAX_APPROVALS = "includeOnlyMaximumApprovals";
+  private static final String HIDE_REVIEWED_ON = "includeReviewedOn";
 
   private static final SubmitType defaultSubmitAction =
       SubmitType.MERGE_IF_NECESSARY;
@@ -379,6 +386,14 @@ public class ProjectConfig extends VersionedMetaData {
 
     p.setDefaultDashboard(rc.getString(DASHBOARD, null, KEY_DEFAULT));
     p.setLocalDefaultDashboard(rc.getString(DASHBOARD, null, KEY_LOCAL_DEFAULT));
+
+    p.setIncludeOnlyMaxApproval(rc.getBoolean(CHERRY_PICK, INCLUDE_ONLY_MAX_APPROVALS, false));
+    p.setHideReviewedOn(rc.getBoolean(CHERRY_PICK, HIDE_REVIEWED_ON, false));
+
+    for (String label : rc.getNames(CHERRY_PICK, LABEL_FOOTERS)) {
+      final boolean value = rc.getBoolean(LABEL_FOOTERS, label, true);
+      p.addHiddenFooter(label, value);
+    }
 
     loadAccountsSection(rc, groupsByName);
     loadContributorAgreements(rc, groupsByName);
@@ -712,6 +727,9 @@ public class ProjectConfig extends VersionedMetaData {
     set(rc, RECEIVE, null, KEY_REQUIRE_SIGNED_OFF_BY, p.getUseSignedOffBy(), Project.InheritableBoolean.INHERIT);
     set(rc, RECEIVE, null, KEY_REQUIRE_CHANGE_ID, p.getRequireChangeID(), Project.InheritableBoolean.INHERIT);
 
+    set(rc, CHERRY_PICK, null, INCLUDE_ONLY_MAX_APPROVALS, p.isIncludeOnlyMaxApproval());
+    set(rc, CHERRY_PICK, null, HIDE_REVIEWED_ON, p.isHideReviewedOn());
+
     set(rc, SUBMIT, null, KEY_ACTION, p.getSubmitType(), defaultSubmitAction);
     set(rc, SUBMIT, null, KEY_MERGE_CONTENT, p.getUseContentMerge(), Project.InheritableBoolean.INHERIT);
 
@@ -727,6 +745,15 @@ public class ProjectConfig extends VersionedMetaData {
     saveNotifySections(rc, keepGroups);
     groupsByUUID.keySet().retainAll(keepGroups);
     saveLabelSections(rc);
+
+    final Map<String, Boolean> footers = p.getHiddenFooters();
+    for (Entry<String, Boolean> entry : footers.entrySet()) {
+      if (!entry.getValue()) {
+        rc.unset(CHERRY_PICK, LABEL_FOOTERS, entry.getKey());
+      } else {
+        rc.setBoolean(CHERRY_PICK, LABEL_FOOTERS, entry.getKey(), true);
+      }
+    }
 
     saveConfig(PROJECT_CONFIG, rc);
     saveGroupList();
