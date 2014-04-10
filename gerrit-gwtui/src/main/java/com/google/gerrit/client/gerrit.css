@@ -1436,7 +1436,47 @@ a:hover.downloadLink {
 .publishCommentsScreen .commentPanelDateCell {
   display: none;
 }
+.publishCommentsScreen .gwt-DisclosurePanel .header td {
+  font-weight: bold;
+  white-space: nowrap;
+}
+.publishCommentsScreen .gwt-DisclosurePanel .complexHeader {
+  white-space: nowrap;
+}
+.publishCommentsScreen .gwt-DisclosurePanel .complexHeader span {
+  white-space: nowrap;
+}
 
+/** AllInOnePatchScreen **/
+.allInOnePatchScreen .labelList {
+  margin-bottom: 10px;
+  margin-left: 10px;
+  background: trimColor;
+  width: 25em;
+  white-space: nowrap;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.allInOnePatchScreen .coverMessage {
+  margin-left: 10px;
+  padding: 5px 5px 5px 5px;
+}
+.allInOnePatchScreen .coverMessage textarea {
+  font-size: small;
+}
+.allInOnePatchScreen .labelList .gwt-RadioButton {
+  font-size: smaller;
+}
+.allInOnePatchScreen .gwt-DisclosurePanel .header td {
+  font-weight: bold;
+  white-space: nowrap;
+}
+.allInOnePatchScreen .gwt-DisclosurePanel .complexHeader {
+  white-space: nowrap;
+}
+.allInOnePatchScreen .gwt-DisclosurePanel .complexHeader span {
+  white-space: nowrap;
+}
 
 /** CommentedActionDialog **/
 .commentedActionDialog .gwt-DisclosurePanel .header td {

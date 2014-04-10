@@ -54,6 +54,7 @@ import com.google.gwt.event.dom.client.KeyPressEvent;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FormPanel;
 import com.google.gwt.user.client.ui.Panel;
@@ -640,6 +641,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   @Override
   protected void onInitUI() {
     super.onInitUI();
+    addStyleName(Gerrit.RESOURCES.css().allInOnePatchScreen());
 
     Window.scrollTo(0, getAbsoluteTop());
 
@@ -759,8 +761,6 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     Collections.reverse(values);
     LabelInfo label = change.label(labelName);
 
-    body.add(new SmallHeading(label.name() + ":"));
-
     VerticalPanel vp = new VerticalPanel();
     vp.setStyleName(Gerrit.RESOURCES.css().labelList());
 
@@ -790,7 +790,10 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
       approvalButtons.add(b);
       vp.add(b);
     }
-    body.add(vp);
+    DisclosurePanel atp = new DisclosurePanel(label.name());
+    atp.setContent(vp);
+    atp.setOpen(!Util.M.labelSanityReview().equals(labelName));
+    body.add(atp);
   }
 
   @Override

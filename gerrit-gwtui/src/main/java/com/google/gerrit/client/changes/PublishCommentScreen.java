@@ -45,6 +45,7 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.FormPanel;
 import com.google.gwt.user.client.ui.FormPanel.SubmitEvent;
@@ -297,8 +298,6 @@ public class PublishCommentScreen extends AccountScreen implements
     Collections.reverse(values);
     LabelInfo label = change.label(labelName);
 
-    body.add(new SmallHeading(label.name() + ":"));
-
     VerticalPanel vp = new VerticalPanel();
     vp.setStyleName(Gerrit.RESOURCES.css().labelList());
 
@@ -328,7 +327,10 @@ public class PublishCommentScreen extends AccountScreen implements
       approvalButtons.add(b);
       vp.add(b);
     }
-    body.add(vp);
+    DisclosurePanel atp = new DisclosurePanel(label.name());
+    atp.setContent(vp);
+    atp.setOpen(!Util.M.labelSanityReview().equals(labelName));
+    body.add(atp);
   }
 
   private void display(final PatchSetPublishDetail r) {
