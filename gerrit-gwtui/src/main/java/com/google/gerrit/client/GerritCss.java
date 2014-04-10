@@ -32,6 +32,7 @@ public interface GerritCss extends CssResource {
   String addReviewer();
   String addSshKeyPanel();
   String addWatchPanel();
+  String allInOnePatchScreen();
   String approvalTable();
   String approvalhint();
   String approvalrole();
