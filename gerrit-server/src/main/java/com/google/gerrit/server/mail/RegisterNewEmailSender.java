@@ -1,4 +1,5 @@
 // Copyright (C) 2009 The Android Open Source Project
+// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,6 +56,15 @@ public class RegisterNewEmailSender extends OutgoingEmail {
   @Override
   protected void format() throws EmailException {
     appendText(velocifyFile("RegisterNewEmail.vm"));
+  }
+
+  @Override
+  public String getGerritUrl() {
+    String url = args.urlProvider.get();
+    if (url.startsWith("http:")) {
+      url = "https:" + url.substring(5);
+    }
+    return url;
   }
 
   public String getUserNameEmail() {
