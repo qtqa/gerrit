@@ -48,6 +48,7 @@ public class GerritConfig implements Cloneable {
   protected String anonymousCowardName;
   protected int suggestFrom;
   protected boolean useOnePageReview;
+  protected boolean hideRebase;
 
   public String getRegisterUrl() {
     return registerUrl;
@@ -234,5 +235,13 @@ public class GerritConfig implements Cloneable {
 
   public void setUseOnePageReview(final boolean r) {
     useOnePageReview = r;
+  }
+
+  public boolean isHideRebase() {
+    return hideRebase;
+  }
+
+  public void setHideRebase(final boolean r) {
+    hideRebase = r;
   }
 }
