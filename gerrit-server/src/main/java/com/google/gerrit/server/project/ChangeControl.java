@@ -332,7 +332,7 @@ public class ChangeControl {
   }
 
   public List<SubmitRecord> getSubmitRecords(ReviewDb db, PatchSet patchSet) {
-    return canSubmit(db, patchSet, null, false, true, false);
+    return canSubmit(db, patchSet, null, false, true, false, true);
   }
 
   public boolean canSubmit() {
@@ -340,12 +340,12 @@ public class ChangeControl {
   }
 
   public List<SubmitRecord> canSubmit(ReviewDb db, PatchSet patchSet) {
-    return canSubmit(db, patchSet, null, false, false, false);
+    return canSubmit(db, patchSet, null, false, false, false, false);
   }
 
   public List<SubmitRecord> canSubmit(ReviewDb db, PatchSet patchSet,
       @Nullable ChangeData cd, boolean fastEvalLabels, boolean allowClosed,
-      boolean allowDraft) {
+      boolean allowDraft, boolean allowStaged) {
     if (!allowClosed && change.getStatus().isClosed()) {
       SubmitRecord rec = new SubmitRecord();
       rec.status = SubmitRecord.Status.CLOSED;
@@ -361,8 +361,9 @@ public class ChangeControl {
       return cannotSubmitDraft(db, patchSet, cd);
     }
 
-    if (change.getStatus() == Change.Status.STAGING
-        || change.getStatus() == Change.Status.STAGED) {
+    if ((change.getStatus() == Change.Status.STAGING
+        || change.getStatus() == Change.Status.STAGED)
+        && !allowStaged) {
       return cannotSubmitStaged();
     }
 

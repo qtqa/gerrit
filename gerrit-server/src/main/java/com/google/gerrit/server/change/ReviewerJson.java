@@ -101,7 +101,7 @@ public class ReviewerJson {
     PatchSet ps = cd.currentPatchSet(db);
     if (ps != null) {
       for (SubmitRecord rec :
-          ctl.canSubmit(db.get(), ps, cd, true, false, true)) {
+          ctl.canSubmit(db.get(), ps, cd, true, false, true, true)) {
         if (rec.labels == null) {
           continue;
         }

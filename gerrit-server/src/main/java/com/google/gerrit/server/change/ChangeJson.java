@@ -315,7 +315,7 @@ public class ChangeJson {
     if (ps == null) {
       return ImmutableList.of();
     }
-    cd.setSubmitRecords(ctl.canSubmit(db.get(), ps, cd, true, false, true));
+    cd.setSubmitRecords(ctl.canSubmit(db.get(), ps, cd, true, false, true, true));
     return cd.getSubmitRecords();
   }
 
