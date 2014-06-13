@@ -104,6 +104,7 @@ class GerritConfigProvider implements Provider<GerritConfig> {
         "contributoragreements", false));
     config.setGitDaemonUrl(cfg.getString("gerrit", null, "canonicalgiturl"));
     config.setGitHttpUrl(cfg.getString("gerrit", null, "gitHttpUrl"));
+    config.setHideRebase(cfg.getBoolean("gerrit", "hiderebase", false));
     config.setUseContactInfo(contactStore != null && contactStore.isEnabled());
     config.setDownloadSchemes(downloadConfig.getDownloadSchemes());
     config.setDownloadCommands(downloadConfig.getDownloadCommands());

@@ -484,7 +484,7 @@ class PatchSetComplexDisclosurePanel extends ComplexDisclosurePanel
       actionsPanel.add(b);
     }
 
-    if (changeDetail.canRebase()) {
+    if (!Gerrit.getConfig().isHideRebase() && changeDetail.canRebase()) {
       final Button b = new Button(Util.C.buttonRebaseChange());
       b.addClickHandler(new ClickHandler() {
         @Override

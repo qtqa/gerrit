@@ -46,6 +46,7 @@ public class GerritConfig implements Cloneable {
   protected boolean testChangeMerge;
   protected String anonymousCowardName;
   protected int suggestFrom;
+  protected boolean hideRebase;
 
   public String getRegisterUrl() {
     return registerUrl;
@@ -224,5 +225,13 @@ public class GerritConfig implements Cloneable {
       return false;
     }
     return true;
+  }
+
+  public boolean isHideRebase() {
+    return hideRebase;
+  }
+
+  public void setHideRebase(final boolean r) {
+    hideRebase = r;
   }
 }
