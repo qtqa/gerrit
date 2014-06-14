@@ -580,6 +580,7 @@ public class ChangeUtil {
         @Override
         public Change update(Change change) {
           if (change.getStatus() == Change.Status.INTEGRATING
+              || change.getStatus() == Change.Status.STAGING
               || change.getStatus() == Change.Status.STAGED) {
             change.setStatus(Change.Status.NEW);
             ChangeUtil.updated(change);
