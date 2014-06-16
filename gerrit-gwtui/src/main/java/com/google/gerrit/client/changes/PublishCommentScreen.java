@@ -15,6 +15,7 @@
 
 package com.google.gerrit.client.changes;
 
+import com.google.gerrit.client.ErrorDialog;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.changes.ChangeInfo.ApprovalInfo;
 import com.google.gerrit.client.changes.ChangeInfo.LabelInfo;
@@ -340,7 +341,7 @@ public class PublishCommentScreen extends AccountScreen implements
     descBlock.display(changeDetail, null, false, r.getPatchSetInfo(), r.getAccounts(),
        r.getSubmitTypeRecord(), commentLinkProcessor);
 
-    if (r.getChange().getStatus().isOpen()) {
+    if (r.getChange().getStatus().isOpen() && !r.getChange().getStatus().isCI()) {
       initApprovals(approvalPanel);
       approvals.display(change);
     } else {
@@ -442,6 +443,9 @@ public class PublishCommentScreen extends AccountScreen implements
               staging();
             } else {
               saveStateOnUnload = false;
+              if (!result.getMessage().isEmpty()) {
+                new ErrorDialog(result.getMessage()).center();
+              }
               goChange();
             }
           }
@@ -466,6 +470,8 @@ public class PublishCommentScreen extends AccountScreen implements
       this.strict_labels = true;
       this.drafts = 'PUBLISH';
     }-*/;
+
+    public final native String getMessage() /*-{ return this.message; }-*/;
 
     protected ReviewInput() {
     }

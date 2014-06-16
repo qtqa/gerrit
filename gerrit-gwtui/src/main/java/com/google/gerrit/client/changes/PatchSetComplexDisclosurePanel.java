@@ -634,15 +634,7 @@ class PatchSetComplexDisclosurePanel extends ComplexDisclosurePanel
     b.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(final ClickEvent event) {
-        if (changeDetail.getChange().getStatus() == Change.Status.INTEGRATING
-            || changeDetail.getChange().getStatus() == Change.Status.STAGED
-            || changeDetail.getChange().getStatus() == Change.Status.STAGING) {
-          alertMessageBox(Util.C.headingReviewDisabled(),
-              Util.C.messageReviewDisabled())
-              .center();
-        } else {
-          Gerrit.display(Dispatcher.toPublish(patchSet.getId()));
-        }
+        Gerrit.display(Dispatcher.toPublish(patchSet.getId()));
       }
     });
     actionsPanel.add(b);

@@ -106,6 +106,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
   static class Output {
     Map<String, Short> labels;
+    String message;
   }
 
   private final ReviewDb db;
@@ -178,6 +179,14 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
     Output output = new Output();
     output.labels = input.labels;
+    if (input.labels != null && change.getStatus().isCI()) {
+      output.message =
+          "The change was staged while you were reviewing it. " +
+          "Due to this, only your comments were published, while your review scores were dropped.";
+    }
+    else {
+      output.message = "";
+    }
     return output;
   }
 
@@ -357,6 +366,13 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
       LabelType lt = checkNotNull(labelTypes.byLabel(name), name);
       if (change.getStatus().isClosed()) {
         // TODO Allow updating some labels even when closed.
+        continue;
+      }
+      if (change.getStatus().isCI()) {
+        // If the state of a change is INTEGRATING, STAGED or STAGING review
+        // scores are not allowed. This check is necessary here because some
+        // other user may have changed the state of a change while another
+        // user is reviewing it. Scores are dropped but comments are kept.
         continue;
       }
 

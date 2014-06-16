@@ -342,6 +342,11 @@ public final class Change {
       return closed;
     }
 
+    public boolean isCI() {
+      return (code == STATUS_INTEGRATING
+          || code == STATUS_STAGED || code == STATUS_STAGING);
+    }
+
     public static Status forCode(final char c) {
       for (final Status s : Status.values()) {
         if (s.code == c) {
