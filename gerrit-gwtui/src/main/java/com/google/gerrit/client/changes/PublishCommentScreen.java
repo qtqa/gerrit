@@ -87,6 +87,7 @@ public class PublishCommentScreen extends AccountScreen implements
   private List<CommentEditorPanel> commentEditors;
   private ChangeInfo change;
   private CommentLinkProcessor commentLinkProcessor;
+  private boolean changeInCI = false;
 
   public PublishCommentScreen(final PatchSet.Id psi) {
     patchSetId = psi;
@@ -335,6 +336,7 @@ public class PublishCommentScreen extends AccountScreen implements
   private void display(final PatchSetPublishDetail r) {
     ChangeDetail changeDetail = new ChangeDetail();
     changeDetail.setChange(r.getChange());
+    changeInCI = r.getChange().getStatus().isCI();
 
     setPageTitle(Util.M.publishComments(r.getChange().getKey().abbreviate(),
         patchSetId.get()));
@@ -429,6 +431,7 @@ public class PublishCommentScreen extends AccountScreen implements
         data.label(b.label.name(), b.parseValue());
       }
     }
+    data.changeReviewable(!changeInCI);
 
     enableForm(false);
     new RestApi("/changes/")
@@ -470,6 +473,7 @@ public class PublishCommentScreen extends AccountScreen implements
       this.strict_labels = true;
       this.drafts = 'PUBLISH';
     }-*/;
+    final native void changeReviewable(boolean b) /*-{ this.change_reviewable=b; }-*/;
 
     public final native String getMessage() /*-{ return this.message; }-*/;
 

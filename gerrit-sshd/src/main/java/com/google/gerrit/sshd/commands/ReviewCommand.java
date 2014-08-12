@@ -294,6 +294,7 @@ public class ReviewCommand extends SshCommand {
     try {
       ChangeControl ctl =
           changeControlFactory.controlFor(patchSet.getId().getParentKey());
+      review.changeReviewable = !ctl.getChange().getStatus().isCI();
 
       if (abandonChange) {
         final Abandon abandon = abandonProvider.get();

@@ -86,6 +86,8 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
     /** Who to send email notifications to after review is stored. */
     public NotifyHandling notify = NotifyHandling.ALL;
+
+    public boolean changeReviewable;
   }
 
   public static enum DraftHandling {
@@ -179,7 +181,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
     Output output = new Output();
     output.labels = input.labels;
-    if (input.labels != null && change.getStatus().isCI()) {
+    if (input.labels != null && input.changeReviewable && change.getStatus().isCI()) {
       output.message =
           "The change was staged while you were reviewing it. " +
           "Due to this, only your comments were published, while your review scores were dropped.";
