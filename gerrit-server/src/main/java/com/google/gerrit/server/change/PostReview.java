@@ -181,13 +181,17 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
 
     Output output = new Output();
     output.labels = input.labels;
-    if (input.labels != null && input.changeReviewable && change.getStatus().isCI()) {
-      output.message =
-          "The change was staged while you were reviewing it. " +
-          "Due to this, only your comments were published, while your review scores were dropped.";
-    }
-    else {
-      output.message = "";
+    output.message = "";
+    if (input.labels != null && input.changeReviewable) {
+      if (change.getStatus().isCI()) {
+        output.message =
+            "The change was staged while you were reviewing it. " +
+            "Due to this, only your comments were published, while your review scores were dropped.";
+      } else if (!revision.getPatchSet().getId().equals(change.currentPatchSetId())) {
+        output.message =
+            "A new patch set was pushed while you were reviewing the change. " +
+            "Due to this, only your comments were published, while your review scores were dropped.";
+      }
     }
     return output;
   }
@@ -375,6 +379,10 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
         // scores are not allowed. This check is necessary here because some
         // other user may have changed the state of a change while another
         // user is reviewing it. Scores are dropped but comments are kept.
+        continue;
+      }
+      if (!rsrc.getPatchSet().getId().equals(change.currentPatchSetId())) {
+        // Scores are also dropped if a new patch set is pushed.
         continue;
       }
 
