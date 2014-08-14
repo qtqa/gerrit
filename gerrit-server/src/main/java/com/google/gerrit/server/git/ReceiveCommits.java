@@ -1741,6 +1741,9 @@ public class ReceiveCommits {
       } else if (change.getStatus().isClosed()) {
         reject(inputCommand, "change " + ontoChange + " closed");
         return false;
+      } else if (change.getStatus().isCI()) {
+        reject(inputCommand, "change " + ontoChange + " currently integrating");
+        return false;
       } else if (revisions.containsKey(newCommit)) {
         reject(inputCommand, "commit already exists");
         return false;
