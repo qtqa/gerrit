@@ -254,6 +254,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
   private List<Diff> diffs;
   private Diff.Factory diffFactory;
   private Id id;
+  private boolean changeInCI = false;
 
   ChangeInfo change;
 
@@ -360,6 +361,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
                 message.setText(lastState.message);
               }
               revision = result.getPatchSetInfo().getRevId();
+              changeInCI = result.getChange().getStatus().isCI();
 
               stage.setVisible(result.canStage());
               submit.setVisible(result.canSubmit());
@@ -716,6 +718,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
         data.label(b.label.name(), b.parseValue());
       }
     }
+    data.changeReviewable(!changeInCI);
 
     enableForm(false);
     new RestApi("/changes/")
@@ -730,6 +733,9 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
               stage();
             } else {
               saveStateOnUnload = false;
+              if (!result.getMessage().isEmpty()) {
+                new ErrorDialog(result.getMessage()).center();
+              }
               goChange();
             }
           }
@@ -754,6 +760,9 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
       this.strict_labels = true;
       this.drafts = 'PUBLISH';
     }-*/;
+    final native void changeReviewable(boolean b) /*-{ this.change_reviewable=b; }-*/;
+
+    public final native String getMessage() /*-{ return this.message; }-*/;
 
     protected ReviewInput() {
     }
