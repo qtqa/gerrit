@@ -570,8 +570,6 @@ public class ChangeUtil {
     final PatchSetApproval.Key stagingKey =
       new PatchSetApproval.Key(patchSetId, user.getAccountId(), LabelId.STAGE);
     db.patchSetApprovals().deleteKeys(Collections.singleton(stagingKey));
-    // Delete also dependency information
-    db.patchSetAncestors().delete(db.patchSetAncestors().byPatchSet(patchSetId));
 
     // Set change state to NEW.
     final Change.Id changeId = patchSetId.getParentKey();
