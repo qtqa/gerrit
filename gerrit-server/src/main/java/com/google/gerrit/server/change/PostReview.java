@@ -88,6 +88,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
     public NotifyHandling notify = NotifyHandling.ALL;
 
     public boolean changeReviewable;
+    public boolean dontAddReviewNote = false;
   }
 
   public static enum DraftHandling {
@@ -157,7 +158,9 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
       boolean dirty = false;
       dirty |= insertComments(revision, input.comments, input.drafts);
       dirty |= updateLabels(revision, input.labels);
-      dirty |= insertMessage(revision, input.message);
+      if (!input.dontAddReviewNote) {
+        dirty |= insertMessage(revision, input.message);
+      }
       if (dirty) {
         db.changes().update(Collections.singleton(change));
         db.commit();
