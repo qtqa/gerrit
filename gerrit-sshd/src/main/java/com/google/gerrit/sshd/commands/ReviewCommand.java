@@ -287,8 +287,15 @@ public class ReviewCommand extends SshCommand {
     // If review labels are being applied, the comment will be included
     // on the review note. We don't need to add it again on the abandon,
     // defer or restore comment.
-    if (!review.labels.isEmpty() && (abandonChange || deferChange || restoreChange)) {
-      changeComment = null;
+    if (abandonChange || deferChange || restoreChange) {
+      if (!review.labels.isEmpty()) {
+        changeComment = null;
+      }
+      else {
+        // If no review labels applied, this drops the review note.
+        // The comment is visible in the abandon, defer or restore comment.
+        review.dontAddReviewNote = true;
+      }
     }
 
     try {
