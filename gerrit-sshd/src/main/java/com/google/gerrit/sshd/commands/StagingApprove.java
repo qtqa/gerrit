@@ -42,10 +42,8 @@ import com.google.gerrit.server.mail.CommentSender;
 import com.google.gerrit.server.mail.ReplyToChangeSender;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.project.ChangeControl;
-import com.google.gerrit.server.project.InvalidChangeOperationException;
 import com.google.gerrit.server.project.NoSuchChangeException;
 import com.google.gerrit.server.project.NoSuchProjectException;
-import com.google.gerrit.server.project.NoSuchRefException;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.sshd.CommandMetaData;
 import com.google.gerrit.sshd.SshCommand;
@@ -69,6 +67,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -166,6 +165,8 @@ public class StagingApprove extends SshCommand {
 
   private Branch.NameKey destination;
 
+  private List<ReplyToChangeSender> emailMessages;
+
   @Override
   protected void run() throws UnloggedFailure {
     StagingApprove.this.approve();
@@ -209,26 +210,20 @@ public class StagingApprove extends SshCommand {
       // to push changes.
       if (passed) {
         validatePushRights(project);
-        try {
-          updateDestinationBranch(buildBranchNameKey);
-        } catch (IOException e) {
-          // Some temporary error perhaps, do nothing
-          throw e;
-        } catch (MergeException e) {
-            // Destination not reachable from build branch or fast-forward
-            // can't be done, there is no way to approve this build so forcing
-            // this to failed and overwriting message
-            passed = false;
-            message = "Build approving failed: " + e.getMessage();
-        }
-
-        // Rebuild staging branch.
-        ChangeUtil.rebuildStaging(destination, currentUser, db, git,
-            merger, hooks);
       }
+
+      // Create list for possible email notification messages sent to user at the end
+      List<ReplyToChangeSender> emailMessages = new ArrayList<ReplyToChangeSender>();
 
       // Use current message or read it from stdin.
       prepareMessage();
+
+      // Start database transaction and execute all database operations
+      // before doing any merges on git. If git merge fails we can rollback
+      // everything.
+      //
+      // Parameter for this function is used for nothing, so null is fine
+      db.changes().beginTransaction(null);
 
       // Iterate through each open change and publish message.
       for (Map.Entry<PatchSet,RevCommit> item : toApprove) {
@@ -262,19 +257,46 @@ public class StagingApprove extends SshCommand {
         }
       }
 
+      // Fast forward destination branch to build branch
+      if (passed) {
+        updateDestinationBranch(buildBranchNameKey);
+      }
+
+      db.commit();
+
+      // Send email notifications, log errors
+      for (ReplyToChangeSender item : emailMessages) {
+        try {
+          item.send();
+        } catch (EmailException e) {
+          log.error("Cannot send comments by email", e);
+        }
+      }
+
+      if (passed) {
+        // Rebuild staging branch.
+        try {
+          ChangeUtil.rebuildStaging(destination, currentUser, db, git, merger, hooks);
+        } catch (Exception e) {
+          log.error("Failed to update staging branch", e);
+        }
+      }
     } catch (IOException e) {
-      throw new UnloggedFailure(1, "fatal: Failed to update destination branch", e);
+      throw new UnloggedFailure(1, "fatal: " + e.getMessage(), e);
     } catch (OrmException e) {
       throw new UnloggedFailure(1, "fatal: Failed to access database", e);
-    } catch (NoSuchProjectException e) {
+    } catch (MergeException e) {
+      throw new UnloggedFailure(1, "fatal: Failed to update destination branch", e);
+    } catch (NoSuchProjectException e) { // Invalid project name passed
       throw new UnloggedFailure(1, "fatal: Failed to access project", e);
-    } catch (BranchNotFoundException e) {
+    } catch (BranchNotFoundException e) { // Invalid branch name passed
       throw new UnloggedFailure(1, "fatal: " + e.getMessage(), e);
-    } catch (NoSuchRefException e) {
-      throw new UnloggedFailure(1, "fatal: Failed to access change destination branch", e);
-    } catch (InvalidChangeOperationException e) {
-      throw new UnloggedFailure(1, "fatal: Failed to publish comments", e);
     } finally {
+      try {
+        db.rollback();
+      } catch (OrmException e) {
+        log.error("Failed to roll back transaction", e);
+      }
       stdout.flush();
       if (git != null) {
         git.close();
@@ -323,21 +345,18 @@ public class StagingApprove extends SshCommand {
   }
 
   private void abandonMessage(final PatchSet patchSet, final String msg)
-      throws OrmException, NoSuchRefException,
-      IOException, InvalidChangeOperationException {
-    sendMessage(patchSet, true, msg, true);
+      throws OrmException {
+    createChangeMessage(patchSet, true, msg, true);
   }
 
   private void publishMessage(final PatchSet patchSet, final boolean sendMail)
-      throws OrmException, NoSuchRefException,
-      IOException, InvalidChangeOperationException {
-    sendMessage(patchSet, sendMail, message, false);
+      throws OrmException {
+    createChangeMessage(patchSet, sendMail, message, false);
   }
 
-  private void sendMessage(final PatchSet patchSet, final boolean sendMail,
+  private void createChangeMessage(final PatchSet patchSet, final boolean sendMail,
       final String msg, final boolean isAbandon)
-      throws OrmException, NoSuchRefException,
-      IOException, InvalidChangeOperationException {
+      throws OrmException {
     if (msg != null && msg.length() > 0) {
       final PatchSet.Id patchSetId = patchSet.getId();
       Change change = db.changes().get(patchSetId.getParentKey());
@@ -347,20 +366,16 @@ public class StagingApprove extends SshCommand {
       cmsg.setMessage(msg);
       db.changeMessages().insert(Collections.singleton(cmsg));
       if (sendMail) {
-        try {
-          ReplyToChangeSender rtcs = null;
-          if (!isAbandon) {
-            rtcs = commentSenderFactory.create(NotifyHandling.ALL, change);
-          } else {
-            rtcs = abandonedSenderFactory.create(change);
-          }
-          rtcs.setFrom(currentUser.getAccountId());
-          rtcs.setPatchSet(patchSet);
-          rtcs.setChangeMessage(cmsg);
-          rtcs.send();
-        } catch (EmailException e) {
-          log.error("Cannot send comments by email for patch set " + patchSetId, e);
+        ReplyToChangeSender rtcs = null;
+        if (!isAbandon) {
+          rtcs = commentSenderFactory.create(NotifyHandling.ALL, change);
+        } else {
+          rtcs = abandonedSenderFactory.create(change);
         }
+        rtcs.setFrom(currentUser.getAccountId());
+        rtcs.setPatchSet(patchSet);
+        rtcs.setChangeMessage(cmsg);
+        emailMessages.add(rtcs);
       }
     }
   }
@@ -428,14 +443,12 @@ public class StagingApprove extends SshCommand {
     ChangeUtil.setIntegratingToMerged(patchSetId, currentUser, db);
   }
 
-  private void reject(final PatchSet.Id patchSetId) throws OrmException,
-      IOException {
+  private void reject(final PatchSet.Id patchSetId) throws OrmException {
     // Remove staging approval and update status from INTEGRATING to NEW.
     ChangeUtil.rejectStagedChange(patchSetId, currentUser, db);
   }
 
-  private void abandon(final PatchSet.Id patchSetId) throws OrmException,
-      InvalidChangeOperationException {
+  private void abandon(final PatchSet.Id patchSetId) throws OrmException {
     // Update change status from INTEGRATING to ABANDONED.
     ChangeUtil.setIntegratingToAbandoned(patchSetId, currentUser, db);
   }
