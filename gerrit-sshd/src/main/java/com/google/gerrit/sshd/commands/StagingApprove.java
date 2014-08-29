@@ -33,6 +33,7 @@ import com.google.gerrit.reviewdb.server.ReviewDb;
 import com.google.gerrit.server.ChangeUtil;
 import com.google.gerrit.server.IdentifiedUser;
 import com.google.gerrit.server.change.PostReview.NotifyHandling;
+import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MergeQueue;
 import com.google.gerrit.server.mail.AbandonedSender;
@@ -138,6 +139,9 @@ public class StagingApprove extends SshCommand {
 
   @Inject
   private PatchSetInfoFactory patchSetInfoFactory;
+
+  @Inject
+  private GitReferenceUpdated gitRefUpdated;
 
   @Option(name = "--project", aliases = {"-p"},
       required = true, usage = "project name")
@@ -415,6 +419,7 @@ public class StagingApprove extends SshCommand {
       switch (result) {
         // Only fast-forward result is reported as success.
         case FAST_FORWARD:
+          gitRefUpdated.fire(destination.getParentKey(), branchUpdate);
           hooks.doRefUpdatedHook(destination, branchUpdate,
               currentUser.getAccount());
           try {
