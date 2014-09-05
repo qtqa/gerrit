@@ -37,6 +37,8 @@ import com.google.gerrit.server.git.MergeOp;
 import com.google.gerrit.server.git.validators.CommitValidationException;
 import com.google.gerrit.server.git.validators.CommitValidators;
 import com.google.gerrit.server.mail.CommitMessageEditedSender;
+import static com.google.gerrit.server.mail.MailUtil.getRecipientsFromApprovals;
+import com.google.gerrit.server.mail.MailUtil.MailRecipients;
 import com.google.gerrit.server.mail.RevertedSender;
 import com.google.gerrit.server.patch.PatchSetInfoFactory;
 import com.google.gerrit.server.patch.PatchSetInfoNotAvailableException;
@@ -455,6 +457,10 @@ public class ChangeUtil {
         db.commit();
 
         final CommitMessageEditedSender cm = commitMessageEditedSenderFactory.create(change);
+        List<PatchSetApproval> oldChangeApprovals = db.patchSetApprovals().byChange(change.getId()).toList();
+        final MailRecipients oldRecipients = getRecipientsFromApprovals(oldChangeApprovals);
+        cm.addReviewers(oldRecipients.getReviewers());
+        cm.addExtraCC(oldRecipients.getCcOnly());
         cm.setFrom(user.getAccountId());
         cm.setChangeMessage(cmsg);
         cm.send();
