@@ -442,11 +442,6 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
                 submit.setEnabled(result.getChange().isMergeable());
               }
             }
-
-            @Override
-            protected void postDisplay() {
-              message.setFocus(true);
-            }
           }));
     }
 
