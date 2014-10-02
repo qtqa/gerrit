@@ -60,7 +60,7 @@ public class AccountDiffPreference {
     p.setIgnoreWhitespace(Whitespace.IGNORE_NONE);
     p.setTabSize(8);
     p.setLineLength(100);
-    p.setSyntaxHighlighting(true);
+    p.setSyntaxHighlighting(false);
     p.setShowWhitespaceErrors(true);
     p.setShowLineEndings(true);
     p.setIntralineDifference(true);
