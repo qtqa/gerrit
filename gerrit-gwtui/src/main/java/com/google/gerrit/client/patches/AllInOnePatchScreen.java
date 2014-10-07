@@ -14,7 +14,6 @@
 
 package com.google.gerrit.client.patches;
 
-import com.google.gerrit.client.Dispatcher;
 import com.google.gerrit.client.ErrorDialog;
 import com.google.gerrit.client.Gerrit;
 import com.google.gerrit.client.changes.ChangeApi;
@@ -28,6 +27,7 @@ import com.google.gerrit.client.changes.SubmitFailureDialog;
 import com.google.gerrit.client.changes.SubmitInfo;
 import com.google.gerrit.client.changes.Util;
 import com.google.gerrit.client.patches.AbstractPatchContentTable.CommentList;
+import com.google.gerrit.client.patches.AbstractPatchContentTable.Move;
 import com.google.gerrit.client.projects.ConfigInfoCache;
 import com.google.gerrit.client.rpc.CallbackGroup;
 import com.google.gerrit.client.rpc.GerritCallback;
@@ -123,6 +123,9 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
         keysNavigation.add(new NextFileCmd(0, 'w', PatchUtil.C.nextFileHelp()));
         keysNavigation.add(new PrevFileCmd(0, 'q', PatchUtil.C
             .previousFileHelp()));
+        keysNavigation.add(new NextFileCmd(0, ']', PatchUtil.C.nextFileHelp()));
+        keysNavigation.add(new PrevFileCmd(0, '[', PatchUtil.C
+            .previousFileHelp()));
         super.initializeKeys();
       }
     }
@@ -140,32 +143,40 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     @Override
     protected void onChunkNext() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
-        contentTable.moveToNextChunk(contentTable.getCurrentRow());
+        // Returns false if no more chunks found -> try next file
+        if ( !contentTable.moveToNextChunk(contentTable.getCurrentRow())) {
+          onFileNext(false, Move.CHUNK_FIRST);
+        }
       }
     }
 
     @Override
     protected void onChunkPrev() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
-        contentTable.moveToPrevChunk(contentTable.getCurrentRow());
+        // Returns false if no more chunks found -> try previous file
+        if ( !contentTable.moveToPrevChunk(contentTable.getCurrentRow())) {
+          onFilePrev(false, Move.CHUNK_LAST);
+        }
       }
     }
 
     @Override
     protected void onCommentNext() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
-        contentTable.moveToNextComment(contentTable.getCurrentRow());
+        // Returns false if no more comments found -> try next file
+        if (!contentTable.moveToNextComment(contentTable.getCurrentRow())) {
+          onFileNext(false, Move.COMMENT_FIRST);
+        }
       }
     }
 
     @Override
     protected void onCommentPrev() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
-        contentTable.moveToPrevComment(contentTable.getCurrentRow());
+        // Returns false if no more comments found -> try previous file
+        if (!contentTable.moveToPrevComment(contentTable.getCurrentRow())) {
+          onFilePrev(false, Move.COMMENT_LAST);
+        }
       }
     }
 
@@ -204,27 +215,45 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     }
 
     protected void onFileNext() {
+      onFileNext(true, Move.LINE_FIRST);
+    }
+
+    protected void onFileNext(boolean scrollTop, Move moveTo) {
       contentTable.hideCursor();
-      diff = getNextDiff();
-      contentTable = diff.getContentTable();
-      Window.scrollTo(0, diff.getAbsoluteTop());
-      contentTable.ensurePointerVisible();
+      final Diff diff = getNextDiff(moveTo);
+      if (diff != null) {
+        this.diff = diff;
+        contentTable = diff.getContentTable();
+        if (scrollTop) {
+          Window.scrollTo(0, diff.getAbsoluteTop());
+        }
+        contentTable.moveTo(moveTo);
+      }
       contentTable.showCursor();
     }
 
     protected void onFilePrev() {
+      onFilePrev(true, Move.LINE_FIRST);
+    }
+
+    protected void onFilePrev(boolean scrollTop, Move moveTo) {
       contentTable.hideCursor();
-      diff = getPrevDiff();
-      contentTable = diff.getContentTable();
-      Window.scrollTo(0, diff.getAbsoluteTop());
-      contentTable.ensurePointerVisible();
+      final Diff diff = getPrevDiff(moveTo);
+      if (diff != null) {
+        this.diff = diff;
+        contentTable = diff.getContentTable();
+        if (scrollTop) {
+          Window.scrollTo(0, diff.getAbsoluteTop());
+        }
+        contentTable.moveTo(moveTo);
+      }
       contentTable.showCursor();
     }
 
     @Override
     protected void onInsertComment() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
+        contentTable.moveToActiveRow();
         for (int row = contentTable.getCurrentRow(); 0 <= row; row--) {
           final Object item = contentTable.getRowItem(row);
           if (item instanceof PatchLine) {
@@ -242,15 +271,18 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     @Override
     protected void onNext() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
-        contentTable.onDown();
+        if (contentTable.isOnLastRow()) {
+          onFileNext(false, Move.LINE_FIRST);
+        } else {
+          contentTable.onDown();
+        }
       }
     }
 
     @Override
     protected void onOpen() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
+        contentTable.moveToActiveRow();
         contentTable.onOpenCurrent();
       }
     }
@@ -258,15 +290,20 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     @Override
     protected void onPrev() {
       if (contentTable != null) {
-        contentTable.ensurePointerVisible();
-        contentTable.onUp();
+        if (contentTable.isOnFirstRow()) {
+          onFilePrev(false, Move.LINE_LAST);
+        } else {
+          contentTable.onUp();
+        }
       }
     }
 
     @Override
     protected void onPublishComments() {
-      final PatchSet.Id id = patchKey.getParentKey();
-      Gerrit.display(Dispatcher.toPublish(id));
+      if (approvalButtons.iterator().hasNext()) {
+        Window.scrollTo(0, approvalButtons.iterator().next().getAbsoluteTop());
+      }
+      message.setFocus(true);
     }
   }
 
@@ -439,7 +476,7 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     this.id = id;
   }
 
-  private Diff getNextDiff() {
+  private Diff getNextDiff(Move moveTo) {
     if (keyNavigation.getDiff() == null) {
       if (!diffs.isEmpty()) {
         return diffs.get(0);
@@ -447,16 +484,33 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
         return null;
       }
     } else {
-      int index = diffs.indexOf(keyNavigation.getDiff());
-      if (index + 1 < diffs.size()) {
-        return diffs.get(index + 1);
-      } else {
-        return diffs.get(0);
+      int index = diffs.indexOf(keyNavigation.getDiff()) + 1;
+      while (index < diffs.size()) {
+        final Diff diff = diffs.get(index);
+        if (diff.isVisible()) {
+          switch (moveTo) {
+            case CHUNK_FIRST:
+              if (diff.getContentTable().hasEdits()
+                  || diff.getContentTable().hasComments()) {
+                return diff;
+              }
+              break;
+            case COMMENT_FIRST:
+              if (diff.getContentTable().hasComments()) {
+                return diff;
+              }
+              break;
+            default:
+                return diff;
+          }
+        }
+        index++;
       }
+      return null;
     }
   }
 
-  private Diff getPrevDiff() {
+  private Diff getPrevDiff(Move moveTo) {
     if (keyNavigation.getDiff() == null) {
       if (!diffs.isEmpty()) {
         return diffs.get(0);
@@ -464,12 +518,28 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
         return null;
       }
     } else {
-      int index = diffs.indexOf(keyNavigation.getDiff());
-      if (index - 1 >= 0) {
-        return diffs.get(index - 1);
-      } else {
-        return diffs.get(diffs.size() - 1);
+      int index = diffs.indexOf(keyNavigation.getDiff()) -1 ;
+      while (index >= 0) {
+        final Diff diff = diffs.get(index);
+        if (diff.isVisible()) {
+          switch (moveTo) {
+            case CHUNK_LAST:
+              if (diff.getContentTable().hasEdits()) {
+                return diff;
+              }
+              break;
+            case COMMENT_LAST:
+              if (diff.getContentTable().hasComments()) {
+                return diff;
+              }
+              break;
+            default:
+                return diff;
+          }
+        }
+        index--;
       }
+      return null;
     }
   }
 

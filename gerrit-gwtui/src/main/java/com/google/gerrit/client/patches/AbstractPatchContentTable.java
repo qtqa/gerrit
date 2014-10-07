@@ -49,6 +49,7 @@ import com.google.gwt.event.dom.client.FocusEvent;
 import com.google.gwt.event.dom.client.FocusHandler;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Element;
+import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Focusable;
@@ -73,6 +74,15 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     void onClick();
   }
 
+  public static enum Move {
+    LINE_FIRST,
+    LINE_LAST,
+    COMMENT_FIRST,
+    COMMENT_LAST,
+    CHUNK_FIRST,
+    CHUNK_LAST
+  }
+
   public static final int R_HEAD = 0;
   static final short FILE_SIDE_A = (short) 0;
   static final short FILE_SIDE_B = (short) 1;
@@ -92,6 +102,8 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
   private CommentLinkProcessor commentLinkProcessor;
   boolean isDisplayBinary;
   protected boolean isFileCommentBorderRowExist;
+  private boolean hasEdits;
+  private boolean hasComments;
 
   private class KeyNavigation extends ContentTableKeyNavigation {
     public KeyNavigation(Widget parent) {
@@ -180,6 +192,8 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     table.setStyleName(Gerrit.RESOURCES.css().patchContentTable());
     delegates = new HashSet<Delegate>();
     isAllMode = false;
+    hasComments = false;
+    hasEdits = false;
   }
 
   abstract void createFileCommentEditorOnSideA();
@@ -294,17 +308,117 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     idSideA = a;
     idSideB = b;
 
+    hasEdits = hasEdits(s);
+    hasComments = hasComments(s);
+
     render(s, d);
   }
 
   public boolean isOnFirstRow() {
-    int firstRow = findChunkStart(getCurrentRow());
-    return getCurrentRow() == firstRow || getCurrentRow() == 1 || getRowItem(getCurrentRow() - 1) == null;
+    for (int row = getCurrentRow() - 1; row > 0; row--) {
+      final Object o = getRowItem(row);
+      if (o instanceof PatchLine || o instanceof CommentList) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public boolean isOnLastRow() {
-    int lastRow = findChunkEnd(getCurrentRow());
-    return getCurrentRow() == lastRow || getRowItem(getCurrentRow() + 1) == null;
+    for (int row = getCurrentRow() + 1; row < getMaxRows(); row++) {
+      final Object o = getRowItem(row);
+      if (o instanceof PatchLine || o instanceof CommentList) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public void moveTo(Move move) {
+    switch (move) {
+      case LINE_FIRST:
+        moveToFirstLine();
+        break;
+      case LINE_LAST:
+        moveToLastLine();
+        break;
+      case CHUNK_FIRST:
+        moveToFirstChunk();
+        break;
+      case CHUNK_LAST:
+        moveToLastChunk();
+        break;
+      case COMMENT_FIRST:
+        moveToFirstComment();
+        break;
+      case COMMENT_LAST:
+        moveToLastComment();
+        break;
+    }
+  }
+
+  private void moveToFirstLine() {
+    movePointerTo(0, false);
+    for (int row = getCurrentRow(); row < getMaxRows(); row++) {
+      final Object o = getRowItem(row);
+      if (o instanceof PatchLine || o instanceof CommentList) {
+        movePointerTo(row);
+        return;
+      }
+    }
+  }
+
+  private void moveToFirstComment() {
+    moveToFirstLine();
+    for (int row = getCurrentRow(); row < getMaxRows(); row++) {
+      final Object o = getRowItem(row);
+      if (o instanceof CommentList) {
+        movePointerTo(row);
+        return;
+      }
+    }
+  }
+
+  private void moveToFirstChunk() {
+    moveToFirstLine();
+    for (int row = getCurrentRow(); row < getMaxRows(); row++) {
+      if (isChunk(row)) {
+        movePointerTo(row);
+        return;
+      }
+    }
+  }
+
+  private void moveToLastLine() {
+    movePointerTo(getMaxRows()-1, false);
+    for (int row = getCurrentRow(); row > 0; row--) {
+      final Object o = getRowItem(row);
+      if (o instanceof PatchLine || o instanceof CommentList) {
+        movePointerTo(row);
+        return;
+      }
+    }
+  }
+
+  private void moveToLastComment() {
+    moveToLastLine();
+    for (int row = getCurrentRow(); row > 0; row--) {
+      final Object o = getRowItem(row);
+      if (o instanceof CommentList) {
+        movePointerTo(row);
+        return;
+      }
+    }
+  }
+
+  private void moveToLastChunk() {
+    moveToLastLine();
+    for (int row = getCurrentRow(); row > 0; row--) {
+      if (isChunk(row)) {
+        movePointerTo(row);
+        return;
+      }
+    }
   }
 
   void setCommentLinkProcessor(CommentLinkProcessor commentLinkProcessor) {
@@ -333,6 +447,14 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
   private boolean hasComments(PatchScript script) {
     return !script.getCommentDetail().getCommentsA().isEmpty()
         || !script.getCommentDetail().getCommentsB().isEmpty();
+  }
+
+  public boolean hasEdits() {
+    return hasEdits;
+  }
+
+  public boolean hasComments() {
+    return hasComments;
   }
 
   // True if this change is a mode change or a pure rename/copy
@@ -412,6 +534,11 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
   public abstract void display(CommentDetail comments, boolean expandComments);
 
   @Override
+  protected MyFlexTable createFlexTable() {
+    return new DoubleClickFlexTable();
+  }
+
+  @Override
   protected Object getRowItemKey(final Object item) {
     return null;
   }
@@ -467,7 +594,7 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     return end + 1 < table.getRowCount() ? end + 1 : end;
   }
 
-  public void moveToPrevChunk(int row) {
+  public boolean moveToPrevChunk(int row) {
     while (0 <= row && isChunk(row)) {
       row--;
     }
@@ -476,21 +603,13 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
         final int start = findChunkStart(row);
         movePointerTo(start, false);
         scrollIntoView(oneBefore(start), oneAfter(row));
-        return;
+        return true;
       }
     }
-
-    // No prior hunk found? Try to hit the first line in the file.
-    //
-    for (row = 0; row < table.getRowCount(); row++) {
-      if (getRowItem(row) != null) {
-        movePointerTo(row);
-        break;
-      }
-    }
+    return false;
   }
 
-  public void moveToNextChunk(int row) {
+  public boolean moveToNextChunk(int row) {
     final int max = table.getRowCount();
     while (row < max && isChunk(row)) {
       row++;
@@ -499,21 +618,13 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
       if (isChunk(row)) {
         movePointerTo(row, false);
         scrollIntoView(oneBefore(row), oneAfter(findChunkEnd(row)));
-        return;
+        return true;
       }
     }
-
-    // No next hunk found? Try to hit the last line in the file.
-    //
-    for (row = max - 1; row >= 0; row--) {
-      if (getRowItem(row) != null) {
-        movePointerTo(row);
-        break;
-      }
-    }
+    return false;
   }
 
-  public void moveToPrevComment(int row) {
+  public boolean moveToPrevComment(int row) {
     while (0 <= row && isComment(row)) {
       row--;
     }
@@ -521,21 +632,13 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
       if (isComment(row)) {
         movePointerTo(row, false);
         scrollIntoView(oneBefore(row), oneAfter(row));
-        return;
+        return true;
       }
     }
-
-    // No prior comment found? Try to hit the first line in the file.
-    //
-    for (row = 0; row < table.getRowCount(); row++) {
-      if (getRowItem(row) != null) {
-        movePointerTo(row);
-        break;
-      }
-    }
+    return false;
   }
 
-  public void moveToNextComment(int row) {
+  public boolean moveToNextComment(int row) {
     final int max = table.getRowCount();
     while (row < max && isComment(row)) {
       row++;
@@ -544,18 +647,10 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
       if (isComment(row)) {
         movePointerTo(row, false);
         scrollIntoView(oneBefore(row), oneAfter(row));
-        return;
+        return true;
       }
     }
-
-    // No next comment found? Try to hit the last line in the file.
-    //
-    for (row = max - 1; row >= 0; row--) {
-      if (getRowItem(row) != null) {
-        movePointerTo(row);
-        break;
-      }
-    }
+    return false;
   }
 
   public void moveToTop() {
@@ -574,6 +669,10 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
         break;
       }
     }
+  }
+
+  public void moveToActiveRow() {
+    movePointerTo(getCurrentRow());
   }
 
   private boolean isComment(int row) {
@@ -877,6 +976,44 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     final List<PatchLineComment> comments = new ArrayList<PatchLineComment>();
     final List<PublishedCommentPanel> panels =
         new ArrayList<PublishedCommentPanel>();
+  }
+
+  protected class DoubleClickFlexTable extends MyFlexTable {
+    public DoubleClickFlexTable() {
+      sinkEvents(Event.ONDBLCLICK | Event.ONCLICK);
+    }
+
+    @Override
+    public void onBrowserEvent(final Event event) {
+      switch (DOM.eventGetType(event)) {
+        case Event.ONCLICK: {
+          // Find out which cell was actually clicked.
+          final Element td = getEventTargetCell(event);
+          if (td == null) {
+            break;
+          }
+          final int row = rowOf(td);
+          if (getRowItem(row) != null) {
+            movePointerTo(row);
+            for (Delegate delegate : delegates) {
+              delegate.onClick();
+            }
+            return;
+          }
+          break;
+        }
+        case Event.ONDBLCLICK: {
+          // Find out which cell was actually clicked.
+          Element td = getEventTargetCell(event);
+          if (td == null) {
+            return;
+          }
+          onCellDoubleClick(rowOf(td), columnOf(td));
+          return;
+        }
+      }
+      super.onBrowserEvent(event);
+    }
   }
 
   private class PublishedCommentPanel extends CommentPanel implements
