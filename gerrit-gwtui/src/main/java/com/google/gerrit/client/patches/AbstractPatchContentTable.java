@@ -142,6 +142,16 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     }
 
     @Override
+    protected void onTop() {
+      moveToTop();
+    }
+
+    @Override
+    protected void onBottom() {
+      moveToBottom();
+    }
+
+    @Override
     protected void onInsertComment() {
       ensurePointerVisible();
       for (int row = getCurrentRow(); 0 <= row; row--) {
@@ -541,6 +551,24 @@ public abstract class AbstractPatchContentTable extends NavigationTable<Object>
     // No next comment found? Try to hit the last line in the file.
     //
     for (row = max - 1; row >= 0; row--) {
+      if (getRowItem(row) != null) {
+        movePointerTo(row);
+        break;
+      }
+    }
+  }
+
+  public void moveToTop() {
+    for (int row = 0; row < table.getRowCount(); row++) {
+      if (getRowItem(row) != null) {
+        movePointerTo(row);
+        break;
+      }
+    }
+  }
+
+  public void moveToBottom() {
+    for (int row = table.getRowCount() - 1; row >= 0; row--) {
       if (getRowItem(row) != null) {
         movePointerTo(row);
         break;

@@ -169,6 +169,40 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
       }
     }
 
+    @Override
+    protected void onTop() {
+      if (!diffs.isEmpty()) {
+        contentTable.hideCursor();
+        for (int index = 0; index < diffs.size(); index++) {
+          Diff diff = diffs.get(index);
+          if (diff.isVisible()) {
+            this.diff = diff;
+            contentTable = diff.getContentTable();
+            contentTable.moveToTop();
+            break;
+          }
+        }
+        contentTable.showCursor();
+      }
+    }
+
+    @Override
+    protected void onBottom() {
+      if (!diffs.isEmpty()) {
+        contentTable.hideCursor();
+        for (int index = diffs.size()-1; index >= 0; index--) {
+          Diff diff = diffs.get(index);
+          if (diff.isVisible()) {
+            this.diff = diff;
+            contentTable = diff.getContentTable();
+            contentTable.moveToBottom();
+            break;
+          }
+        }
+        contentTable.showCursor();
+      }
+    }
+
     protected void onFileNext() {
       contentTable.hideCursor();
       diff = getNextDiff();

@@ -79,6 +79,28 @@ public abstract class ContentTableKeyNavigation extends AbstractKeyNavigation {
     }
   }
 
+  private class TopKeyCmd extends KeyCommand {
+    public TopKeyCmd(int mask, int key, String help) {
+      super(mask, key, help);
+    }
+
+    @Override
+    public void onKeyPress(final KeyPressEvent event) {
+      onTop();
+    }
+  }
+
+  private class BottomKeyCmd extends KeyCommand {
+    public BottomKeyCmd(int mask, int key, String help) {
+      super(mask, key, help);
+    }
+
+    @Override
+    public void onKeyPress(final KeyPressEvent event) {
+      onBottom();
+    }
+  }
+
   private class PublishCommentsKeyCommand extends NeedsSignInKeyCommand {
     public PublishCommentsKeyCommand(int mask, char key, String help) {
       super(mask, key, help);
@@ -113,6 +135,8 @@ public abstract class ContentTableKeyNavigation extends AbstractKeyNavigation {
     keysNavigation.add(new NextChunkKeyCmd(0, 'n', PatchUtil.C.chunkNext()));
     keysNavigation.add(new PrevCommentCmd(0, 'P', PatchUtil.C.commentPrev()));
     keysNavigation.add(new NextCommentCmd(0, 'N', PatchUtil.C.commentNext()));
+    keysNavigation.add(new TopKeyCmd(0, 'K', PatchUtil.C.top()));
+    keysNavigation.add(new BottomKeyCmd(0, 'J', PatchUtil.C.bottom()));
 
     if (Gerrit.isSignedIn()) {
       keysAction.add(new InsertCommentCommand(0, 'c', PatchUtil.C
@@ -150,6 +174,10 @@ public abstract class ContentTableKeyNavigation extends AbstractKeyNavigation {
   protected void onCommentNext() {}
 
   protected void onCommentPrev() {}
+
+  protected void onTop() {}
+
+  protected void onBottom() {}
 
   protected void onInsertComment() {}
 
