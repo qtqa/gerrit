@@ -20,6 +20,7 @@ import com.google.gwt.dom.client.Document;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Event;
+import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.ScrollPanel;
@@ -267,7 +268,18 @@ public abstract class NavigationTable<RowItem> extends FancyFlexTable<RowItem> {
         }
       });
     } else {
-      tr.scrollIntoView();
+      // tr.scrollIntoView(); works just for Firefox, not for Chrome and IE
+      // so replacing it with following which works for all three browsers
+      final int sTop = Window.getScrollTop();
+      final int sEnd = sTop + Window.getClientHeight();
+      final int eTop = tr.getAbsoluteTop();
+      final int eEnd = eTop + tr.getClientHeight();
+      // Element below view area
+      if (eEnd > sEnd) {
+        Window.scrollTo(Window.getScrollLeft(), eEnd - Window.getClientHeight());
+      } else if (eTop < sTop) { // Element above view area
+        Window.scrollTo(Window.getScrollLeft(), eTop);
+      }
     }
   }
 
