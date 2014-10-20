@@ -217,7 +217,7 @@ public class StagingApprove extends SshCommand {
       }
 
       // Create list for possible email notification messages sent to user at the end
-      List<ReplyToChangeSender> emailMessages = new ArrayList<ReplyToChangeSender>();
+      emailMessages = new ArrayList<ReplyToChangeSender>();
 
       // Use current message or read it from stdin.
       prepareMessage();
