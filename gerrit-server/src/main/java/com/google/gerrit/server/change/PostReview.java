@@ -185,7 +185,7 @@ public class PostReview implements RestModifyView<RevisionResource, Input> {
     Output output = new Output();
     output.labels = input.labels;
     output.message = "";
-    if (input.labels != null && input.changeReviewable) {
+    if (input.labels != null && !input.labels.isEmpty() && input.changeReviewable) {
       if (change.getStatus().isCI()) {
         output.message =
             "The change was staged while you were reviewing it. " +
