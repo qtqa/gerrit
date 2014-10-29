@@ -1,11 +1,11 @@
 [submodule "plugins/replication"]
 	path = plugins/replication
-	url = https://gerrit.googlesource.com/plugins/replication
+	url = ../gerrit-plugin-replication
 
 [submodule "plugins/reviewnotes"]
 	path = plugins/reviewnotes
-	url = https://gerrit.googlesource.com/plugins/reviewnotes
+	url = ../gerrit-plugin-reviewnotes
 
 [submodule "plugins/commit-message-length-validator"]
 	path = plugins/commit-message-length-validator
-	url = https://gerrit.googlesource.com/plugins/commit-message-length-validator
+	url = ../gerrit-plugin-commit-message-length-validator
