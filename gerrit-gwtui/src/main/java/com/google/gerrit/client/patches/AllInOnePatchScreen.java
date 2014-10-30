@@ -397,7 +397,9 @@ public class AllInOnePatchScreen extends AbstractPatchScreen implements
     files.clear();
     diffs.clear();
     keyNavigation.clear();
-    approvalPanel.clear();
+    if (approvalPanel != null) {
+      approvalPanel.clear();
+    }
     loadDiffs();
 
     CallbackGroup cbs = new CallbackGroup();
