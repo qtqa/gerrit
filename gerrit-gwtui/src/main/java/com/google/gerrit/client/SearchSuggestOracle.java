@@ -106,7 +106,7 @@ public class SearchSuggestOracle extends HighlightSuggestOracle {
     suggestions.add("is:merged");
     suggestions.add("is:abandoned");
     suggestions.add("is:deferred");
-    suggestions.add("is:integrated");
+    suggestions.add("is:integrating");
     suggestions.add("is:staged");
 
     suggestions.add("status:");
@@ -117,7 +117,7 @@ public class SearchSuggestOracle extends HighlightSuggestOracle {
     suggestions.add("status:merged");
     suggestions.add("status:abandoned");
     suggestions.add("status:deferred");
-    suggestions.add("status:integrated");
+    suggestions.add("status:integrating");
     suggestions.add("status:staged");
 
     suggestions.add("AND");
