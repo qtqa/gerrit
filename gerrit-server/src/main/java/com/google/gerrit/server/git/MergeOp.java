@@ -1,5 +1,4 @@
 // Copyright (C) 2008 The Android Open Source Project
-// Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +14,7 @@
 
 package com.google.gerrit.server.git;
 
+import static com.google.gerrit.server.git.MergeUtil.getSubmitter;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -60,7 +60,6 @@ import com.google.gwtorm.server.SchemaFactory;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
-import org.eclipse.jgit.diff.Sequence;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.AnyObjectId;
@@ -71,7 +70,6 @@ import org.eclipse.jgit.lib.PersonIdent;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RefUpdate;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.merge.MergeResult;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevFlag;
 import org.eclipse.jgit.revwalk.RevSort;
@@ -109,63 +107,6 @@ public class MergeOp {
     MergeOp create(Branch.NameKey branch);
   }
 
-  /**
-   * Merge delegate allows variation of MergeOp behavior. This interface
-   * was added along with staging changes because staging and submit merges
-   * are slightly different. They share most of the functionality.
-   *
-   */
-  public interface MergeDelegate {
-    /**
-     * Returns a list of changes to merge.
-     * @param destBranch Destination branch for this merge request.
-     * @return List of changes to merge.
-     * @throws MergeException Thrown, if listing changes fails.
-     */
-    public List<Change> createMergeList(Branch.NameKey destBranch)
-      throws MergeException;
-
-    /**
-     * Gets the required category to complete this type of merge.
-     * @return Approval category id for the required category.
-     */
-    public PatchSetApproval.LabelId getRequiredApprovalCategory();
-
-    /**
-     * Customized merge status message.
-     * @param status Merge status.
-     * @param commit Target commit of the merge.
-     * @return Custom message or null. If null is returned, default submit
-     *         messages are used.
-     */
-    public String getMessageForMergeStatus(CommitMergeStatus status,
-        CodeReviewCommit commit);
-
-    /**
-     * The status that the change should be set to after a successful merge.
-     * @return Final status of the change.
-     */
-    public Change.Status getStatus();
-
-    /**
-     * Indicates if staging rebuild is required after a change is merged.
-     * @return True, if staging should be rebuild after successful merge.
-     */
-    public boolean needsRebuildStaging();
-
-    /**
-     * Checks if given approval category is a required one for this type of merge.
-     * @return True, if given approval is required one.
-     */
-    public boolean isRequiredApproval(PatchSetApproval psa);
-
-    /**
-     * Get approval category for given patch set for this type of merge
-     * @return Approval category or null
-     */
-    public PatchSetApproval getApproval(final ReviewDb reviewDb, final PatchSet.Id c);
-  }
-
   private static final Logger log = LoggerFactory.getLogger(MergeOp.class);
 
   /** Amount of time to wait between submit and checking for missing deps. */
@@ -178,8 +119,6 @@ public class MergeOp {
   private static final long DUPLICATE_MESSAGE_INTERVAL =
       MILLISECONDS.convert(1, DAYS);
 
-  private static final String R_STAGING = "refs/staging/";
-
   private final GitRepositoryManager repoManager;
   private final SchemaFactory<ReviewDb> schemaFactory;
   private final ProjectCache projectCache;
@@ -191,7 +130,6 @@ public class MergeOp {
   private final IdentifiedUser.GenericFactory identifiedUserFactory;
   private final ChangeControl.GenericFactory changeControlFactory;
   private final MergeQueue mergeQueue;
-  private final MergeDelegate mergeDelegate;
 
   private final Branch.NameKey destBranch;
   private ProjectState destProject;
@@ -216,9 +154,6 @@ public class MergeOp {
   private final RequestScopePropagator requestScopePropagator;
   private final AllProjectsName allProjectsName;
 
-  private final StagingMergeDelegate.Factory stagingFactory;
-  private final SubmitMergeDelegate.Factory submitFactory;
-
   @Inject
   MergeOp(final GitRepositoryManager grm, final SchemaFactory<ReviewDb> sf,
       final ProjectCache pc, final LabelNormalizer fs,
@@ -233,9 +168,7 @@ public class MergeOp {
       final SubmoduleOp.Factory subOpFactory,
       final WorkQueue workQueue,
       final RequestScopePropagator requestScopePropagator,
-      final AllProjectsName allProjectsName,
-      final StagingMergeDelegate.Factory stagingFactory,
-      final SubmitMergeDelegate.Factory submitFactory) {
+      final AllProjectsName allProjectsName) {
     repoManager = grm;
     schemaFactory = sf;
     labelNormalizer = fs;
@@ -259,27 +192,7 @@ public class MergeOp {
     toMerge = ArrayListMultimap.create();
     potentiallyStillSubmittable = new ArrayList<CodeReviewCommit>();
     commits = new HashMap<Change.Id, CodeReviewCommit>();
-
-    this.stagingFactory = stagingFactory;
-    this.submitFactory = submitFactory;
-    this.mergeDelegate = getDelegate(destBranch);
   }
-
-  /**
-   * Gets a merge delegate for this branch. It is assumed that different
-   * branches are used for different type of merging. E.g. refs/heads is
-   * used for submit and refs/staging for staging branch.
-   *
-   * @param branch Branch to get the delegete for, e.g., refs/heads/master.
-   * @return Staging delegate.
-   */
-  private MergeDelegate getDelegate(final Branch.NameKey branch) {
-    if (branch.get().startsWith(R_STAGING)) {
-      return stagingFactory.create();
-    } else {
-      return submitFactory.create();
-    }
-   }
 
   public void verifyMergeability(Change change) throws NoSuchProjectException {
     try {
@@ -356,7 +269,7 @@ public class MergeOp {
       openRepository();
       openBranch();
       final ListMultimap<SubmitType, Change> toSubmit =
-          validateChangeList(mergeDelegate.createMergeList(destBranch));
+          validateChangeList(db.changes().submitted(destBranch).toList());
 
       final ListMultimap<SubmitType, CodeReviewCommit> toMergeNextTurn =
           ArrayListMultimap.create();
@@ -559,7 +472,7 @@ public class MergeOp {
   }
 
   private ListMultimap<SubmitType, Change> validateChangeList(
-      final List<Change> changes) throws MergeException {
+      final List<Change> submitted) throws MergeException {
     final ListMultimap<SubmitType, Change> toSubmit =
         ArrayListMultimap.create();
 
@@ -569,7 +482,7 @@ public class MergeOp {
     }
 
     int commitOrder = 0;
-    for (final Change chg : changes) {
+    for (final Change chg : submitted) {
       final Change.Id changeId = chg.getId();
       if (chg.currentPatchSetId() == null) {
         commits.put(changeId, CodeReviewCommit
@@ -648,7 +561,7 @@ public class MergeOp {
           }
         } else {
           if (!oldParent.equals(newParent)) {
-            final PatchSetApproval psa = mergeDelegate.getApproval(db, ps.getId());
+            final PatchSetApproval psa = getSubmitter(db, ps.getId());
             if (psa == null) {
               commits.put(changeId, CodeReviewCommit
                   .error(CommitMergeStatus.SETTING_PARENT_PROJECT_ONLY_ALLOWED_BY_ADMIN));
@@ -773,7 +686,7 @@ public class MergeOp {
             gitRefUpdated.fire(destBranch.getParentKey(), branchUpdate);
 
             Account account = null;
-            final PatchSetApproval submitter = mergeDelegate.getApproval(db, mergeTip.patchsetId);
+            final PatchSetApproval submitter = getSubmitter(db, mergeTip.patchsetId);
             if (submitter != null) {
               account = accountCache.get(submitter.getAccountId()).getAccount();
             }
@@ -799,8 +712,8 @@ public class MergeOp {
     }
   }
 
-  private void updateChangeStatus(final List<Change> changes) {
-    for (final Change c : changes) {
+  private void updateChangeStatus(final List<Change> submitted) {
+    for (final Change c : submitted) {
       final CodeReviewCommit commit = commits.get(c.getId());
       final CommitMergeStatus s = commit != null ? commit.statusCode : null;
       if (s == null) {
@@ -810,11 +723,7 @@ public class MergeOp {
         continue;
       }
 
-      String txt = mergeDelegate.getMessageForMergeStatus(s, commit);
-      if (txt == null) {
-        txt = s.getMessage();
-      }
-
+      final String txt = s.getMessage();
 
       try {
         switch (s) {
@@ -824,7 +733,7 @@ public class MergeOp {
 
           case CLEAN_REBASE:
           case CLEAN_PICK:
-            setMerged(c, message(c, txt));
+            setMerged(c, message(c, txt + " as " + commit.name()));
             break;
 
           case ALREADY_MERGED:
@@ -832,16 +741,6 @@ public class MergeOp {
             break;
 
           case PATH_CONFLICT:
-            if (commit.mergeResults != null) {
-              txt += "\n\nConflicting files:";
-              for (Entry<String, MergeResult<? extends Sequence>> entry
-                  : commit.mergeResults.entrySet()) {
-                if (entry.getValue().containsConflicts()) {
-                  txt += "\n- " + entry.getKey();
-                }
-              }
-            }
-          // fall through
           case MANUAL_RECURSIVE_MERGE:
           case CANNOT_CHERRY_PICK_ROOT:
           case NOT_FAST_FORWARD:
@@ -980,7 +879,6 @@ public class MergeOp {
 
   private void setMerged(final Change c, final ChangeMessage msg)
       throws OrmException {
-    final Change.Status newStatus = mergeDelegate.getStatus();
     try {
       db.changes().beginTransaction(c.getId());
 
@@ -988,16 +886,13 @@ public class MergeOp {
       // modified when using the cherry-pick merge strategy.
       CodeReviewCommit commit = commits.get(c.getId());
       PatchSet.Id merged = commit.change.currentPatchSetId();
-      setMergedPatchSet(c.getId(), merged, newStatus);
+      setMergedPatchSet(c.getId(), merged);
       PatchSetApproval submitter = saveApprovals(c, merged);
       addMergedMessage(submitter, msg);
 
       db.commit();
 
-      // Send notification e-mail only if not merging to refs/staging
-      if (!destBranch.get().startsWith(R_STAGING)) {
-        sendMergedEmail(c, submitter);
-      }
+      sendMergedEmail(c, submitter);
       if (submitter != null) {
         try {
           hooks.doChangeMergedHook(c,
@@ -1007,18 +902,17 @@ public class MergeOp {
           log.error("Cannot run hook for submitted patch set " + c.getId(), ex);
         }
       }
-
     } finally {
       db.rollback();
     }
   }
 
-  private void setMergedPatchSet(Change.Id changeId, final PatchSet.Id merged, final Change.Status newStatus)
+  private void setMergedPatchSet(Change.Id changeId, final PatchSet.Id merged)
       throws OrmException {
     db.changes().atomicUpdate(changeId, new AtomicUpdate<Change>() {
       @Override
       public Change update(Change c) {
-        c.setStatus(newStatus);
+        c.setStatus(Change.Status.MERGED);
         // It could be possible that the change being merged
         // has never had its mergeability tested. So we insure
         // merged changes has mergeable field true.
@@ -1048,7 +942,7 @@ public class MergeOp {
     // permissions get modified in the future, historical records stay accurate.
     PatchSetApproval submitter = null;
     try {
-      c.setStatus(mergeDelegate.getStatus());
+      c.setStatus(Change.Status.MERGED);
 
       List<PatchSetApproval> approvals =
           db.patchSetApprovals().byPatchSet(merged).toList();
@@ -1063,7 +957,7 @@ public class MergeOp {
       approvals = labelNormalizer.normalize(c, approvals);
       for (PatchSetApproval a : approvals) {
         toDelete.remove(a.getKey());
-        if (a.getValue() > 0 && mergeDelegate.isRequiredApproval(a)) {
+        if (a.getValue() > 0 && a.isSubmit()) {
           if (submitter == null
               || a.getGranted().compareTo(submitter.getGranted()) > 0) {
             submitter = a;
@@ -1189,7 +1083,7 @@ public class MergeOp {
 
     PatchSetApproval submitter = null;
     try {
-      submitter = mergeDelegate.getApproval(db, c.currentPatchSetId());
+      submitter = getSubmitter(db, c.currentPatchSetId());
     } catch (Exception e) {
       log.error("Cannot get submitter", e);
     }
