@@ -115,19 +115,7 @@ public class SubmoduleOp {
   }
 
   public void update() throws SubmoduleException {
-    try {
-      schema = schemaFactory.open();
-
-      updateSubmoduleSubscriptions();
-      updateSuperProjects(destBranch, rw, mergeTip.getId().toObjectId(), null);
-    } catch (OrmException e) {
-      throw new SubmoduleException("Cannot open database", e);
-    } finally {
-      if (schema != null) {
-        schema.close();
-        schema = null;
-      }
-    }
+    return;
   }
 
   private void updateSubmoduleSubscriptions() throws SubmoduleException {
