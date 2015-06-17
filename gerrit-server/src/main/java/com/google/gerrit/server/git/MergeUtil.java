@@ -460,7 +460,7 @@ public class MergeUtil {
       return false;
     }
 
-    final ThreeWayMerger m = newThreeWayMerger(repo, createDryRunInserter());
+    ThreeWayMerger m = newThreeWayMerger(repo, createDryRunInserter(repo));
     try {
       return m.merge(new AnyObjectId[] {mergeTip, toMerge});
     } catch (NoMergeBaseException e) {
@@ -506,8 +506,7 @@ public class MergeUtil {
       // that on the current merge tip.
       //
       try {
-        final ThreeWayMerger m =
-            newThreeWayMerger(repo, createDryRunInserter());
+        ThreeWayMerger m = newThreeWayMerger(repo, createDryRunInserter(repo));
         m.setBase(toMerge.getParent(0));
         return m.merge(mergeTip, toMerge);
       } catch (IOException e) {
@@ -534,17 +533,12 @@ public class MergeUtil {
     }
   }
 
-  public ObjectInserter createDryRunInserter() {
-    return new ObjectInserter() {
-      private final MutableObjectId buf = new MutableObjectId();
-      private final static int LAST_BYTE = Constants.OBJECT_ID_LENGTH - 1;
-
+  public static ObjectInserter createDryRunInserter(Repository db) {
+    final ObjectInserter delegate = db.newObjectInserter();
+    return new ObjectInserter.Filter() {
       @Override
-      public ObjectId insert(int objectType, long length, InputStream in)
-          throws IOException {
-        // create non-existing dummy ID
-        buf.setByte(LAST_BYTE, buf.getByte(LAST_BYTE) + 1);
-        return buf.copy();
+      protected ObjectInserter delegate() {
+        return delegate;
       }
 
       @Override
@@ -554,11 +548,6 @@ public class MergeUtil {
 
       @Override
       public void flush() throws IOException {
-        // Do nothing.
-      }
-
-      @Override
-      public void release() {
         // Do nothing.
       }
     };
