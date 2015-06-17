@@ -108,6 +108,13 @@ limitations under the License.
     </dependency>
 
     <dependency>
+      <groupId>com.google.gerrit</groupId>
+      <artifactId>gerrit-unsign-jgit</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
       <scope>provided</scope>
@@ -209,6 +216,7 @@ limitations under the License.
               </includes>
             </overlay>
           </overlays>
+          <packagingExcludes>WEB-INF/lib/org.eclipse.jgit-*.jar</packagingExcludes>
         </configuration>
       </plugin>
 
