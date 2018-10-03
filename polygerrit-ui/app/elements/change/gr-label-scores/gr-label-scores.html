@@ -38,6 +38,7 @@ limitations under the License.
       }
     </style>
     <template is="dom-repeat" items="[[_labels]]" as="label">
+      <gr-endpoint-decorator name$="[[_computeDecoratorName('review-label-scores-', label.name)]]">
       <gr-label-score-row
           class$="[[_computeLabelAccessClass(label.name, permittedLabels)]]"
           label="[[label]]"
@@ -45,6 +46,7 @@ limitations under the License.
           labels="[[change.labels]]"
           permitted-labels="[[permittedLabels]]"
           label-values="[[_labelValues]]"></gr-label-score-row>
+      </gr-endpoint-decorator>
     </template>
     <div class="mergedMessage"
         hidden$="[[!_changeIsMerged(change.status)]]">
