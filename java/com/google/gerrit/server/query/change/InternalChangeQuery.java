@@ -167,6 +167,10 @@ public class InternalChangeQuery extends InternalQuery<ChangeData> {
     return query(and(ref(branch), project(branch.getParentKey()), status(Change.Status.NEW)));
   }
 
+  public List<ChangeData> byBranchStatus(Branch.NameKey branch, Change.Status status) throws OrmException {
+    return query(and(ref(branch), project(branch.getParentKey()), status(status)));
+  }
+
   public Iterable<ChangeData> byCommitsOnBranchNotMerged(
       Repository repo, ReviewDb db, Branch.NameKey branch, Collection<String> hashes)
       throws OrmException, IOException {
