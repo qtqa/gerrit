@@ -1353,7 +1353,10 @@
       // changes are obviously not mergeable, but the mergeability API will not
       // answer for abandoned changes.
       if (this._change.status === this.ChangeStatus.MERGED ||
-          this._change.status === this.ChangeStatus.ABANDONED) {
+          this._change.status === this.ChangeStatus.STAGED ||
+          this._change.status === this.ChangeStatus.INTEGRATING ||
+          this._change.status === this.ChangeStatus.ABANDONED ||
+          this._change.status === this.ChangeStatus.DEFERRED) {
         this._mergeable = false;
         return Promise.resolve();
       }
