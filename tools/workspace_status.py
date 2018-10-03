@@ -35,7 +35,7 @@ def revision(directory, parent):
         os.chdir(parent)
 
 
-print("STABLE_BUILD_GERRIT_LABEL %s" % revision(ROOT, ROOT))
+print("STABLE_BUILD_GERRIT_LABEL %s-QtFork" % revision(ROOT, ROOT))
 for d in os.listdir(os.path.join(ROOT, 'plugins')):
     p = os.path.join('plugins', d)
     if os.path.isdir(p):
