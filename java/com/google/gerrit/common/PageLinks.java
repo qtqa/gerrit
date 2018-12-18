@@ -141,11 +141,15 @@ public class PageLinks {
   public static String topicQuery(Status status, String topic) {
     switch (status) {
       case ABANDONED:
+      case DEFERRED:
         return toChangeQuery(status(status) + " " + op("topic", topic));
       case MERGED:
       case NEW:
         return toChangeQuery(
             op("topic", topic) + " (" + status(Status.NEW) + " OR " + status(Status.MERGED) + ")");
+      case INTEGRATING:
+      case STAGED:
+        return toChangeQuery(status(status) + " " + op("topic", topic));
     }
     return toChangeQuery(status(status) + " " + op("topic", topic));
   }
@@ -168,6 +172,12 @@ public class PageLinks {
         return "status:abandoned";
       case MERGED:
         return "status:merged";
+      case INTEGRATING:
+        return "status:integrating";
+      case DEFERRED:
+        return "status:deferred";
+      case STAGED:
+        return "status:staged";
       case NEW:
       default:
         return "status:open";
