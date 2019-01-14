@@ -42,6 +42,7 @@ export enum AccessPermissionId {
   SUBMIT_AS = 'submitAs',
   TOGGLE_WIP_STATE = 'toggleWipState',
   VIEW_PRIVATE_CHANGES = 'viewPrivateChanges',
+  QT_STAGE = 'stage',
 
   PRIORITY = 'priority',
 }
@@ -146,6 +147,10 @@ export const AccessPermissions: {[id: string]: AccessPermission} = {
   [AccessPermissionId.VIEW_PRIVATE_CHANGES]: {
     id: AccessPermissionId.VIEW_PRIVATE_CHANGES,
     name: 'View Private Changes',
+  },
+  [AccessPermissionId.QT_STAGE]: {
+    id: AccessPermissionId.QT_STAGE,
+    name: 'Stage',
   },
 };
 
