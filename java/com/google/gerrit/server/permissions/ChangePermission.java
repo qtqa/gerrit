@@ -55,7 +55,8 @@ public enum ChangePermission implements ChangePermissionOrLabel {
    */
   REBASE,
   SUBMIT,
-  SUBMIT_AS("submit on behalf of other users");
+  SUBMIT_AS("submit on behalf of other users"),
+  QT_STAGE("stage change for CI");
 
   private final String description;
 
