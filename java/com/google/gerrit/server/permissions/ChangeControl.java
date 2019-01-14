@@ -282,6 +282,8 @@ class ChangeControl {
           case REMOVE_REVIEWER:
           case SUBMIT_AS:
             return refControl.canPerform(changePermissionName(perm));
+          case QT_STAGE:
+            return refControl.canPerform(Permission.QT_STAGE);
         }
       } catch (StorageException e) {
         throw new PermissionBackendException("unavailable", e);
