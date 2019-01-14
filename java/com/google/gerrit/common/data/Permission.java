@@ -46,6 +46,7 @@ public class Permission implements Comparable<Permission> {
   public static final String SUBMIT = "submit";
   public static final String SUBMIT_AS = "submitAs";
   public static final String VIEW_PRIVATE_CHANGES = "viewPrivateChanges";
+  public static final String QT_STAGE = "stage";
 
   private static final List<String> NAMES_LC;
   private static final int LABEL_INDEX;
@@ -78,6 +79,7 @@ public class Permission implements Comparable<Permission> {
     NAMES_LC.add(SUBMIT.toLowerCase());
     NAMES_LC.add(SUBMIT_AS.toLowerCase());
     NAMES_LC.add(VIEW_PRIVATE_CHANGES.toLowerCase());
+    NAMES_LC.add(QT_STAGE.toLowerCase());
 
     LABEL_INDEX = NAMES_LC.indexOf(Permission.LABEL);
     LABEL_AS_INDEX = NAMES_LC.indexOf(Permission.LABEL_AS.toLowerCase());
