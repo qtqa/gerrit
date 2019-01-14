@@ -139,7 +139,7 @@ public class InternalChangeQuery extends InternalQuery<ChangeData, InternalChang
     return query(and(ref(branch), project(branch.getParentKey()), status(Change.Status.NEW)));
   }
 
-  public List<ChangeData> byBranchStatus(Branch.NameKey branch, Change.Status status) throws OrmException {
+  public List<ChangeData> byBranchStatus(Branch.NameKey branch, Change.Status status) {
     return query(and(ref(branch), project(branch.getParentKey()), status(status)));
   }
 
