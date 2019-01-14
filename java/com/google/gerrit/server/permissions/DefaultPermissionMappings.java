@@ -97,6 +97,7 @@ public class DefaultPermissionMappings {
           .put(ChangePermission.REBASE, Permission.REBASE)
           .put(ChangePermission.SUBMIT, Permission.SUBMIT)
           .put(ChangePermission.SUBMIT_AS, Permission.SUBMIT_AS)
+          .put(ChangePermission.QT_STAGE, Permission.QT_STAGE)
           .build();
 
   private static <T extends Enum<T>> void checkMapContainsAllEnumValues(
