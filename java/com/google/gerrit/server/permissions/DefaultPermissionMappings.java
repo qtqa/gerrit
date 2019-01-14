@@ -98,6 +98,7 @@ public class DefaultPermissionMappings {
           .put(ChangePermission.REBASE, Permission.REBASE)
           .put(ChangePermission.SUBMIT, Permission.SUBMIT)
           .put(ChangePermission.SUBMIT_AS, Permission.SUBMIT_AS)
+          .put(ChangePermission.QT_STAGE, Permission.QT_STAGE)
           .put(
               ChangePermission.TOGGLE_WORK_IN_PROGRESS_STATE,
               Permission.TOGGLE_WORK_IN_PROGRESS_STATE)
