@@ -90,6 +90,8 @@
     'status:merged',
     'status:open',
     'status:reviewed',
+    'status:integrating',
+    'status:staged',
     'topic:',
     'tr:',
   ];
