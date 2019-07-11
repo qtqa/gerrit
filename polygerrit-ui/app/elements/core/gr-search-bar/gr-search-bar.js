@@ -92,6 +92,8 @@
     'status:open',
     'status:pending',
     'status:reviewed',
+    'status:integrating',
+    'status:staged',
     'topic:',
     'tr:',
   ];
