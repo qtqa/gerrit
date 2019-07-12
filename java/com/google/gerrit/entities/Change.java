@@ -710,8 +710,18 @@ public final class Change {
     return getStatus().equals(Status.ABANDONED);
   }
 
+  public boolean isIntegrating() {
+    return getStatus().equals(Status.INTEGRATING);
+  }
+  public boolean isStaged() {
+    return getStatus().equals(Status.STAGED);
+  }
+  public boolean isDeferred() {
+    return getStatus().equals(Status.DEFERRED);
+  }
+
   public boolean isClosed() {
-    return isAbandoned() || isMerged();
+    return isAbandoned() || isMerged() || isStaged() || isIntegrating() || isDeferred();
   }
 
   public String getTopic() {
