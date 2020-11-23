@@ -82,6 +82,10 @@
       return null;
     },
 
+    _computeDecoratorName(preString, name) {
+        return preString + name.toLowerCase();
+    },
+
     _computeLabels(labelRecord, account) {
       // Polymer 2: check for undefined
       if ([labelRecord, account].some(arg => arg === undefined)) {

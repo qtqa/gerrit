@@ -152,6 +152,10 @@ public class InternalChangeQuery extends InternalQuery<ChangeData, InternalChang
     return query(and(ref(branch), project(branch.project()), status(Change.Status.NEW)));
   }
 
+  public List<ChangeData> byBranchStatus(BranchNameKey branch, Change.Status status) {
+    return query(and(ref(branch), project(branch.project()), status(status)));
+  }
+
   public Iterable<ChangeData> byCommitsOnBranchNotMerged(
       Repository repo, BranchNameKey branch, Collection<String> hashes) throws IOException {
     return byCommitsOnBranchNotMerged(

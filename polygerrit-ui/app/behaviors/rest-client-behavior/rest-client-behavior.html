@@ -35,8 +35,11 @@ limitations under the License.
 
     ChangeStatus: {
       ABANDONED: 'ABANDONED',
+      DEFERRED: 'DEFERRED',
+      INTEGRATING: 'INTEGRATING',
       MERGED: 'MERGED',
       NEW: 'NEW',
+      STAGED: 'STAGED',
     },
 
     // Must be kept in sync with the ListChangesOption enum and protobuf.
@@ -145,6 +148,12 @@ limitations under the License.
         states.push('Merged');
       } else if (change.status === this.ChangeStatus.ABANDONED) {
         states.push('Abandoned');
+      } else if (change.status === this.ChangeStatus.DEFERRED) {
+         states.push('Deferred');
+      } else if (change.status === this.ChangeStatus.INTEGRATING) {
+        states.push('Integrating');
+      } else if (change.status === this.ChangeStatus.STAGED) {
+        states.push('Staged');
       } else if (change.mergeable === false ||
           (opt_options && opt_options.mergeable === false)) {
         // 'mergeable' prop may not always exist (@see Issue 6819)
