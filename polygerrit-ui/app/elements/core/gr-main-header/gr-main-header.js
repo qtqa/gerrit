@@ -179,6 +179,10 @@
       return '//' + window.location.host + this.getBaseUrl() + path;
     },
 
+    _computeDecoratorName(preString, name) {
+        return preString + name.toLowerCase();
+    },
+
     _computeLinks(defaultLinks, userLinks, adminLinks, topMenus, docBaseUrl) {
       // Polymer 2: check for undefined
       if ([
