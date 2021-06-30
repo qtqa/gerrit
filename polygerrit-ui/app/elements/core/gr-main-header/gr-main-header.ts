@@ -58,8 +58,20 @@ const DEFAULT_LINKS: MainHeaderLinkGroup[] = [
         name: 'Open',
       },
       {
+        url: '/q/status:staged',
+        name: 'Staged',
+      },
+      {
+        url: '/q/status:integrating',
+        name: 'Integrating',
+      },
+      {
         url: '/q/status:merged',
         name: 'Merged',
+      },
+      {
+        url: '/q/status:deferred',
+        name: 'Deferred',
       },
       {
         url: '/q/status:abandoned',

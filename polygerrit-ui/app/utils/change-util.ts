@@ -145,7 +145,8 @@ export function changeIsMerged(change?: ChangeInfo | ParsedChangeInfo | null) {
 export function changeIsAbandoned(
   change?: ChangeInfo | ParsedChangeInfo | null
 ) {
-  return change?.status === ChangeStatus.ABANDONED;
+  return change?.status === ChangeStatus.ABANDONED ||
+      change?.status === ChangeStatus.DEFERRED;
 }
 
 export function changeStatuses(
@@ -157,6 +158,12 @@ export function changeStatuses(
     states.push(ChangeStates.MERGED);
   } else if (change.status === ChangeStatus.ABANDONED) {
     states.push(ChangeStates.ABANDONED);
+  } else if (change.status === ChangeStatus.DEFERRED) {
+    states.push(ChangeStates.DEFERRED);
+  } else if (change.status === ChangeStatus.INTEGRATING) {
+    states.push(ChangeStates.INTEGRATING);
+  } else if (change.status === ChangeStatus.STAGED) {
+    states.push(ChangeStates.STAGED);
   } else if (
     change.mergeable === false ||
     (opt_options && opt_options.mergeable === false)
