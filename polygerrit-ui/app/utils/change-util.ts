@@ -137,7 +137,8 @@ export function changeIsMerged(change?: ChangeInfo | ParsedChangeInfo | null) {
 export function changeIsAbandoned(
   change?: ChangeInfo | ParsedChangeInfo | null
 ) {
-  return change?.status === ChangeStatus.ABANDONED;
+  return change?.status === ChangeStatus.ABANDONED ||
+      change?.status === ChangeStatus.DEFERRED;
 }
 /**
  * Get the change number from either a ChangeInfo (such as those included in
@@ -170,6 +171,15 @@ export function changeStatuses(
   }
   if (change.status === ChangeStatus.ABANDONED) {
     return [ChangeStates.ABANDONED];
+  }
+  if (change.status === ChangeStatus.DEFERRED) {
+    return [ChangeStates.DEFERRED];
+  }
+  if (change.status === ChangeStatus.INTEGRATING) {
+    return [ChangeStates.INTEGRATING];
+  }
+  if (change.status === ChangeStatus.STAGED) {
+    return [ChangeStates.STAGED];
   }
   if (change.mergeable === false || (options && options.mergeable === false)) {
     // 'mergeable' prop may not always exist (@see Issue 6819)
