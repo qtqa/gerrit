@@ -29,6 +29,9 @@ enum ChangeStates {
   MERGE_CONFLICT = 'Merge Conflict',
   WIP = 'WIP',
   PRIVATE = 'Private',
+  DEFERRED = 'Deferred',
+  INTEGRATING = 'Integrating',
+  STAGED = 'Staged',
 }
 
 const WIP_TOOLTIP =

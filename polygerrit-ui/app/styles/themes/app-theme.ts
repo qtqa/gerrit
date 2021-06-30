@@ -104,6 +104,9 @@ const styleSheet = safeStyleSheet`
     /* status colors */
     --status-merged: #188038;
     --status-abandoned: #5f6368;
+    --status-deferred: #5f6368;
+    --status-integrating: #999900;
+    --status-staged: #cccc00;
     --status-wip: #795548;
     --status-private: #a142f4;
     --status-conflict: #d93025;

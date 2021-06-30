@@ -152,6 +152,12 @@ export function changeStatuses(
     states.push('Merged');
   } else if (change.status === ChangeStatus.ABANDONED) {
     states.push('Abandoned');
+  } else if (change.status === ChangeStatus.DEFERRED) {
+    states.push('Deferred');
+  } else if (change.status === ChangeStatus.INTEGRATING) {
+    states.push('Integrating');
+  } else if (change.status === ChangeStatus.STAGED) {
+    states.push('Staged');
   } else if (
     change.mergeable === false ||
     (opt_options && opt_options.mergeable === false)

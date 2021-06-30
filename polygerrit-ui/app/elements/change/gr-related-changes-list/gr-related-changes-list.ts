@@ -264,7 +264,8 @@ export class GrRelatedChangesList extends GestureEventListeners(
 
   _computeLinkClass(change: ParsedChangeInfo) {
     const statuses = [];
-    if (change.status === ChangeStatus.ABANDONED) {
+    if (change.status === ChangeStatus.ABANDONED ||
+        change.status === ChangeStatus.DEFERRED) {
       statuses.push('strikethrough');
     }
     if (change.submittable) {
@@ -293,6 +294,12 @@ export class GrRelatedChangesList extends GestureEventListeners(
         return 'Merged';
       case ChangeStatus.ABANDONED:
         return 'Abandoned';
+      case ChangeStatus.DEFERRED:
+        return 'Deferred';
+      case ChangeStatus.INTEGRATING:
+        return 'Integrating';
+      case ChangeStatus.STAGED:
+        return 'Staged';
     }
     if (change._revision_number !== change._current_revision_number) {
       return 'Not current';

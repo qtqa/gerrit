@@ -68,6 +68,9 @@ export enum ChangeStatus {
   ABANDONED = 'ABANDONED',
   MERGED = 'MERGED',
   NEW = 'NEW',
+  DEFERRED = 'DEFERRED',
+  INTEGRATING = 'INTEGRATING',
+  STAGED = 'STAGED',
 }
 
 /**

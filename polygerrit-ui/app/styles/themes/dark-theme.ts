@@ -89,6 +89,9 @@ function getStyleEl() {
       /* status colors */
       --status-merged: #5bb974;
       --status-abandoned: #dadce0;
+      --status-deferred: #dadce0;
+      --status-integrating: #999900;
+      --status-staged: #cccc00;
       --status-wip: #bcaaa4;
       --status-private: #d7aefb;
       --status-conflict: #f28b82;

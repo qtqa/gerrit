@@ -2380,6 +2380,9 @@ export class GrChangeView extends KeyboardShortcutMixin(
     // answer for abandoned changes.
     if (
       this._change.status === ChangeStatus.MERGED ||
+      this._change.status === ChangeStatus.STAGED ||
+      this._change.status === ChangeStatus.INTEGRATING ||
+      this._change.status === ChangeStatus.DEFERRED ||
       this._change.status === ChangeStatus.ABANDONED
     ) {
       this._mergeable = false;
