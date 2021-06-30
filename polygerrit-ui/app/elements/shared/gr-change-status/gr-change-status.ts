@@ -25,6 +25,9 @@ export enum ChangeStates {
   REVERT_CREATED = 'Revert Created',
   REVERT_SUBMITTED = 'Revert Submitted',
   WIP = 'WIP',
+  DEFERRED = 'Deferred',
+  INTEGRATING = 'Integrating',
+  STAGED = 'Staged',
 }
 
 export const WIP_TOOLTIP =
@@ -83,6 +86,18 @@ export class GrChangeStatus extends LitElement {
         :host(.abandoned) .chip {
           background-color: var(--status-abandoned);
           color: var(--status-abandoned);
+        }
+        :host(.deferred) .chip {
+          background-color: var(--status-deferred);
+          color: var(--status-deferred);
+        }
+        :host(.staged) .chip {
+          background-color: var(--status-staged);
+          color: var(--status-staged);
+        }
+        :host(.integrating) .chip {
+          background-color: var(--status-integrating);
+          color: var(--status-integrating);
         }
         :host(.wip) .chip {
           background-color: var(--status-wip);

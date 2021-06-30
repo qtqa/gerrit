@@ -150,6 +150,24 @@ export class GrLabelScores extends LitElement {
         ?hidden=${this.change?.status !== ChangeStatus.ABANDONED}
       >
         Because this change has been abandoned, you cannot vote.
+      </div>
+      <div
+        class="abandonedMessage"
+        ?hidden=${this.change?.status !== ChangeStatus.DEFERRED}
+      >
+        Because this change has been deferred, you cannot vote.
+      </div>
+      <div
+        class="mergedMessage"
+        ?hidden=${this.change?.status !== ChangeStatus.STAGED}
+      >
+        Because this change is integrating, votes may not be decreased.
+      </div>
+      <div
+        class="mergedMessage"
+        ?hidden=${this.change?.status !== ChangeStatus.INTEGRATING}
+      >
+        Because this change is integrating, votes may not be decreased.
       </div>`;
   }
 

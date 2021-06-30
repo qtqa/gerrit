@@ -129,7 +129,8 @@ export class GrRelatedChange extends LitElement {
 
   _computeLinkClass(change: ChangeInfo | RelatedChangeAndCommitInfo) {
     const statuses = [];
-    if (change.status === ChangeStatus.ABANDONED) {
+    if (change.status === ChangeStatus.ABANDONED ||
+        change.status === ChangeStatus.DEFERRED) {
       statuses.push('strikethrough');
     }
     if (change.submittable) {
@@ -158,6 +159,12 @@ export class GrRelatedChange extends LitElement {
         return 'Merged';
       case ChangeStatus.ABANDONED:
         return 'Abandoned';
+      case ChangeStatus.DEFERRED:
+        return 'Deferred';
+      case ChangeStatus.INTEGRATING:
+        return 'Integrating';
+      case ChangeStatus.STAGED:
+        return 'Staged';
     }
     if (change._revision_number !== change._current_revision_number) {
       return 'Not current';
