@@ -78,13 +78,22 @@ const CCED: DashboardSection = {
   suffixForDashboard: 'limit:10',
 };
 
+const INTEGRATING: DashboardSection = {
+  name: 'Integrating',
+  query:
+    '(is:staged OR is:integrating) (-is:wip OR owner:self) ' +
+    '(owner:${user} OR reviewer:${user} OR assignee:${user} ' +
+    'OR cc:${user})',
+  suffixForDashboard: 'limit:20',
+};
+
 export const CLOSED: DashboardSection = {
   name: 'Recently closed',
   // Closed changes where viewed user is owner or reviewer.
   // WIP changes not owned by the viewing user (the one instance of
   // 'owner:self' is intentional and implements this logic) are filtered out.
   query:
-    'is:closed (-is:wip OR owner:self) ' +
+    '(is:merged OR is:abandoned OR is:deferred) (-is:wip OR owner:self) ' +
     '(owner:${user} OR reviewer:${user} OR cc:${user})',
   suffixForDashboard: '-age:4w limit:10',
 };
@@ -96,6 +105,7 @@ const DEFAULT_SECTIONS: DashboardSection[] = [
   OUTGOING,
   INCOMING,
   CCED,
+  INTEGRATING,
   CLOSED,
 ];
 
