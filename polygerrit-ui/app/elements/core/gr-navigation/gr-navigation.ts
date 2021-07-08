@@ -209,6 +209,14 @@ const CCED: DashboardSection = {
   query: 'is:open -is:ignored cc:${user}',
   suffixForDashboard: 'limit:10',
 };
+export const INTEGRATING: DashboardSection = {
+  name: 'Integrating',
+  query:
+    '(is:staged OR is:integrating) -is:ignored (-is:wip OR owner:self) ' +
+    '(owner:${user} OR reviewer:${user} OR assignee:${user} ' +
+    'OR cc:${user})',
+  suffixForDashboard: 'limit:20',
+};
 export const CLOSED: DashboardSection = {
   name: 'Recently closed',
   // Closed changes where viewed user is owner, reviewer, or assignee.
@@ -216,7 +224,7 @@ export const CLOSED: DashboardSection = {
   // changes not owned by the viewing user (the one instance of
   // 'owner:self' is intentional and implements this logic).
   query:
-    'is:closed -is:ignored (-is:wip OR owner:self) ' +
+    '(is:merged OR is:abandoned OR is:deferred) -is:ignored (-is:wip OR owner:self) ' +
     '(owner:${user} OR reviewer:${user} OR assignee:${user} ' +
     'OR cc:${user})',
   suffixForDashboard: '-age:4w limit:10',
@@ -229,6 +237,7 @@ const DEFAULT_SECTIONS: DashboardSection[] = [
   OUTGOING,
   INCOMING,
   CCED,
+  INTEGRATING,
   CLOSED,
 ];
 
