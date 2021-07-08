@@ -39,6 +39,7 @@ export const htmlTemplate = html`
   </style>
   <div class="scoresTable">
     <template is="dom-repeat" items="[[_labels]]" as="label">
+      <gr-endpoint-decorator name$="[[_computeDecoratorName('review-label-scores-', label.name)]]">
       <gr-label-score-row
         class$="[[_computeLabelAccessClass(label.name, permittedLabels)]]"
         label="[[label]]"
@@ -47,6 +48,7 @@ export const htmlTemplate = html`
         permitted-labels="[[permittedLabels]]"
         label-values="[[_labelValues]]"
       ></gr-label-score-row>
+      </gr-endpoint-decorator>
     </template>
   </div>
   <div class="mergedMessage" hidden$="[[!_changeIsMerged(change.status)]]">

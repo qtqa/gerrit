@@ -159,6 +159,10 @@ export class GrLabelScores extends GestureEventListeners(
     return null;
   }
 
+  _computeDecoratorName(preString: string, name: string) {
+      return preString + name.toLowerCase();
+  }
+
   _computeLabels(
     labelRecord: PolymerDeepPropertyChange<
       LabelNameToInfoMap,
