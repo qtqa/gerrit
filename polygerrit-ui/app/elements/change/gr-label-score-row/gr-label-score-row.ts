@@ -282,4 +282,8 @@ export class GrLabelScoreRow extends PolymerElement {
       (labels[label] as DetailedLabelInfo).values![value]
     );
   }
+
+  _computeDecoratorName(preString: string, name: string) {
+    return preString + name.toLowerCase();
+  }
 }
