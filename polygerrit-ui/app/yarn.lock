@@ -505,10 +505,10 @@ code-point-at@^1.0.0:
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
   integrity sha1-DQcLTQQ6W+ozovGkDi7bPZpMz3c=
 
-codemirror-minified@^5.62.0:
-  version "5.62.0"
-  resolved "https://registry.yarnpkg.com/codemirror-minified/-/codemirror-minified-5.62.0.tgz#1d5bc5fc2c2baddebe54afefc90371d462be5f05"
-  integrity sha512-p4ALY/Lz5y4ftS5Q34rCBwLcupeATA5h4nBP2CZQgMWr+kQGnVDJxOCtC5KAYNk6Yo0jyKBvrsvr0ZxzuEuDow==
+codemirror-minified@^5.62.2:
+  version "5.62.2"
+  resolved "https://registry.yarnpkg.com/codemirror-minified/-/codemirror-minified-5.62.2.tgz#37d866f5f39bbd4482c60b1607c669bcb7190388"
+  integrity sha512-lQpyiEaqyEln1YDiHqq8lJcX8GkTJamecZAn0DkgdteFIVCRHnVmllOXPF+d159OSNkMi1UcKRObcU6ueBHe1A==
 
 concat-map@0.0.1:
   version "0.0.1"
@@ -896,9 +896,9 @@ strip-ansi@^4.0.0:
     ansi-regex "^3.0.0"
 
 tar@^6.1.0:
-  version "6.1.0"
-  resolved "https://registry.yarnpkg.com/tar/-/tar-6.1.0.tgz#d1724e9bcc04b977b18d5c573b333a2207229a83"
-  integrity sha512-DUCttfhsnLCjwoDoFcI+B2iJgYa93vBnDUATYEeRx6sntCTdN01VnqsIuTlALXla/LWooNg0yEGeB+Y8WdFxGA==
+  version "6.1.6"
+  resolved "https://registry.yarnpkg.com/tar/-/tar-6.1.6.tgz#c23d797b0a1efe5d479b1490805c5443f3560c5d"
+  integrity sha512-oaWyu5dQbHaYcyZCTfyPpC+VmI62/OM2RTUYavTk1MDr1cwW5Boi3baeYQKiZbY2uSQJGr+iMOzb/JFxLrft+g==
   dependencies:
     chownr "^2.0.0"
     fs-minipass "^2.0.0"
