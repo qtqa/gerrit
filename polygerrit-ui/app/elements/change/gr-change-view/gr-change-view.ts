@@ -216,6 +216,9 @@ const ReloadToastMessage = {
   ABANDONED: 'This change has been abandoned',
   MERGED: 'This change has been merged',
   NEW_MESSAGE: 'There are new messages on this change',
+  STAGED: 'This change has been staged',
+  INTEGRATING: 'This change is now integrating',
+  DEFERRED: 'This change has been deferred',
 };
 
 // Making the tab names more unique in case a plugin adds one with same name
@@ -1806,6 +1809,7 @@ export class GrChangeView extends base {
       // if a change is deleted then getChanges returns null for that changeId
       changes = changes.filter(
         change => change && change.status !== ChangeStatus.ABANDONED
+            && change.status !== ChangeStatus.DEFERRED
       );
       if (!changes.length) return;
       const submittedRevert = changes.find(
@@ -2202,6 +2206,9 @@ export class GrChangeView extends base {
     // answer for abandoned changes.
     if (
       this._change.status === ChangeStatus.MERGED ||
+      this._change.status === ChangeStatus.STAGED ||
+      this._change.status === ChangeStatus.INTEGRATING ||
+      this._change.status === ChangeStatus.DEFERRED ||
       this._change.status === ChangeStatus.ABANDONED
     ) {
       this._mergeable = false;
@@ -2304,6 +2311,12 @@ export class GrChangeView extends base {
           toastMessage = ReloadToastMessage.ABANDONED;
         } else if (result.newStatus === ChangeStatus.NEW) {
           toastMessage = ReloadToastMessage.RESTORED;
+        } else if (result.newStatus === ChangeStatus.STAGED) {
+          toastMessage = ReloadToastMessage.STAGED;
+        } else if (result.newStatus === ChangeStatus.INTEGRATING) {
+          toastMessage = ReloadToastMessage.INTEGRATING;
+        } else if (result.newStatus === ChangeStatus.DEFERRED) {
+          toastMessage = ReloadToastMessage.DEFERRED;
         } else if (result.newMessages) {
           toastMessage = ReloadToastMessage.NEW_MESSAGE;
           if (result.newMessages.author?.name) {

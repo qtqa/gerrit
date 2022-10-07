@@ -52,7 +52,7 @@ import {ScrollMode} from '../../../constants/constants';
 import {listen} from '../../../services/shortcuts/shortcuts-service';
 
 const NUMBER_FIXED_COLUMNS = 3;
-const CLOSED_STATUS = ['MERGED', 'ABANDONED'];
+const CLOSED_STATUS = ['MERGED', 'ABANDONED', 'DEFERRED', 'INTEGRATING', 'STAGED'];
 const LABEL_PREFIX_INVALID_PROLOG = 'Invalid-Prolog-Rules-Label-Name--';
 const MAX_SHORTCUT_CHARS = 5;
 

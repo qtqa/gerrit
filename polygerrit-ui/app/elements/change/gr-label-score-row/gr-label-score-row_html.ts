@@ -99,6 +99,7 @@ export const htmlTemplate = html`
       }
     }
   </style>
+  <gr-endpoint-decorator name$="[[_computeDecoratorName('review-label-scores-', label.name)]]">
   <span class="labelNameCell" id="labelName" aria-hidden="true"
     >[[label.name]]</span
   >
@@ -157,4 +158,5 @@ export const htmlTemplate = html`
   >
     <span id="selectedValueLabel">[[_selectedValueText]]</span>
   </div>
+  </gr-endpoint-decorator>
 `;

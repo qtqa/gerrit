@@ -37,6 +37,9 @@ export enum ChangeStates {
   REVERT_CREATED = 'Revert Created',
   REVERT_SUBMITTED = 'Revert Submitted',
   WIP = 'WIP',
+  DEFERRED = 'Deferred',
+  INTEGRATING = 'Integrating',
+  STAGED = 'Staged',
 }
 
 const WIP_TOOLTIP =
