@@ -56,8 +56,6 @@ import {
   PatchSet,
 } from '../../../utils/patch-set-util';
 import {
-  changeIsAbandoned,
-  changeIsMerged,
   changeIsOpen,
   changeStatuses,
   isInvolved,
@@ -205,6 +203,9 @@ const ReloadToastMessage = {
   ABANDONED: 'This change has been abandoned',
   MERGED: 'This change has been merged',
   NEW_MESSAGE: 'There are new messages on this change',
+  STAGED: 'This change has been staged',
+  INTEGRATING: 'This change is now integrating',
+  DEFERRED: 'This change has been deferred',
 };
 
 // Making the tab names more unique in case a plugin adds one with same name
@@ -2752,12 +2753,12 @@ export class GrChangeView extends LitElement {
 
     if (
       !editRev &&
-      (changeIsMerged(change) || changeIsAbandoned(change)) &&
+      !changeIsOpen(change) &&
       this.getEditMode()
     ) {
       fireAlert(
         this,
-        'Change edits cannot be created if change is merged or abandoned. Redirecting to non edit mode.'
+        'Change edits cannot be created if change is staged, integrating, merged, deferred or abandoned. Redirecting to non edit mode.'
       );
       fireReload(this, true);
       return;
@@ -2795,6 +2796,7 @@ export class GrChangeView extends LitElement {
       // if a change is deleted then getChanges returns null for that changeId
       changes = changes.filter(
         change => change && change.status !== ChangeStatus.ABANDONED
+            && change.status !== ChangeStatus.DEFERRED
       );
       if (!changes.length) return;
       const submittedRevert = changes.find(
@@ -3118,6 +3120,9 @@ export class GrChangeView extends LitElement {
     // answer for abandoned changes.
     if (
       this.change.status === ChangeStatus.MERGED ||
+      this.change.status === ChangeStatus.STAGED ||
+      this.change.status === ChangeStatus.INTEGRATING ||
+      this.change.status === ChangeStatus.DEFERRED ||
       this.change.status === ChangeStatus.ABANDONED
     ) {
       this.mergeable = false;
@@ -3195,6 +3200,12 @@ export class GrChangeView extends LitElement {
             toastMessage = ReloadToastMessage.ABANDONED;
           } else if (result.newStatus === ChangeStatus.NEW) {
             toastMessage = ReloadToastMessage.RESTORED;
+          } else if (result.newStatus === ChangeStatus.STAGED) {
+            toastMessage = ReloadToastMessage.STAGED;
+          } else if (result.newStatus === ChangeStatus.INTEGRATING) {
+            toastMessage = ReloadToastMessage.INTEGRATING;
+          } else if (result.newStatus === ChangeStatus.DEFERRED) {
+            toastMessage = ReloadToastMessage.DEFERRED;
           } else if (result.newMessages) {
             toastMessage = ReloadToastMessage.NEW_MESSAGE;
             if (result.newMessages.author?.name) {

@@ -54,6 +54,7 @@ public abstract class Permission implements Comparable<Permission> {
   public static final String SUBMIT_AS = "submitAs";
   public static final String TOGGLE_WORK_IN_PROGRESS_STATE = "toggleWipState";
   public static final String VIEW_PRIVATE_CHANGES = "viewPrivateChanges";
+  public static final String QT_STAGE = "stage";
 
   public static final boolean DEF_EXCLUSIVE_GROUP = false;
 
@@ -90,6 +91,7 @@ public abstract class Permission implements Comparable<Permission> {
     NAMES_LC.add(SUBMIT_AS.toLowerCase());
     NAMES_LC.add(TOGGLE_WORK_IN_PROGRESS_STATE.toLowerCase());
     NAMES_LC.add(VIEW_PRIVATE_CHANGES.toLowerCase());
+    NAMES_LC.add(QT_STAGE.toLowerCase());
 
     LABEL_INDEX = NAMES_LC.indexOf(Permission.LABEL);
     LABEL_AS_INDEX = NAMES_LC.indexOf(Permission.LABEL_AS.toLowerCase());
