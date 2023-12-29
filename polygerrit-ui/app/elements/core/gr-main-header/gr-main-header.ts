@@ -419,12 +419,18 @@ export class GrMainHeader extends LitElement {
           .items=${linkGroup.links}
           horizontal-align="left"
         >
+          <gr-endpoint-decorator name=${this.computeDecoratorName('main-header-', linkGroup.title)}>
           <span class="linksTitle" id=${linkGroup.title}>
             ${linkGroup.title}
           </span>
+          </gr-endpoint-decorator>
         </gr-dropdown>
       </li>
     `;
+  }
+
+  private computeDecoratorName(preString: string, name: string) {
+    return preString + name.toLowerCase().replace(' ', '-');
   }
 
   private renderFeedback() {
