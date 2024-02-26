@@ -48,8 +48,20 @@ const DEFAULT_LINKS: MainHeaderLinkGroup[] = [
         name: 'Open',
       },
       {
+        url: '/q/status:staged',
+        name: 'Staged',
+      },
+      {
+        url: '/q/status:integrating',
+        name: 'Integrating',
+      },
+      {
         url: '/q/status:merged',
         name: 'Merged',
+      },
+      {
+        url: '/q/status:deferred',
+        name: 'Deferred',
       },
       {
         url: '/q/status:abandoned',
@@ -396,12 +408,18 @@ export class GrMainHeader extends LitElement {
           .items=${linkGroup.links}
           horizontal-align="left"
         >
+          <gr-endpoint-decorator name=${this.computeDecoratorName('main-header-', linkGroup.title)}>
           <span class="linksTitle" id=${linkGroup.title}>
             ${linkGroup.title}
           </span>
+          </gr-endpoint-decorator>
         </gr-dropdown>
       </li>
     `;
+  }
+
+  private computeDecoratorName(preString: string, name: string) {
+    return preString + name.toLowerCase().replace(' ', '-');
   }
 
   private renderFeedback() {
