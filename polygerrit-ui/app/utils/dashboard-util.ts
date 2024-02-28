@@ -81,9 +81,8 @@ const CCED: DashboardSection = {
 const INTEGRATING: DashboardSection = {
   name: 'Integrating',
   query:
-    '(is:staged OR is:integrating) (-is:wip OR owner:self) ' +
-    '(owner:${user} OR reviewer:${user} OR assignee:${user} ' +
-    'OR cc:${user})',
+    '(is:staged OR is:integrating) ' +
+    '(owner:${user} OR reviewer:${user} OR cc:${user})',
   suffixForDashboard: 'limit:20',
 };
 
