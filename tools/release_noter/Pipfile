@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-black = { version = "==20.8b1", markers = "python_version >= '3.8'" }
+black = { version = "==24.3.0", markers = "python_version >= '3.8'" }
 flake8 = { version = "==3.8.4", markers = "python_version >= '3.8'" }
 
 [packages]
