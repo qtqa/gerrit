@@ -746,6 +746,9 @@ public class ChangeUpdate extends AbstractChangeUpdate {
       if (status.equals(Change.Status.ABANDONED)) {
         clearAttentionSet("Change was abandoned");
       }
+      if (status.equals(Change.Status.DEFERRED)) {
+        clearAttentionSet("Change was deferred");
+      }
       if (status.equals(Change.Status.MERGED)) {
         clearAttentionSet("Change was submitted");
       }

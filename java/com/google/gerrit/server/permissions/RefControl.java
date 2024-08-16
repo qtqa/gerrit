@@ -596,6 +596,10 @@ class RefControl {
           case WRITE_CONFIG:
             pde.setAdvice("You need 'Write' rights on refs/meta/config.");
             break;
+
+          case QT_STAGE:
+            pde.setAdvice("You need 'Stage' rights on " + RefNames.shortName(refName) );
+            break;
         }
         throw pde;
       }
@@ -675,6 +679,9 @@ class RefControl {
               && canForgeCommitter()
               && canForgeGerritServerIdentity()
               && canUploadMerges();
+
+        case QT_STAGE:
+          return canPerform(refPermissionName(perm));
       }
       throw new PermissionBackendException(perm + " unsupported");
     }

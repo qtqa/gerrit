@@ -550,6 +550,10 @@ export class ChangeModel extends Model<ChangeState> {
           if (change.mergeable !== undefined) return of(change.mergeable);
           if (change.status === ChangeStatus.MERGED) return of(false);
           if (change.status === ChangeStatus.ABANDONED) return of(false);
+          if (change.status === ChangeStatus.STAGED) return of(false);
+          if (change.status === ChangeStatus.INTEGRATING) return of(false);
+          if (change.status === ChangeStatus.DEFERRED) return of(false);
+
           return from(
             this.restApiService
               .getMergeable(change._number)
