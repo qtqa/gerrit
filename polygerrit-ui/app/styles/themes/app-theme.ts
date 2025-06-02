@@ -320,6 +320,9 @@ const appThemeCss = safeStyleSheet`
     /* status colors */
     --status-merged: var(--green-700);
     --status-abandoned: var(--gray-700);
+    --status-deferred: #5f6368;
+    --status-integrating: #999900;
+    --status-staged: #cccc00;
     --status-wip: #795548;
     --status-private: var(--purple-500);
     --status-conflict: var(--red-600);

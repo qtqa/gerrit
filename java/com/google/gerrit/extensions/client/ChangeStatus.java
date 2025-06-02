@@ -54,7 +54,39 @@ public enum ChangeStatus {
    *   <li>{@link #NEW} - when the Restore action is used.
    * </ul>
    */
-  ABANDONED(2);
+  ABANDONED(2),
+
+  /**
+   * Change is staged and waiting for CI to start a build of it.
+   *
+   * <p> While a change is staged, it cannot be further modified by adding a replacement patch
+   * set.
+   */
+  STAGED(100),
+
+  /**
+   * Change is integrating in a build on a CI system.
+   *
+   * <p> While a change is integrating, it cannot be further modified by adding a replacement patch
+   * set.
+   */
+  INTEGRATING(101),
+
+  /**
+   * Change is closed, but was not submitted to its destination branch. Deferred is similar
+   * to abandoned, the difference is that the change is expected to be reopened later.
+   *
+   * <p>Once a change has been deferred, it cannot be further modified by adding a replacement
+   * patch set, and it cannot be merged. Draft comments however may be published, permitting
+   * reviewers to send constructive feedback.
+   *
+   * <p>Changes in the DEFERRED state can be moved to:
+   *
+   * <ul>
+   *   <li>{@link #NEW} - when the Reopen action is used.
+   * </ul>
+   */
+  DEFERRED(102);
 
   private final int value;
 

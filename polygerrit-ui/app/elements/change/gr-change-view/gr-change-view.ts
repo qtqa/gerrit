@@ -175,6 +175,9 @@ const ReloadToastMessage = {
   ABANDONED: 'This change has been abandoned',
   MERGED: 'This change has been merged',
   NEW_MESSAGE: 'There are new messages on this change',
+  STAGED: 'This change has been staged',
+  INTEGRATING: 'This change is now integrating',
+  DEFERRED: 'This change has been deferred',
 };
 
 @customElement('gr-change-view')
@@ -2322,6 +2325,12 @@ export class GrChangeView extends LitElement {
             toastMessage = ReloadToastMessage.ABANDONED;
           } else if (result.newStatus === ChangeStatus.NEW) {
             toastMessage = ReloadToastMessage.RESTORED;
+          } else if (result.newStatus === ChangeStatus.STAGED) {
+            toastMessage = ReloadToastMessage.STAGED;
+          } else if (result.newStatus === ChangeStatus.INTEGRATING) {
+            toastMessage = ReloadToastMessage.INTEGRATING;
+          } else if (result.newStatus === ChangeStatus.DEFERRED) {
+            toastMessage = ReloadToastMessage.DEFERRED;
           } else if (result.newMessages) {
             toastMessage = ReloadToastMessage.NEW_MESSAGE;
             if (result.newMessages.author?.name) {

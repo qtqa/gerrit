@@ -64,8 +64,12 @@ public class IndexPreloadingUtil {
   public static final String DASHBOARD_INCOMING_QUERY =
       "is:open -owner:${user} -is:wip reviewer:${user} limit:25";
   public static final String CC_QUERY = "is:open -is:wip cc:${user} limit:10";
+  public static final String INTEGRATING_QUERY =
+      "(is:staged OR is:integrating) "
+          + "(owner:${user} OR reviewer:${user} OR cc:${user}) "
+          + "limit:20";
   public static final String DASHBOARD_RECENTLY_CLOSED_QUERY =
-      "is:closed (-is:wip OR owner:self) "
+      "(is:merged OR is:abandoned OR is:deferred) (-is:wip OR owner:self) "
           + "(owner:${user} OR reviewer:${user} OR cc:${user}) "
           + "-age:4w limit:10";
   public static final String NEW_USER = "owner:${user} limit:1";
@@ -79,6 +83,7 @@ public class IndexPreloadingUtil {
               DASHBOARD_OUTGOING_QUERY,
               DASHBOARD_INCOMING_QUERY,
               CC_QUERY,
+              INTEGRATING_QUERY,
               DASHBOARD_RECENTLY_CLOSED_QUERY,
               NEW_USER)
           .map(query -> query.replaceAll("\\$\\{user}", "self"))
