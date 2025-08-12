@@ -113,6 +113,7 @@ public class ParentDataProvider {
     int patchSetNumber =
         singleData.patchSets().stream()
             .filter(p -> p.commitId().equals(parentCommitId))
+            .findFirst().stream()
             .collect(MoreCollectors.onlyElement())
             .number();
     return Optional.of(
