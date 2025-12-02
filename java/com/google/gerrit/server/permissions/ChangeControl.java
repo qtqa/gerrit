@@ -321,6 +321,7 @@ public class ChangeControl {
           case SUBMIT -> refControl.canSubmit(isOwner());
           case TOGGLE_WORK_IN_PROGRESS_STATE -> canToggleWorkInProgressState();
           case REMOVE_REVIEWER, SUBMIT_AS -> refControl.canPerform(changePermissionName(perm));
+          case QT_STAGE -> refControl.canPerform(Permission.QT_STAGE);
         };
       } catch (StorageException e) {
         throw new PermissionBackendException("unavailable", e);

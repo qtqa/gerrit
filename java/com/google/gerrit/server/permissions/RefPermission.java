@@ -72,7 +72,9 @@ public enum RefPermission implements RefPermissionOrLabel {
   READ_CONFIG("read ref config"),
 
   /** Write access to ref's config section in {@code project.config}. */
-  WRITE_CONFIG("write ref config");
+  WRITE_CONFIG("write ref config"),
+
+  QT_STAGE;
 
   private final String description;
 

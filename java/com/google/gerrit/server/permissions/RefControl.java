@@ -595,6 +595,7 @@ public class RefControl {
               pde.setAdvice(
                   "You need 'Submit' rights on refs/for/ to submit changes during change upload.");
           case WRITE_CONFIG -> pde.setAdvice("You need 'Write' rights on refs/meta/config.");
+          case QT_STAGE -> pde.setAdvice("You need 'Stage' rights on " + RefNames.shortName(refName) );
         }
         throw pde;
       }
@@ -729,6 +730,9 @@ public class RefControl {
             && canForgeCommitter()
             && canForgeGerritServerIdentity()
             && canUploadMerges();
+      }
+      case QT_STAGE -> {
+        return canPerform(refPermissionName(perm));
       }
     }
     throw new PermissionBackendException(perm + " unsupported");

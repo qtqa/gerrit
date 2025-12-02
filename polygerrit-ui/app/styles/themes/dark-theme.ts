@@ -179,6 +179,9 @@ const darkThemeCss = safeStyleSheet`
     /* status colors */
     --status-merged: #a4a4a4;
     --status-abandoned: var(--gray-300);
+    --status-deferred: #dadce0;
+    --status-integrating: #999900;
+    --status-staged: #cccc00;
     --status-wip: #bcaaa4;
     --status-private: var(--purple-200);
     --status-conflict: var(--red-300);
