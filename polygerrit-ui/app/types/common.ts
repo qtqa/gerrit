@@ -543,6 +543,7 @@ export enum ChangeStates {
   WIP = 'WIP',
   DEFERRED = 'Deferred',
   INTEGRATING = 'Integrating',
+  PRESTAGED = 'Prestaged',
   STAGED = 'Staged',
 }
 

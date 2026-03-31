@@ -48,7 +48,7 @@ const DEFAULT_LINKS: MainHeaderLinkGroup[] = [
         name: 'Open',
       },
       {
-        url: '/q/status:staged',
+        url: '/q/status:staged+or+status:prestaged',
         name: 'Staged',
       },
       {

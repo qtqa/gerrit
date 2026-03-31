@@ -162,6 +162,12 @@ export class GrLabelScores extends LitElement {
       </div>
       <div
         class="mergedMessage"
+        ?hidden=${this.change?.status !== ChangeStatus.PRESTAGED}
+      >
+        Because this change is integrating, votes may not be decreased.
+      </div>
+      <div
+        class="mergedMessage"
         ?hidden=${this.change?.status !== ChangeStatus.INTEGRATING}
       >
         Because this change is integrating, votes may not be decreased.

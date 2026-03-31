@@ -168,6 +168,8 @@ export class GrRelatedChange extends LitElement {
         return 'Integrating';
       case ChangeStatus.STAGED:
         return 'Staged';
+      case ChangeStatus.PRESTAGED:
+        return 'Prestaged';
     }
     if (
       !isChangeInfo(change) &&

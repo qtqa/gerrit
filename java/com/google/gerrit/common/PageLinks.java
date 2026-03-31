@@ -136,7 +136,7 @@ public class PageLinks {
 
   public static String topicQuery(Status status, String topic) {
     return switch (status) {
-      case ABANDONED, DEFERRED, INTEGRATING, STAGED -> toChangeQuery(status(status) + " " + op("topic", topic));
+      case ABANDONED, DEFERRED, INTEGRATING, PRESTAGED, STAGED -> toChangeQuery(status(status) + " " + op("topic", topic));
       case MERGED, NEW ->
           toChangeQuery(
               op("topic", topic)
@@ -172,6 +172,8 @@ public class PageLinks {
         return "status:deferred";
       case STAGED:
         return "status:staged";
+      case PRESTAGED:
+        return "status:prestaged";
       case NEW:
       default:
         return "status:open";

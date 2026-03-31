@@ -86,7 +86,15 @@ public enum ChangeStatus {
    *   <li>{@link #NEW} - when the Reopen action is used.
    * </ul>
    */
-  DEFERRED(102);
+  DEFERRED(102),
+
+  /**
+   * Change is pre-staged and waiting to be staged for CI build.
+   *
+   * <p> While a change is pre-staged, it cannot be further modified by adding a replacement patch
+   * set.
+   */
+  PRESTAGED(103);
 
   private final int value;
 

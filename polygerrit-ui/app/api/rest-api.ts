@@ -45,6 +45,7 @@ export enum ChangeStatus {
   NEW = 'NEW',
   DEFERRED = 'DEFERRED',
   INTEGRATING = 'INTEGRATING',
+  PRESTAGED = 'PRESTAGED',
   STAGED = 'STAGED',
 }
 

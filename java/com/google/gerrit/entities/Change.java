@@ -322,6 +322,9 @@ public final class Change {
   /** Maximum database status constant for an open change. */
   private static final char MAX_OPEN = 'z';
 
+  /** Database constant for {@link Status#PRESTAGED}. */
+  public static final char STATUS_PRESTAGED = 'P';
+
   /** Database constant for {@link Status#STAGED}. */
   public static final char STATUS_STAGED = 'R';
 
@@ -361,6 +364,7 @@ public final class Change {
      */
     NEW(STATUS_NEW, ChangeStatus.NEW),
 
+    PRESTAGED(STATUS_PRESTAGED, ChangeStatus.PRESTAGED),
     STAGED(STATUS_STAGED, ChangeStatus.STAGED),
     INTEGRATING(STATUS_INTEGRATING, ChangeStatus.INTEGRATING),
 
@@ -708,12 +712,16 @@ public final class Change {
     return getStatus().equals(Status.STAGED);
   }
 
+  public boolean isPrestaged() {
+    return getStatus().equals(Status.PRESTAGED);
+  }
+
   public boolean isDeferred() {
     return getStatus().equals(Status.DEFERRED);
   }
 
   public boolean isClosed() {
-    return isAbandoned() || isMerged() || isStaged() || isIntegrating() || isDeferred();
+    return isAbandoned() || isMerged() || isPrestaged() || isStaged() || isIntegrating() || isDeferred();
   }
 
   @Nullable

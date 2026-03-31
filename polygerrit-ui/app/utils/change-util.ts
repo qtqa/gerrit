@@ -111,6 +111,9 @@ export function changeStatuses(
   if (change.status === ChangeStatus.STAGED) {
     return [ChangeStates.STAGED];
   }
+  if (change.status === ChangeStatus.PRESTAGED) {
+    return [ChangeStates.PRESTAGED];
+  }
 
   if (change.revert_of) {
     states.push(ChangeStates.REVERT);

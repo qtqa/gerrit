@@ -175,6 +175,7 @@ const ReloadToastMessage = {
   MERGED: 'This change has been merged',
   NEW_MESSAGE: 'There are new messages on this change',
   STAGED: 'This change has been staged',
+  PRESTAGED: 'This change has been prestaged',
   INTEGRATING: 'This change is now integrating',
   DEFERRED: 'This change has been deferred',
 };
@@ -2355,6 +2356,8 @@ export class GrChangeView extends LitElement {
             toastMessage = ReloadToastMessage.RESTORED;
           } else if (result.newStatus === ChangeStatus.STAGED) {
             toastMessage = ReloadToastMessage.STAGED;
+          } else if (result.newStatus === ChangeStatus.PRESTAGED) {
+            toastMessage = ReloadToastMessage.PRESTAGED;
           } else if (result.newStatus === ChangeStatus.INTEGRATING) {
             toastMessage = ReloadToastMessage.INTEGRATING;
           } else if (result.newStatus === ChangeStatus.DEFERRED) {

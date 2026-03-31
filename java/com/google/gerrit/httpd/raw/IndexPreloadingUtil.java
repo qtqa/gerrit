@@ -66,7 +66,7 @@ public class IndexPreloadingUtil {
       "is:open -owner:${user} -is:wip reviewer:${user} limit:25";
   public static final String CC_QUERY = "is:open -is:wip cc:${user} limit:10";
   public static final String INTEGRATING_QUERY =
-      "(is:staged OR is:integrating) "
+      "(is:prestaged OR is:staged OR is:integrating) "
           + "(owner:${user} OR reviewer:${user} OR cc:${user}) "
           + "limit:20";
   public static final String DASHBOARD_RECENTLY_CLOSED_QUERY =

@@ -75,6 +75,10 @@ export class GrChangeStatus extends LitElement {
           background-color: var(--status-staged);
           color: var(--status-staged);
         }
+        :host(.prestaged) .chip {
+          background-color: var(--status-staged);
+          color: var(--status-staged);
+        }
         :host(.integrating) .chip {
           background-color: var(--status-integrating);
           color: var(--status-integrating);

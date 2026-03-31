@@ -577,6 +577,7 @@ export class ChangeModel extends Model<ChangeState> {
           if (change.status === ChangeStatus.MERGED) return of(false);
           if (change.status === ChangeStatus.ABANDONED) return of(false);
           if (change.status === ChangeStatus.STAGED) return of(false);
+          if (change.status === ChangeStatus.PRESTAGED) return of(false);
           if (change.status === ChangeStatus.INTEGRATING) return of(false);
           if (change.status === ChangeStatus.DEFERRED) return of(false);
 
