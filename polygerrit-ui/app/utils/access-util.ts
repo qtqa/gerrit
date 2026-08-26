@@ -31,6 +31,7 @@ export enum AccessPermissionId {
   TOGGLE_WIP_STATE = 'toggleWipState',
   VIEW_PRIVATE_CHANGES = 'viewPrivateChanges',
   AI_REVIEW = 'aiReview',
+  QT_STAGE = 'stage',
 
   PRIORITY = 'priority',
 }
@@ -135,6 +136,10 @@ export const AccessPermissions: {[id: string]: AccessPermission} = {
   [AccessPermissionId.AI_REVIEW]: {
     id: AccessPermissionId.AI_REVIEW,
     name: 'AI Review',
+  },
+  [AccessPermissionId.QT_STAGE]: {
+    id: AccessPermissionId.QT_STAGE,
+    name: 'Stage',
   },
 };
 

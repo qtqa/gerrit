@@ -537,6 +537,10 @@ export enum ChangeStates {
   /** A revert of this change was submitted. */
   REVERT_SUBMITTED = 'Revert Submitted',
   WIP = 'WIP',
+  DEFERRED = 'Deferred',
+  INTEGRATING = 'Integrating',
+  PRESTAGED = 'Prestaged',
+  STAGED = 'Staged',
 }
 
 export enum SavingState {

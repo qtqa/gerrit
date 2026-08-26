@@ -86,6 +86,10 @@ const ReloadToastMessage = {
   ABANDONED: 'This change has been abandoned',
   MERGED: 'This change has been merged',
   NEW_MESSAGE: 'There are new messages on this change',
+  STAGED: 'This change has been staged',
+  PRESTAGED: 'This change has been prestaged',
+  INTEGRATING: 'This change is now integrating',
+  DEFERRED: 'This change has been deferred',
 };
 
 export interface ChangeState {
@@ -806,6 +810,11 @@ export class ChangeModel extends Model<ChangeState> {
           if (change.mergeable !== undefined) return of(change.mergeable);
           if (change.status === ChangeStatus.MERGED) return of(false);
           if (change.status === ChangeStatus.ABANDONED) return of(false);
+          if (change.status === ChangeStatus.STAGED) return of(false);
+          if (change.status === ChangeStatus.PRESTAGED) return of(false);
+          if (change.status === ChangeStatus.INTEGRATING) return of(false);
+          if (change.status === ChangeStatus.DEFERRED) return of(false);
+
           return from(
             this.restApiService
               .getMergeable(change._number)
@@ -1039,6 +1048,14 @@ export class ChangeModel extends Model<ChangeState> {
       toastMessage = ReloadToastMessage.ABANDONED;
     } else if (result.newStatus === ChangeStatus.NEW) {
       toastMessage = ReloadToastMessage.RESTORED;
+    } else if (result.newStatus === ChangeStatus.STAGED) {
+      toastMessage = ReloadToastMessage.STAGED;
+    } else if (result.newStatus === ChangeStatus.PRESTAGED) {
+      toastMessage = ReloadToastMessage.PRESTAGED;
+    } else if (result.newStatus === ChangeStatus.INTEGRATING) {
+      toastMessage = ReloadToastMessage.INTEGRATING;
+    } else if (result.newStatus === ChangeStatus.DEFERRED) {
+      toastMessage = ReloadToastMessage.DEFERRED;
     } else if (result.newMessages) {
       toastMessage = ReloadToastMessage.NEW_MESSAGE;
       if (result.newMessages.author?.name) {

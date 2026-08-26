@@ -102,6 +102,7 @@ abstract class AbstractChangeControl {
             permissionBackend.user(getUser()).test(GlobalPermission.RUN_AS)
                 || refControl.canPerform(changePermissionName(perm));
         case AI_REVIEW -> canAiReview();
+        case QT_STAGE -> canQtStage();
       };
     } catch (StorageException e) {
       throw new PermissionBackendException("unavailable", e);
@@ -111,6 +112,11 @@ abstract class AbstractChangeControl {
   /** Can this user perform AI review for this change? */
   private boolean canAiReview() {
     return refControl.canPerformDefaultAllow(Permission.AI_REVIEW);
+  }
+
+  /** Can this user Stage this change? */
+  private boolean canQtStage() {
+    return refControl.canPerform(Permission.QT_STAGE);
   }
 
   /** Can this user see this change? */
