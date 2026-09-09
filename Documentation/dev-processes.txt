@@ -396,7 +396,7 @@ should be made public.
 +
 The Gerrit maintainers should discuss if there are any learnings from the security
 vulnerability and define action items to follow up in the
-link:https://bugs.chromium.org/p/gerrit[issue tracker,role=external,window=_blank].
+link:https://issues.gerritcodereview.com[issue tracker,role=external,window=_blank].
 
 [[core-plugins]]
 == Core Plugins
