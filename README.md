@@ -52,7 +52,7 @@ Note that we do not accept Pull Requests via the GitHub mirror.
 
 ## Getting in contact
 
-The Developer Mailing list is [repo-discuss on Google Groups](https://groups.google.com/forum/#!forum/repo-discuss).
+Find a full list of contact options on the [website](https://www.gerritcodereview.com/contact.html).
 
 ## License
 
