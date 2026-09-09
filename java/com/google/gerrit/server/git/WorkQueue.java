@@ -891,6 +891,11 @@ public class WorkQueue {
       return executor.queueName;
     }
 
+    private boolean isWaitingToStart() {
+      State state = runningState.get();
+      return state == State.READY || state == State.PARKED;
+    }
+
     @Override
     @CanIgnoreReturnValue
     public boolean cancel(boolean mayInterruptIfRunning) {
@@ -905,6 +910,8 @@ public class WorkQueue {
         if (runnable instanceof CancelableRunnable) {
           if (runningState.compareAndSet(null, State.RUNNING)) {
             isSetRunningDuringCancellation = true;
+            ((CancelableRunnable) runnable).cancel();
+          } else if (isWaitingToStart()) {
             ((CancelableRunnable) runnable).cancel();
           } else if (runnable instanceof CanceledWhileRunning) {
             ((CanceledWhileRunning) runnable).setCanceledWhileRunning();
