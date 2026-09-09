@@ -28,13 +28,25 @@ There is a mirror of the repository on [GitHub](https://github.com/GerritCodeRev
 
 ## Reporting bugs
 
-Please report bugs on the [issue tracker](https://bugs.chromium.org/p/gerrit/issues/list).
+Please report bugs on the
+[issue tracker](https://issues.gerritcodereview.com/issues?q=status:open%20componentid:1370072).
+
+Due to spam abuse, membership in the
+[repo-discuss](http://groups.google.com/group/repo-discuss) Google Group is
+required in order to create issues. See the
+[announcement](https://www.gerritcodereview.com/2025-06-05-community-managers-minutes.html#reducing-spam-on-both-issue-tracker-and-gerritgooglesource)
+for more info.
 
 ## Contribute
 
 Gerrit is the work of hundreds of contributors. We appreciate your help!
 
-Please read the [contribution guidelines](https://gerrit.googlesource.com/gerrit/+/master/SUBMITTING_PATCHES).
+Please read the [contribution guidelines](SUBMITTING_PATCHES).
+
+Due to spam abuse, membership in the
+[repo-discuss](http://groups.google.com/group/repo-discuss) Google Group is
+required in order to create Gerrit changes on the
+[gerrit-review](https://gerrit-review.googlesource.com) Gerrit server.
 
 Note that we do not accept Pull Requests via the GitHub mirror.
 
