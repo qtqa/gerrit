@@ -17,6 +17,7 @@ import {getAppContext} from '../../../services/app-context';
 import {
   computeAllPatchSets,
   computeLatestPatchNum,
+  findEdit,
   getParentIndex,
   isAParent,
   isMergeParent,
@@ -1485,7 +1486,19 @@ export class GrDiffHost extends LitElement {
       return;
     }
 
-    const patchNum = this.patchRange.patchNum;
+    let patchNum: RevisionPatchSetNum | undefined = this.patchRange.patchNum;
+    if (patchNum === undefined) {
+      onComplete?.();
+      return;
+    }
+
+    if (patchNum === EDIT) {
+      const editRev = findEdit(Object.values(this.change?.revisions ?? {}));
+      patchNum =
+        (editRev?.basePatchNum as PatchSetNumber | undefined) ??
+        this.latestPatchNum ??
+        computeLatestPatchNum(computeAllPatchSets(this.change));
+    }
     if (patchNum === undefined) {
       onComplete?.();
       return;
@@ -1524,6 +1537,9 @@ export class GrDiffHost extends LitElement {
     if (res?.ok) {
       fireAlert(this, 'Change reverted.');
       const currentChildView = this.getChangeViewModel().getState()?.childView;
+      const hasEdit =
+        !!findEdit(Object.values(this.change?.revisions ?? {})) ||
+        this.patchRange?.patchNum === EDIT;
       this.getNavigation().setUrl(
         createApplyFixUrl({
           change: this.change,
@@ -1531,7 +1547,7 @@ export class GrDiffHost extends LitElement {
           repo: this.change?.project ?? this.projectName ?? ('' as RepoName),
           basePatchNum: PARENT,
           patchNum: EDIT,
-          forceReload: true,
+          forceReload: !hasEdit,
           filePath: this.path,
           currentChildView,
         })
