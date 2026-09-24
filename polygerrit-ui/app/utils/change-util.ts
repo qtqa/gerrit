@@ -108,16 +108,20 @@ export function changeStatuses(
     return states;
   }
   if (change.status === ChangeStatus.DEFERRED) {
-    return [ChangeStates.DEFERRED];
+    states.push(ChangeStates.DEFERRED);
+    return states;
   }
   if (change.status === ChangeStatus.INTEGRATING) {
-    return [ChangeStates.INTEGRATING];
+    states.push(ChangeStates.INTEGRATING);
+    return states;
   }
   if (change.status === ChangeStatus.STAGED) {
-    return [ChangeStates.STAGED];
+    states.push(ChangeStates.STAGED);
+    return states;
   }
   if (change.status === ChangeStatus.PRESTAGED) {
-    return [ChangeStates.PRESTAGED];
+    states.push(ChangeStates.PRESTAGED);
+    return states;
   }
 
   if (change.revert_of) {
