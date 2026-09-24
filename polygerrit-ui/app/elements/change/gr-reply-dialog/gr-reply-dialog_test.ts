@@ -3117,4 +3117,20 @@ suite('gr-reply-dialog tests', () => {
     assert.isOk(warning);
     assert.include(warning.textContent, 'Change has already been merged');
   });
+
+  test('show warning when change is queued for submit', async () => {
+    element.isChangeQueuedForSubmit = false;
+    await element.updateComplete;
+    let warning = query(element, '#changeIsMergedLabel');
+    assert.isNotOk(warning);
+
+    element.isChangeQueuedForSubmit = true;
+    await element.updateComplete;
+    warning = queryAndAssert(element, '#changeIsMergedLabel');
+    assert.isOk(warning);
+    assert.include(
+      warning.textContent,
+      'Change is already staged for submission'
+    );
+  });
 });
