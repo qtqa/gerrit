@@ -52,19 +52,25 @@ suite('gr-main-header tests', () => {
           <ul class="links">
             <li>
               <gr-dropdown down-arrow="" horizontal-align="left" link="">
-                <span class="linksTitle" id="Changes"> Changes </span>
+                <gr-endpoint-decorator name="main-header-changes">
+                  <span class="linksTitle" id="Changes"> Changes </span>
+                </gr-endpoint-decorator>
               </gr-dropdown>
             </li>
             <li>
               <gr-dropdown down-arrow="" horizontal-align="left" link="">
-                <span class="linksTitle" id="Documentation">
-                  Documentation
-                </span>
+                <gr-endpoint-decorator name="main-header-documentation">
+                  <span class="linksTitle" id="Documentation">
+                    Documentation
+                  </span>
+                </gr-endpoint-decorator>
               </gr-dropdown>
             </li>
             <li>
               <gr-dropdown down-arrow="" horizontal-align="left" link="">
-                <span class="linksTitle" id="Browse"> Browse </span>
+                <gr-endpoint-decorator name="main-header-browse">
+                  <span class="linksTitle" id="Browse"> Browse </span>
+                </gr-endpoint-decorator>
               </gr-dropdown>
             </li>
           </ul>
@@ -158,11 +164,38 @@ suite('gr-main-header tests', () => {
               </a>
               <a
                 class="itemAction"
+                href="//localhost:9876/q/status:staged+or+status:prestaged"
+                tabindex="-1"
+              >
+                <md-list-item md-list-item="" type="button">
+                  Staged
+                </md-list-item>
+              </a>
+              <a
+                class="itemAction"
+                href="//localhost:9876/q/status:integrating"
+                tabindex="-1"
+              >
+                <md-list-item md-list-item="" type="button">
+                  Integrating
+                </md-list-item>
+              </a>
+              <a
+                class="itemAction"
                 href="//localhost:9876/q/status:merged"
                 tabindex="-1"
               >
                 <md-list-item md-list-item="" type="button">
                   Merged
+                </md-list-item>
+              </a>
+              <a
+                class="itemAction"
+                href="//localhost:9876/q/status:deferred"
+                tabindex="-1"
+              >
+                <md-list-item md-list-item="" type="button">
+                  Deferred
                 </md-list-item>
               </a>
               <a
