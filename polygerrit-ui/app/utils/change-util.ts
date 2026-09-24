@@ -66,8 +66,24 @@ export function changeIsMerged(change?: ChangeInfo | ParsedChangeInfo | null) {
 export function changeIsAbandoned(
   change?: ChangeInfo | ParsedChangeInfo | null
 ) {
-  return change?.status === ChangeStatus.ABANDONED ||
-      change?.status === ChangeStatus.DEFERRED;
+  return (
+    change?.status === ChangeStatus.ABANDONED ||
+    change?.status === ChangeStatus.DEFERRED
+  );
+}
+
+/**
+ * A change is queued for submission when it is STAGED or INTEGRATING: it has
+ * already been approved and is on its way to being merged, so actions like
+ * autosubmit no longer apply.
+ */
+export function changeIsQueuedForSubmit(
+  change?: ChangeInfo | ParsedChangeInfo | null
+) {
+  return (
+    change?.status === ChangeStatus.STAGED ||
+    change?.status === ChangeStatus.INTEGRATING
+  );
 }
 /**
  * Get the change number from either a ChangeInfo (such as those included in
