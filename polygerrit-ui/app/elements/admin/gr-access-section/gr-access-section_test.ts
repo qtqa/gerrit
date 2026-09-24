@@ -196,6 +196,9 @@ suite('gr-access-section tests', () => {
                     <md-select-option md-menu-item="" value="revert">
                       <div slot="headline">Revert</div>
                     </md-select-option>
+                    <md-select-option md-menu-item="" value="stage">
+                      <div slot="headline">Stage</div>
+                    </md-select-option>
                     <md-select-option md-menu-item="" value="submit">
                       <div slot="headline">Submit</div>
                     </md-select-option>
