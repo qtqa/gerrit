@@ -209,6 +209,7 @@ const DocsDocAnchors: Record<string, string> = {
     'category_toggle_work_in_progress_state',
   [AccessPermissionId.VIEW_PRIVATE_CHANGES]: 'category_view_private_changes',
   [AccessPermissionId.AI_REVIEW]: 'category_ai_review',
+  [AccessPermissionId.QT_STAGE]: 'category_stage',
 };
 
 export function getAccessDocsAnchor(permissionId: string): string | undefined {
