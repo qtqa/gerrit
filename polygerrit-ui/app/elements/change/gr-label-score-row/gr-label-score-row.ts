@@ -57,6 +57,9 @@ export class GrLabelScoreRow extends LitElement {
     return [
       sharedStyles,
       css`
+        gr-endpoint-decorator {
+          display: contents;
+        }
         .labelNameCell,
         .buttonsCell,
         .selectedValueCell {
@@ -149,11 +152,18 @@ export class GrLabelScoreRow extends LitElement {
 
   override render() {
     return html`
-      <gr-endpoint-decorator name="${ifDefined(this._computeDecoratorName('review-label-scores-', this.label?.name ?? ''))}">
-      <span class="labelNameCell" id="labelName" aria-hidden="true"
-        >${this.label?.name ?? ''}</span
+      <gr-endpoint-decorator
+        name=${ifDefined(
+          this._computeDecoratorName(
+            'review-label-scores-',
+            this.label?.name ?? ''
+          )
+        )}
       >
-      ${this.renderButtonsCell()} ${this.renderSelectedValue()}
+        <span class="labelNameCell" id="labelName" aria-hidden="true"
+          >${this.label?.name ?? ''}</span
+        >
+        ${this.renderButtonsCell()} ${this.renderSelectedValue()}
       </gr-endpoint-decorator>
     `;
   }
