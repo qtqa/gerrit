@@ -155,22 +155,22 @@ export class GrLabelScores extends LitElement {
         Because this change has been deferred, you cannot vote.
       </div>
       <div
-        class="mergedMessage"
+        class="abandonedMessage"
         ?hidden=${this.change?.status !== ChangeStatus.STAGED}
       >
-        Because this change is integrating, votes may not be decreased.
+        Because this change is staged, you cannot vote.
       </div>
       <div
-        class="mergedMessage"
+        class="abandonedMessage"
         ?hidden=${this.change?.status !== ChangeStatus.PRESTAGED}
       >
-        Because this change is integrating, votes may not be decreased.
+        Because this change is prestaged, you cannot vote.
       </div>
       <div
-        class="mergedMessage"
+        class="abandonedMessage"
         ?hidden=${this.change?.status !== ChangeStatus.INTEGRATING}
       >
-        Because this change is integrating, votes may not be decreased.
+        Because this change is integrating, you cannot vote.
       </div>`;
   }
 
