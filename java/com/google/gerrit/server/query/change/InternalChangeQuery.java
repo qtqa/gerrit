@@ -277,14 +277,30 @@ public class InternalChangeQuery extends InternalQuery<ChangeData, InternalChang
   }
 
   public List<ChangeData> byBranchCommitOpen(String project, String branch, String hash) {
-    return query(and(byBranchCommitPred(project, branch, hash), open()));
+    return query(and(byBranchCommitPred(project, branch, hash), or(open(), stagedOrIntegrating())));
   }
 
   public List<ChangeData> byBranchCommitNewOrAbandoned(String project, String branch, String hash) {
     return query(
         and(
             byBranchCommitPred(project, branch, hash),
-            or(status(Change.Status.NEW), status(Change.Status.ABANDONED))));
+            or(
+                status(Change.Status.NEW),
+                stagedOrIntegrating(),
+                status(Change.Status.ABANDONED),
+                status(Change.Status.DEFERRED))));
+  }
+
+  /**
+   * Matches the Qt-specific PRESTAGED, STAGED and INTEGRATING statuses, which are coded as closed
+   * (see {@link Change.Status#isOpen()}) even though they represent changes that are still in
+   * flight towards being merged.
+   */
+  private static Predicate<ChangeData> stagedOrIntegrating() {
+    return or(
+        status(Change.Status.PRESTAGED),
+        status(Change.Status.STAGED),
+        status(Change.Status.INTEGRATING));
   }
 
   public static Predicate<ChangeData> byBranchCommitOpenPred(
