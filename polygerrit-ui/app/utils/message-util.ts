@@ -35,14 +35,15 @@ function getRevertChangeIdFromMessage(msg: ChangeMessageInfo): ChangeId {
 }
 
 export function getRevertCreatedChangeIds(messages: ChangeMessageInfo[]) {
-  try {
-    return messages
-      .filter(m => m.tag === MessageTag.TAG_REVERT)
-      .map(m => getRevertChangeIdFromMessage(m));
-  }
-  catch(err) {
-    return [];
-  }
+  return messages
+    .filter(m => m.tag === MessageTag.TAG_REVERT)
+    .flatMap(m => {
+      try {
+        return [getRevertChangeIdFromMessage(m)];
+      } catch (err) {
+        return [];
+      }
+    });
 }
 
 export function getScores(
