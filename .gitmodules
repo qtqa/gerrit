@@ -1,6 +1,6 @@
 [submodule "modules/java-prettify"]
 	path = modules/java-prettify
-	url = ../java-prettify
+	url = https://gerrit.googlesource.com/java-prettify
 
 [submodule "modules/jgit"]
 	path = modules/jgit
