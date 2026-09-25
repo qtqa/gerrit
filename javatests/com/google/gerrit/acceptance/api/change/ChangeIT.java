@@ -1087,6 +1087,28 @@ public class ChangeIT extends AbstractDaemonTest {
   }
 
   @Test
+  public void deleteStagedChange() throws Exception {
+    TestChange change = changeOperations.newChange().project(project).createAndGet();
+    setChangeStatus(change.numericChangeId(), Change.Status.STAGED);
+
+    MethodNotAllowedException thrown =
+        assertThrows(
+            MethodNotAllowedException.class, () -> gApi.changes().id(change.id()).delete());
+    assertThat(thrown).hasMessageThat().contains("delete not permitted");
+  }
+
+  @Test
+  public void deleteIntegratingChange() throws Exception {
+    TestChange change = changeOperations.newChange().project(project).createAndGet();
+    setChangeStatus(change.numericChangeId(), Change.Status.INTEGRATING);
+
+    MethodNotAllowedException thrown =
+        assertThrows(
+            MethodNotAllowedException.class, () -> gApi.changes().id(change.id()).delete());
+    assertThat(thrown).hasMessageThat().contains("delete not permitted");
+  }
+
+  @Test
   public void deleteMergedChangeWithDeleteOwnChangesPermission() throws Exception {
     projectOperations
         .project(project)
