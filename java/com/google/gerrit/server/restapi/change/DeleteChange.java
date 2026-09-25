@@ -81,7 +81,12 @@ public class DeleteChange
       // Merged changes should never be deleted.
       return false;
     }
-    // New or abandoned changes can be deleted with the right permissions.
+    if (change.isStaged() || change.isIntegrating()) {
+      // Staged/integrating changes are queued for or undergoing a CI build and must not be
+      // deleted out from under it.
+      return false;
+    }
+    // New, prestaged, abandoned or deferred changes can be deleted with the right permissions.
     return true;
   }
 }

@@ -275,80 +275,86 @@ suite('gr-label-row-score tests', () => {
     assert.shadowDom.equal(
       element,
       /* HTML */ `
-        <span class="labelNameCell" id="labelName" aria-hidden="true">
-          Verified
-        </span>
-        <div class="buttonsCell">
-          <span class="placeholder" data-label="Verified"></span>
-          <gr-selector
-            aria-labelledby="labelName"
-            id="labelSelector"
-            role="radiogroup"
-            selected="+1"
-          >
-            <gr-button
-              aria-disabled="false"
-              aria-label="-1"
-              data-name="Verified"
-              data-selection-index="0"
-              data-value="-1"
-              role="button"
-              tabindex="0"
-              title="bad"
-              data-vote="min"
-              votechip=""
-              flatten=""
+        <gr-endpoint-decorator name="review-label-scores-verified">
+          <span class="labelNameCell" id="labelName" aria-hidden="true">
+            Verified
+          </span>
+          <div class="buttonsCell">
+            <span class="placeholder" data-label="Verified"></span>
+            <gr-selector
+              aria-labelledby="labelName"
+              id="labelSelector"
+              role="radiogroup"
+              selected="+1"
             >
-              <gr-tooltip-content light-tooltip="" has-tooltip="" title="bad">
-                -1
-              </gr-tooltip-content>
-            </gr-button>
-            <gr-button
-              aria-disabled="false"
-              aria-label=" 0"
-              data-name="Verified"
-              data-selection-index="1"
-              data-value=" 0"
-              role="button"
-              tabindex="0"
-              data-vote="neutral"
-              title="Reset Vote"
-              votechip=""
-              flatten=""
-            >
-              <gr-tooltip-content
-                light-tooltip=""
-                title="Reset Vote"
-                has-tooltip=""
+              <gr-button
+                aria-disabled="false"
+                aria-label="-1"
+                data-name="Verified"
+                data-selection-index="0"
+                data-value="-1"
+                role="button"
+                tabindex="0"
+                title="bad"
+                data-vote="min"
+                votechip=""
+                flatten=""
               >
-                0
-              </gr-tooltip-content>
-            </gr-button>
-            <gr-button
-              aria-checked="true"
-              aria-disabled="false"
-              aria-label="+1"
-              class="selected"
-              data-name="Verified"
-              data-selection-index="2"
-              data-value="+1"
-              role="button"
-              tabindex="0"
-              title="good"
-              data-vote="max"
-              votechip=""
-              flatten=""
-            >
-              <gr-tooltip-content light-tooltip="" has-tooltip="" title="good">
-                +1
-              </gr-tooltip-content>
-            </gr-button>
-          </gr-selector>
-          <span class="placeholder" data-label="Verified"></span>
-        </div>
-        <div class="selectedValueCell ">
-          <span id="selectedValueLabel">good</span>
-        </div>
+                <gr-tooltip-content light-tooltip="" has-tooltip="" title="bad">
+                  -1
+                </gr-tooltip-content>
+              </gr-button>
+              <gr-button
+                aria-disabled="false"
+                aria-label=" 0"
+                data-name="Verified"
+                data-selection-index="1"
+                data-value=" 0"
+                role="button"
+                tabindex="0"
+                data-vote="neutral"
+                title="Reset Vote"
+                votechip=""
+                flatten=""
+              >
+                <gr-tooltip-content
+                  light-tooltip=""
+                  title="Reset Vote"
+                  has-tooltip=""
+                >
+                  0
+                </gr-tooltip-content>
+              </gr-button>
+              <gr-button
+                aria-checked="true"
+                aria-disabled="false"
+                aria-label="+1"
+                class="selected"
+                data-name="Verified"
+                data-selection-index="2"
+                data-value="+1"
+                role="button"
+                tabindex="0"
+                title="good"
+                data-vote="max"
+                votechip=""
+                flatten=""
+              >
+                <gr-tooltip-content
+                  light-tooltip=""
+                  has-tooltip=""
+                  title="good"
+                >
+                  +1
+                </gr-tooltip-content>
+              </gr-button>
+            </gr-selector>
+            <span class="placeholder" data-label="Verified"></span>
+          </div>
+          <div class="selectedValueCell ">
+            <span id="selectedValueLabel">good</span>
+          </div>
+        </gr-endpoint-decorator>
       `
     );
   });

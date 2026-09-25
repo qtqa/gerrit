@@ -101,9 +101,15 @@ public class Mergeable implements RestReadView<RevisionResource> {
     PatchSet ps = resource.getPatchSet();
     MergeableInfo result = new MergeableInfo();
 
-    if (!ps.id().equals(change.currentPatchSetId()) || change.isAbandoned()) {
-      // Only the current revision of non-abandoned changes is mergeable.
-      // Others always fail.
+    if (!ps.id().equals(change.currentPatchSetId())
+        || change.isAbandoned()
+        || change.isDeferred()
+        || change.isStaged()
+        || change.isIntegrating()) {
+      // Only the current revision is mergeable. Others always fail.
+      // Abandoned and deferred changes are closed/declined, and staged/integrating
+      // changes are already queued for submission, so none of them need a real
+      // mergeability computation.
       return Response.ok(result);
     }
 

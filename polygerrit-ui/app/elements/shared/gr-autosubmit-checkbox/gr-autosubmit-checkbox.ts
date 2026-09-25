@@ -19,7 +19,10 @@ import {getAppContext} from '../../../services/app-context';
 import {ChangeInfo} from '../../../types/common';
 import {ParsedChangeInfo} from '../../../types/types';
 import {fire} from '../../../utils/event-util';
-import {changeIsMerged} from '../../../utils/change-util';
+import {
+  changeIsMerged,
+  changeIsQueuedForSubmit,
+} from '../../../utils/change-util';
 import {materialStyles} from '../../../styles/gr-material-styles';
 
 export interface AutosubmitCheckedChangedEventDetail {
@@ -121,7 +124,8 @@ export class GrAutosubmitCheckbox extends LitElement {
           isFlowsEnabled &&
           !this.getFlowsModel().hasAutosubmitFlowAlready() &&
           isOwner &&
-          !changeIsMerged(change);
+          !changeIsMerged(change) &&
+          !changeIsQueuedForSubmit(change);
         if (this.isAutosubmitEnabled && !oldEnabled) {
           this.reporting.reportInteraction('autosubmit-checkbox-shown');
         }

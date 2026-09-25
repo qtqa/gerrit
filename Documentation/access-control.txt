@@ -963,6 +963,19 @@ themselves, however they should be able to `read` the changes being submitted.
 Note that this permission is named `submitAs` in the `project.config`
 file.
 
+[[category_stage]]
+=== Stage
+
+This category permits users to stage a change for CI.
+
+Staging a change queues it to be verified and merged by the project's
+continuous integration system. A staged change moves through the
+`STAGED` and `INTEGRATING` statuses before either being merged
+(`MERGED`) or sent back for rework.
+
+Must be assigned on the target branch ref (i.e. on 'refs/heads/\*', not
+on 'refs/for/*').
+
 [[category_view_private_changes]]
 === View Private Changes
 

@@ -245,6 +245,9 @@ export class GrReplyDialog extends LitElement {
   isChangeMerged = false;
 
   @state()
+  isChangeQueuedForSubmit = false;
+
+  @state()
   underReview = true;
 
   @state()
@@ -1244,7 +1247,7 @@ export class GrReplyDialog extends LitElement {
           )}
           ${when(
             this.knownLatestState !== LatestPatchState.CHECKING &&
-              this.isChangeMerged,
+              (this.isChangeMerged || this.isChangeQueuedForSubmit),
             () => html`
               <span id="changeIsMergedLabel">
                 ${this.computeChangeMergedWarning()}
@@ -1253,6 +1256,7 @@ export class GrReplyDialog extends LitElement {
           )}
           ${when(
             !this.isChangeMerged &&
+              !this.isChangeQueuedForSubmit &&
               this.knownLatestState === LatestPatchState.NOT_LATEST,
             () => html`
               <span id="notLatestLabel">
@@ -1327,6 +1331,9 @@ export class GrReplyDialog extends LitElement {
           ? LatestPatchState.LATEST
           : LatestPatchState.NOT_LATEST;
         this.isChangeMerged = result.newStatus === ChangeStatus.MERGED;
+        this.isChangeQueuedForSubmit =
+          result.newStatus === ChangeStatus.STAGED ||
+          result.newStatus === ChangeStatus.INTEGRATING;
       });
 
     this.focusOn(focusTarget);
@@ -2271,7 +2278,9 @@ export class GrReplyDialog extends LitElement {
   }
 
   computeChangeMergedWarning() {
-    return 'Change has already been merged';
+    return this.isChangeMerged
+      ? 'Change has already been merged'
+      : 'Change is already staged for submission';
   }
 
   computePatchSetWarning() {

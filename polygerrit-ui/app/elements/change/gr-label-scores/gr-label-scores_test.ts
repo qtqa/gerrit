@@ -93,6 +93,18 @@ suite('gr-label-scores tests', () => {
         <div class="abandonedMessage" hidden="">
           Because this change has been abandoned, you cannot vote.
         </div>
+        <div class="abandonedMessage" hidden="">
+          Because this change has been deferred, you cannot vote.
+        </div>
+        <div class="abandonedMessage" hidden="">
+          Because this change is staged, you cannot vote.
+        </div>
+        <div class="abandonedMessage" hidden="">
+          Because this change is prestaged, you cannot vote.
+        </div>
+        <div class="abandonedMessage" hidden="">
+          Because this change is integrating, you cannot vote.
+        </div>
       `
     );
   });
@@ -137,14 +149,35 @@ suite('gr-label-scores tests', () => {
   });
 
   suite('message', () => {
+    function visibleMessageText() {
+      const messages = element.shadowRoot!.querySelectorAll(
+        '.abandonedMessage, .mergedMessage'
+      );
+      const visible = [...messages].find(m => !isHidden(m));
+      return visible?.textContent?.trim();
+    }
+
     test('shown when change is abandoned', async () => {
       element.change = {
         ...createChange(),
         status: ChangeStatus.ABANDONED,
       };
       await waitEventLoop();
-      assert.isFalse(isHidden(queryAndAssert(element, '.abandonedMessage')));
-      assert.isTrue(isHidden(queryAndAssert(element, '.mergedMessage')));
+      assert.equal(
+        visibleMessageText(),
+        'Because this change has been abandoned, you cannot vote.'
+      );
+    });
+    test('shown when change is deferred', async () => {
+      element.change = {
+        ...createChange(),
+        status: ChangeStatus.DEFERRED,
+      };
+      await waitEventLoop();
+      assert.equal(
+        visibleMessageText(),
+        'Because this change has been deferred, you cannot vote.'
+      );
     });
     test('shown when change is merged', async () => {
       element.change = {
@@ -152,8 +185,43 @@ suite('gr-label-scores tests', () => {
         status: ChangeStatus.MERGED,
       };
       await waitEventLoop();
-      assert.isFalse(isHidden(queryAndAssert(element, '.mergedMessage')));
-      assert.isTrue(isHidden(queryAndAssert(element, '.abandonedMessage')));
+      assert.equal(
+        visibleMessageText(),
+        'Because this change has been merged, votes may not be decreased.'
+      );
+    });
+    test('shown when change is staged', async () => {
+      element.change = {
+        ...createChange(),
+        status: ChangeStatus.STAGED,
+      };
+      await waitEventLoop();
+      assert.equal(
+        visibleMessageText(),
+        'Because this change is staged, you cannot vote.'
+      );
+    });
+    test('shown when change is prestaged', async () => {
+      element.change = {
+        ...createChange(),
+        status: ChangeStatus.PRESTAGED,
+      };
+      await waitEventLoop();
+      assert.equal(
+        visibleMessageText(),
+        'Because this change is prestaged, you cannot vote.'
+      );
+    });
+    test('shown when change is integrating', async () => {
+      element.change = {
+        ...createChange(),
+        status: ChangeStatus.INTEGRATING,
+      };
+      await waitEventLoop();
+      assert.equal(
+        visibleMessageText(),
+        'Because this change is integrating, you cannot vote.'
+      );
     });
     test('do not show for new', async () => {
       element.change = {
@@ -161,8 +229,7 @@ suite('gr-label-scores tests', () => {
         status: ChangeStatus.NEW,
       };
       await waitEventLoop();
-      assert.isTrue(isHidden(queryAndAssert(element, '.mergedMessage')));
-      assert.isTrue(isHidden(queryAndAssert(element, '.abandonedMessage')));
+      assert.isUndefined(visibleMessageText());
     });
   });
 });

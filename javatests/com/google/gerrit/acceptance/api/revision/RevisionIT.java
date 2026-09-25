@@ -1608,6 +1608,38 @@ public class RevisionIT extends AbstractDaemonTest {
   }
 
   @Test
+  public void cherryPickAsNewPatchSetOntoOpenBaseJoinsRelationChain() throws Exception {
+    PushOneCommit.Result r1 = createChange(SUBJECT, "a.txt", "a");
+    PushOneCommit.Result r2 = createChange(SUBJECT, "b.txt", "b");
+    // Resolve by number below: after the first pick the Change-Id names two changes.
+    int r2Number = r2.getChange().getId().get();
+
+    String branch = "foo";
+    gApi.projects().name(project.get()).branch(branch).create(new BranchInput());
+
+    // Both picked onto the branch tip: two unrelated changes on foo.
+    CherryPickInput input = new CherryPickInput();
+    input.destination = branch;
+    input.message = "message";
+    ChangeInfo firstPick = gApi.changes().id(r1.getChangeId()).current().cherryPickAsInfo(input);
+    input.message = "message\n\nChange-Id: " + r2.getChangeId();
+    ChangeInfo secondPick = gApi.changes().id(r2.getChangeId()).current().cherryPickAsInfo(input);
+    assertThat(gApi.changes().id(secondPick._number).current().related().changes).isEmpty();
+
+    // Re-pick r2 onto the first pick: lands as patch set 2 of the existing change on foo.
+    input.base = gApi.changes().id(firstPick._number).current().commit(false).commit;
+    ChangeInfo repick = gApi.changes().id(r2Number).current().cherryPickAsInfo(input);
+    assertThat(repick._number).isEqualTo(secondPick._number);
+    RevisionInfo current =
+        gApi.changes().id(repick._number).get(CURRENT_REVISION).getCurrentRevision();
+    assertThat(current._number).isEqualTo(2);
+
+    // The new patch set carries the base's groups: both changes show the chain.
+    assertThat(gApi.changes().id(firstPick._number).current().related().changes).hasSize(2);
+    assertThat(gApi.changes().id(repick._number).current().related().changes).hasSize(2);
+  }
+
+  @Test
   public void cherryPickOnMergedChangeIsNotRelated() throws Exception {
     PushOneCommit.Result r1 = createChange(SUBJECT, "a.txt", "a");
     PushOneCommit.Result r2 = createChange(SUBJECT, "b.txt", "b");

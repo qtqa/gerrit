@@ -109,8 +109,11 @@ public class DeleteChanges implements RestModifyView<ProjectResource, DeleteChan
   }
 
   private static boolean isChangeDeletable(ChangeNotes cn) {
+    Change change = cn.getChange();
     // Merged changes must not be deleted.
-    // New or abandoned changes can be deleted with the right permissions.
-    return !cn.getChange().isMerged();
+    // Staged/integrating changes are queued for or undergoing a CI build and must not be
+    // deleted out from under it.
+    // New, prestaged, abandoned or deferred changes can be deleted with the right permissions.
+    return !change.isMerged() && !change.isStaged() && !change.isIntegrating();
   }
 }
