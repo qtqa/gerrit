@@ -89,12 +89,12 @@ public abstract class Permission implements Comparable<Permission> {
     NAMES_LC.add(FORGE_SERVER.toLowerCase(Locale.US));
     NAMES_LC.add(LABEL.toLowerCase(Locale.US));
     NAMES_LC.add(LABEL_AS.toLowerCase(Locale.US));
+    NAMES_LC.add(REMOVE_LABEL.toLowerCase(Locale.US));
     NAMES_LC.add(OWNER.toLowerCase(Locale.US));
     NAMES_LC.add(PUSH.toLowerCase(Locale.US));
     NAMES_LC.add(PUSH_MERGE.toLowerCase(Locale.US));
     NAMES_LC.add(READ.toLowerCase(Locale.US));
     NAMES_LC.add(REBASE.toLowerCase(Locale.US));
-    NAMES_LC.add(REMOVE_LABEL.toLowerCase(Locale.US));
     NAMES_LC.add(REMOVE_REVIEWER.toLowerCase(Locale.US));
     NAMES_LC.add(REVERT.toLowerCase(Locale.US));
     NAMES_LC.add(SUBMIT.toLowerCase(Locale.US));
