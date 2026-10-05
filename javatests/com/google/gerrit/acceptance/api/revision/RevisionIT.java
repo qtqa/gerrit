@@ -33,6 +33,7 @@ import static com.google.gerrit.extensions.client.ListChangesOption.CURRENT_REVI
 import static com.google.gerrit.extensions.client.ListChangesOption.DETAILED_LABELS;
 import static com.google.gerrit.server.group.SystemGroupBackend.REGISTERED_USERS;
 import static com.google.gerrit.testing.GerritJUnit.assertThrows;
+import static com.google.gerrit.testing.TestActionRefUpdateContext.testRefAction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static org.eclipse.jgit.lib.Constants.HEAD;
@@ -105,9 +106,13 @@ import com.google.gerrit.extensions.restapi.ResourceNotFoundException;
 import com.google.gerrit.extensions.restapi.UnprocessableEntityException;
 import com.google.gerrit.extensions.webui.PatchSetWebLink;
 import com.google.gerrit.extensions.webui.ResolveConflictsWebLink;
+import com.google.gerrit.server.change.PatchSetInserter;
 import com.google.gerrit.server.git.validators.CommitValidationInfo;
+import com.google.gerrit.server.notedb.ChangeNotes;
 import com.google.gerrit.server.query.change.ChangeData;
+import com.google.gerrit.server.update.BatchUpdate;
 import com.google.gerrit.server.util.AccountTemplateUtil;
+import com.google.gerrit.server.util.time.TimeUtil;
 import com.google.gerrit.testing.FakeEmailSender;
 import com.google.inject.Inject;
 import java.io.ByteArrayOutputStream;
@@ -138,6 +143,7 @@ public class RevisionIT extends AbstractDaemonTest {
   @Inject private ExtensionRegistry extensionRegistry;
   @Inject private AccountOperations accountOperations;
   @Inject private ChangeOperations changeOperations;
+  @Inject private PatchSetInserter.Factory patchSetInserterFactory;
 
   @Test
   public void get() throws Exception {
@@ -2751,6 +2757,54 @@ public class RevisionIT extends AbstractDaemonTest {
         /* patchSetNumber= */ 2,
         /* parentChangeStatus= */ "MERGED",
         /* isParentCommitMergedInTargetBranch= */ false);
+  }
+
+  @Test
+  public void parentData_parentChangeHasDuplicatePatchSetCommit() throws Exception {
+    // Older versions of the Qt workflow plugin added a patch set with an unchanged commit after
+    // integrating merge commits, leaving two patch sets of one change with the same commit
+    // (QTQAINFRA-7338).
+    updateSubmitType(project, SubmitType.FAST_FORWARD_ONLY);
+    PushOneCommit.Result r1 = createChange();
+    PushOneCommit.Result r2 = createChange();
+    approve(r1.getChangeId());
+    gApi.changes().id(r1.getChangeId()).current().submit();
+
+    ChangeNotes notes = r1.getChange().notes();
+    testRefAction(
+        () -> {
+          try (BatchUpdate bu =
+              batchUpdateFactory.create(
+                  project, identifiedUserFactory.create(admin.id()), TimeUtil.now())) {
+            bu.addOp(
+                notes.getChangeId(),
+                patchSetInserterFactory
+                    .create(notes, PatchSet.id(notes.getChangeId(), 2), r1.getCommit())
+                    .disableValidation()
+                    .setAllowClosed(true)
+                    .setSendEmail(false)
+                    .setFireRevisionCreated(false));
+            bu.execute();
+          }
+        });
+    // RevisionInfos are keyed by commit, so count the patch sets in NoteDb instead.
+    assertThat(
+            changeDataFactory.create(project, notes.getChangeId()).patchSets().stream()
+                .map(ps -> ps.commitId())
+                .collect(toList()))
+        .containsExactly(r1.getCommit().getId(), r1.getCommit().getId());
+
+    List<ParentInfo> parentsData =
+        getRevisionWithParents(r2.getChangeId(), /* patchSetNumber= */ 1).parentsData;
+    assertThat(parentsData).hasSize(1);
+    assertParentIsChange(
+        parentsData.get(0),
+        r1.getCommit().getId(),
+        r1.getChangeId(),
+        r1.getChange().change().getChangeId(),
+        /* patchSetNumber= */ 2,
+        /* parentChangeStatus= */ "MERGED",
+        /* isParentCommitMergedInTargetBranch= */ true);
   }
 
   private RevisionInfo getRevisionWithParents(String changeId, int patchSetNumber)
