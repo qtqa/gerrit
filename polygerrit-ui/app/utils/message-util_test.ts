@@ -67,6 +67,26 @@ suite('message-util tests', () => {
         'If02ca1cd494579d6bb92a157bf1819e3689cd6b1' as ChangeId,
       ]);
     });
+
+    test('getRevertCreatedChangeIds skips malformed message, keeps valid ones', () => {
+      const messages = [
+        {
+          ...createChangeMessage(),
+          message: 'Created a revert of this change as not-a-valid-change-id',
+          tag: MessageTag.TAG_REVERT as ReviewInputTag,
+        },
+        {
+          ...createChangeMessage(),
+          message:
+            'Created a revert of this change as If02ca1cd494579d6bb92a157bf1819e3689cd6b1',
+          tag: MessageTag.TAG_REVERT as ReviewInputTag,
+        },
+      ];
+
+      assert.deepEqual(getRevertCreatedChangeIds(messages), [
+        'If02ca1cd494579d6bb92a157bf1819e3689cd6b1' as ChangeId,
+      ]);
+    });
   });
 
   suite('getCodeReviewVotesFromMessage', () => {

@@ -15,9 +15,9 @@
 package com.google.gerrit.server.change;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.MoreCollectors;
 import com.google.common.flogger.FluentLogger;
 import com.google.gerrit.entities.ParentCommitData;
+import com.google.gerrit.entities.PatchSet;
 import com.google.gerrit.entities.Project;
 import com.google.gerrit.server.query.change.ChangeData;
 import com.google.gerrit.server.query.change.InternalChangeQuery;
@@ -25,8 +25,10 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
@@ -99,11 +101,24 @@ public class ParentDataProvider {
       return Optional.empty();
     }
     ChangeData singleData = changeData.get(0);
-    int patchSetNumber =
+    // Normally exactly one patch set has this commit, but changes integrated by older versions of
+    // the Qt workflow plugin can have a trailing patch set that duplicates the commit of the
+    // previous one (QTQAINFRA-7338). Use the highest-numbered match: it is the one that carries the
+    // change's current state, so the merged check below stays correct.
+    ImmutableList<Integer> matchingPatchSets =
         singleData.patchSets().stream()
             .filter(p -> p.commitId().equals(parentCommitId))
-            .collect(MoreCollectors.onlyElement())
-            .number();
+            .map(PatchSet::number)
+            .collect(ImmutableList.toImmutableList());
+    if (matchingPatchSets.isEmpty()) {
+      return Optional.empty();
+    }
+    if (matchingPatchSets.size() > 1) {
+      logger.atWarning().atMostEvery(1, TimeUnit.MINUTES).log(
+          "Change %s (project: %s) has multiple patch sets %s with commit %s",
+          singleData.getId(), project.get(), matchingPatchSets, parentCommitId.name());
+    }
+    int patchSetNumber = Collections.max(matchingPatchSets);
     return Optional.of(
         ParentCommitData.builder()
             .branchName(Optional.of(targetBranch))

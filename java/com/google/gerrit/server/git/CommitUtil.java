@@ -629,7 +629,7 @@ public class CommitUtil {
     }
 
     Change change = changeDatas.get(0).change();
-    if (!change.isAbandoned()) {
+    if (!change.isAbandoned() && !change.isDeferred()) {
       // The base commit is a valid change revision.
       return baseCommit;
     }

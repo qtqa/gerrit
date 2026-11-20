@@ -757,7 +757,7 @@ public class ChangeJson {
       if (user.isIdentifiedUser()
           && (!limitToPsId.isPresent() || limitToPsId.get().equals(in.currentPatchSetId()))) {
         out.permittedLabels =
-            !cd.change().isAbandoned()
+            cd.change().getStatus().isOpen() || cd.change().isMerged()
                 ? labelsJson.permittedLabels(user.getAccountId(), cd)
                 : ImmutableMap.of();
         out.removableLabels = labelsJson.removableLabels(accountLoader, user, cd);

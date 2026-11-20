@@ -18,15 +18,23 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.gerrit.extensions.api.projects.DeleteChangesResult.FAILURE;
 import static com.google.gerrit.extensions.api.projects.DeleteChangesResult.NOT_UNIQUE;
 import static com.google.gerrit.extensions.api.projects.DeleteChangesResult.SUCCESS;
+import static com.google.gerrit.testing.TestActionRefUpdateContext.openTestRefUpdateContext;
 
 import com.google.gerrit.acceptance.AbstractDaemonTest;
 import com.google.gerrit.acceptance.NoHttpd;
 import com.google.gerrit.acceptance.PushOneCommit;
 import com.google.gerrit.entities.BranchNameKey;
+import com.google.gerrit.entities.Change;
+import com.google.gerrit.entities.PatchSet;
 import com.google.gerrit.extensions.api.changes.CherryPickInput;
 import com.google.gerrit.extensions.api.projects.DeleteChangesInput;
 import com.google.gerrit.extensions.api.projects.DeleteChangesResult;
 import com.google.gerrit.extensions.api.projects.ProjectApi;
+import com.google.gerrit.server.update.BatchUpdate;
+import com.google.gerrit.server.update.BatchUpdateOp;
+import com.google.gerrit.server.update.ChangeContext;
+import com.google.gerrit.server.update.context.RefUpdateContext;
+import com.google.gerrit.server.util.time.TimeUtil;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -89,5 +97,48 @@ public class DeleteChangesIT extends AbstractDaemonTest {
     assertThat(response.get(SUCCESS)).containsExactly(c2.getChangeId());
     assertThat(response).containsKey(NOT_UNIQUE);
     assertThat(response.get(NOT_UNIQUE)).containsExactly(c1.getChangeId());
+  }
+
+  @Test
+  public void deleteChangesStagedOrIntegratingFails() throws Exception {
+    PushOneCommit.Result staged = createChange();
+    PushOneCommit.Result integrating = createChange();
+    setChangeStatus(staged.getChange().change().getId(), Change.Status.STAGED);
+    setChangeStatus(integrating.getChange().change().getId(), Change.Status.INTEGRATING);
+
+    DeleteChangesInput deleteInput = new DeleteChangesInput();
+    deleteInput.changes = List.of(staged.getChangeId(), integrating.getChangeId());
+    Map<DeleteChangesResult, Collection<String>> response = project().deleteChanges(deleteInput);
+    assertThat(response).containsKey(FAILURE);
+    assertThat(response.get(FAILURE))
+        .containsExactly(staged.getChangeId(), integrating.getChangeId());
+    assertThat(query(staged.getChangeId())).isNotEmpty();
+    assertThat(query(integrating.getChangeId())).isNotEmpty();
+  }
+
+  private void setChangeStatus(Change.Id id, Change.Status newStatus) throws Exception {
+    try (RefUpdateContext ctx = openTestRefUpdateContext()) {
+      try (BatchUpdate batchUpdate =
+          batchUpdateFactory.create(project, localCtx.getContext().getUser(), TimeUtil.now())) {
+        batchUpdate.addOp(id, new ChangeStatusUpdateOp(newStatus));
+        batchUpdate.execute();
+      }
+    }
+  }
+
+  private static class ChangeStatusUpdateOp implements BatchUpdateOp {
+    private final Change.Status newStatus;
+
+    ChangeStatusUpdateOp(Change.Status newStatus) {
+      this.newStatus = newStatus;
+    }
+
+    @Override
+    public boolean updateChange(ChangeContext ctx) throws Exception {
+      Change change = ctx.getChange();
+      PatchSet.Id currentPatchSetId = change.currentPatchSetId();
+      ctx.getUpdate(currentPatchSetId).setStatus(newStatus);
+      return true;
+    }
   }
 }

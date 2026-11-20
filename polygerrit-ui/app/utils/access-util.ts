@@ -31,6 +31,7 @@ export enum AccessPermissionId {
   TOGGLE_WIP_STATE = 'toggleWipState',
   VIEW_PRIVATE_CHANGES = 'viewPrivateChanges',
   AI_REVIEW = 'aiReview',
+  QT_STAGE = 'stage',
 
   PRIORITY = 'priority',
 }
@@ -136,6 +137,10 @@ export const AccessPermissions: {[id: string]: AccessPermission} = {
     id: AccessPermissionId.AI_REVIEW,
     name: 'AI Review',
   },
+  [AccessPermissionId.QT_STAGE]: {
+    id: AccessPermissionId.QT_STAGE,
+    name: 'Stage',
+  },
 };
 
 export interface AccessPermission {
@@ -204,6 +209,7 @@ const DocsDocAnchors: Record<string, string> = {
     'category_toggle_work_in_progress_state',
   [AccessPermissionId.VIEW_PRIVATE_CHANGES]: 'category_view_private_changes',
   [AccessPermissionId.AI_REVIEW]: 'category_ai_review',
+  [AccessPermissionId.QT_STAGE]: 'category_stage',
 };
 
 export function getAccessDocsAnchor(permissionId: string): string | undefined {

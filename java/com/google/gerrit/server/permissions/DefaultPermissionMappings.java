@@ -104,6 +104,7 @@ public class DefaultPermissionMappings {
           .put(RefPermission.READ_PRIVATE_CHANGES, Permission.VIEW_PRIVATE_CHANGES)
           .put(RefPermission.READ_CONFIG, "readConfig")
           .put(RefPermission.WRITE_CONFIG, "writeConfig")
+          .put(RefPermission.QT_STAGE, Permission.QT_STAGE)
           .build();
 
   private static final ImmutableBiMap<ChangePermission, String> CHANGE_PERMISSIONS =
@@ -127,6 +128,7 @@ public class DefaultPermissionMappings {
               ChangePermission.TOGGLE_WORK_IN_PROGRESS_STATE,
               Permission.TOGGLE_WORK_IN_PROGRESS_STATE)
           .put(ChangePermission.AI_REVIEW, Permission.AI_REVIEW)
+          .put(ChangePermission.QT_STAGE, Permission.QT_STAGE)
           .build();
 
   static {

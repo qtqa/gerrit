@@ -76,7 +76,8 @@ public enum ChangePermission implements ChangePermissionOrLabel {
   SUBMIT,
   SUBMIT_AS("submit on behalf of other users"),
   TOGGLE_WORK_IN_PROGRESS_STATE,
-  AI_REVIEW;
+  AI_REVIEW,
+  QT_STAGE("stage change for CI");
 
   private final String description;
   private final String hint;

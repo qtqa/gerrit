@@ -159,6 +159,40 @@ suite('gr-autosubmit-checkbox tests', () => {
       await element.updateComplete;
       assert.isFalse(element.isAutosubmitEnabled);
     });
+
+    test('isAutosubmitEnabled is false if change is staged', async () => {
+      const changeModel = testResolver(changeModelToken);
+      const userModel = testResolver(userModelToken);
+
+      flowsModel.updateState({
+        isEnabled: true,
+        autosubmitProviders: [
+          {
+            isAutosubmitEnabled: () => true,
+            getSubmitCondition: () => '',
+            getSubmitAction: () => undefined,
+          },
+        ],
+        flows: [],
+      });
+
+      const change = {
+        ...createParsedChange(),
+        status: ChangeStatus.NEW,
+        owner: {_account_id: 456 as AccountId},
+      };
+      userModel.setAccount(createAccountDetailWithId(456 as AccountId));
+      changeModel.updateStateChange(change);
+      await element.updateComplete;
+      assert.isTrue(element.isAutosubmitEnabled);
+
+      changeModel.updateStateChange({
+        ...change,
+        status: ChangeStatus.STAGED,
+      });
+      await element.updateComplete;
+      assert.isFalse(element.isAutosubmitEnabled);
+    });
   });
 
   suite('autosubmit info message rendering', () => {

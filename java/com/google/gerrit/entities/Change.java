@@ -322,6 +322,15 @@ public final class Change {
   /** Maximum database status constant for an open change. */
   private static final char MAX_OPEN = 'z';
 
+  /** Database constant for {@link Status#PRESTAGED}. */
+  public static final char STATUS_PRESTAGED = 'P';
+
+  /** Database constant for {@link Status#STAGED}. */
+  public static final char STATUS_STAGED = 'R';
+
+  /** Database constant for {@link Status#INTEGRATING}. */
+  public static final char STATUS_INTEGRATING = 'I';
+
   /** Database constant for {@link Status#MERGED}. */
   public static final char STATUS_MERGED = 'M';
 
@@ -355,6 +364,10 @@ public final class Change {
      */
     NEW(STATUS_NEW, ChangeStatus.NEW),
 
+    PRESTAGED(STATUS_PRESTAGED, ChangeStatus.PRESTAGED),
+    STAGED(STATUS_STAGED, ChangeStatus.STAGED),
+    INTEGRATING(STATUS_INTEGRATING, ChangeStatus.INTEGRATING),
+
     /**
      * Change is closed, and submitted to its destination branch.
      *
@@ -369,7 +382,9 @@ public final class Change {
      * patch set, and it cannot be merged. Draft comments however may be published, permitting
      * reviewers to send constructive feedback.
      */
-    ABANDONED('A', ChangeStatus.ABANDONED);
+    ABANDONED('A', ChangeStatus.ABANDONED),
+
+    DEFERRED('D', ChangeStatus.DEFERRED);
 
     static {
       boolean ok = true;
@@ -689,8 +704,24 @@ public final class Change {
     return getStatus().equals(Status.ABANDONED);
   }
 
+  public boolean isIntegrating() {
+    return getStatus().equals(Status.INTEGRATING);
+  }
+
+  public boolean isStaged() {
+    return getStatus().equals(Status.STAGED);
+  }
+
+  public boolean isPrestaged() {
+    return getStatus().equals(Status.PRESTAGED);
+  }
+
+  public boolean isDeferred() {
+    return getStatus().equals(Status.DEFERRED);
+  }
+
   public boolean isClosed() {
-    return isAbandoned() || isMerged();
+    return isAbandoned() || isMerged() || isPrestaged() || isStaged() || isIntegrating() || isDeferred();
   }
 
   @Nullable

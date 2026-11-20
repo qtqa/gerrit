@@ -33,6 +33,7 @@ import static com.google.gerrit.extensions.client.ListChangesOption.CURRENT_REVI
 import static com.google.gerrit.extensions.client.ListChangesOption.DETAILED_LABELS;
 import static com.google.gerrit.server.group.SystemGroupBackend.REGISTERED_USERS;
 import static com.google.gerrit.testing.GerritJUnit.assertThrows;
+import static com.google.gerrit.testing.TestActionRefUpdateContext.testRefAction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static org.eclipse.jgit.lib.Constants.HEAD;
@@ -105,9 +106,13 @@ import com.google.gerrit.extensions.restapi.ResourceNotFoundException;
 import com.google.gerrit.extensions.restapi.UnprocessableEntityException;
 import com.google.gerrit.extensions.webui.PatchSetWebLink;
 import com.google.gerrit.extensions.webui.ResolveConflictsWebLink;
+import com.google.gerrit.server.change.PatchSetInserter;
 import com.google.gerrit.server.git.validators.CommitValidationInfo;
+import com.google.gerrit.server.notedb.ChangeNotes;
 import com.google.gerrit.server.query.change.ChangeData;
+import com.google.gerrit.server.update.BatchUpdate;
 import com.google.gerrit.server.util.AccountTemplateUtil;
+import com.google.gerrit.server.util.time.TimeUtil;
 import com.google.gerrit.testing.FakeEmailSender;
 import com.google.inject.Inject;
 import java.io.ByteArrayOutputStream;
@@ -138,6 +143,7 @@ public class RevisionIT extends AbstractDaemonTest {
   @Inject private ExtensionRegistry extensionRegistry;
   @Inject private AccountOperations accountOperations;
   @Inject private ChangeOperations changeOperations;
+  @Inject private PatchSetInserter.Factory patchSetInserterFactory;
 
   @Test
   public void get() throws Exception {
@@ -1608,6 +1614,38 @@ public class RevisionIT extends AbstractDaemonTest {
   }
 
   @Test
+  public void cherryPickAsNewPatchSetOntoOpenBaseJoinsRelationChain() throws Exception {
+    PushOneCommit.Result r1 = createChange(SUBJECT, "a.txt", "a");
+    PushOneCommit.Result r2 = createChange(SUBJECT, "b.txt", "b");
+    // Resolve by number below: after the first pick the Change-Id names two changes.
+    int r2Number = r2.getChange().getId().get();
+
+    String branch = "foo";
+    gApi.projects().name(project.get()).branch(branch).create(new BranchInput());
+
+    // Both picked onto the branch tip: two unrelated changes on foo.
+    CherryPickInput input = new CherryPickInput();
+    input.destination = branch;
+    input.message = "message";
+    ChangeInfo firstPick = gApi.changes().id(r1.getChangeId()).current().cherryPickAsInfo(input);
+    input.message = "message\n\nChange-Id: " + r2.getChangeId();
+    ChangeInfo secondPick = gApi.changes().id(r2.getChangeId()).current().cherryPickAsInfo(input);
+    assertThat(gApi.changes().id(secondPick._number).current().related().changes).isEmpty();
+
+    // Re-pick r2 onto the first pick: lands as patch set 2 of the existing change on foo.
+    input.base = gApi.changes().id(firstPick._number).current().commit(false).commit;
+    ChangeInfo repick = gApi.changes().id(r2Number).current().cherryPickAsInfo(input);
+    assertThat(repick._number).isEqualTo(secondPick._number);
+    RevisionInfo current =
+        gApi.changes().id(repick._number).get(CURRENT_REVISION).getCurrentRevision();
+    assertThat(current._number).isEqualTo(2);
+
+    // The new patch set carries the base's groups: both changes show the chain.
+    assertThat(gApi.changes().id(firstPick._number).current().related().changes).hasSize(2);
+    assertThat(gApi.changes().id(repick._number).current().related().changes).hasSize(2);
+  }
+
+  @Test
   public void cherryPickOnMergedChangeIsNotRelated() throws Exception {
     PushOneCommit.Result r1 = createChange(SUBJECT, "a.txt", "a");
     PushOneCommit.Result r2 = createChange(SUBJECT, "b.txt", "b");
@@ -2777,6 +2815,54 @@ public class RevisionIT extends AbstractDaemonTest {
         /* patchSetNumber= */ 2,
         /* parentChangeStatus= */ "MERGED",
         /* isParentCommitMergedInTargetBranch= */ false);
+  }
+
+  @Test
+  public void parentData_parentChangeHasDuplicatePatchSetCommit() throws Exception {
+    // Older versions of the Qt workflow plugin added a patch set with an unchanged commit after
+    // integrating merge commits, leaving two patch sets of one change with the same commit
+    // (QTQAINFRA-7338).
+    updateSubmitType(project, SubmitType.FAST_FORWARD_ONLY);
+    PushOneCommit.Result r1 = createChange();
+    PushOneCommit.Result r2 = createChange();
+    approve(r1.getChangeId());
+    gApi.changes().id(r1.getChangeId()).current().submit();
+
+    ChangeNotes notes = r1.getChange().notes();
+    testRefAction(
+        () -> {
+          try (BatchUpdate bu =
+              batchUpdateFactory.create(
+                  project, identifiedUserFactory.create(admin.id()), TimeUtil.now())) {
+            bu.addOp(
+                notes.getChangeId(),
+                patchSetInserterFactory
+                    .create(notes, PatchSet.id(notes.getChangeId(), 2), r1.getCommit())
+                    .disableValidation()
+                    .setAllowClosed(true)
+                    .setSendEmail(false)
+                    .setFireRevisionCreated(false));
+            bu.execute();
+          }
+        });
+    // RevisionInfos are keyed by commit, so count the patch sets in NoteDb instead.
+    assertThat(
+            changeDataFactory.create(project, notes.getChangeId()).patchSets().stream()
+                .map(ps -> ps.commitId())
+                .collect(toList()))
+        .containsExactly(r1.getCommit().getId(), r1.getCommit().getId());
+
+    List<ParentInfo> parentsData =
+        getRevisionWithParents(r2.getChangeId(), /* patchSetNumber= */ 1).parentsData;
+    assertThat(parentsData).hasSize(1);
+    assertParentIsChange(
+        parentsData.get(0),
+        r1.getCommit().getId(),
+        r1.getChangeId(),
+        r1.getChange().change().getChangeId(),
+        /* patchSetNumber= */ 2,
+        /* parentChangeStatus= */ "MERGED",
+        /* isParentCommitMergedInTargetBranch= */ true);
   }
 
   private RevisionInfo getRevisionWithParents(String changeId, int patchSetNumber)

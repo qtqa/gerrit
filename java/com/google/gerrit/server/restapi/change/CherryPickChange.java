@@ -443,9 +443,12 @@ public class CherryPickChange {
                     git,
                     destChange.notes(),
                     cherryPickCommit,
+                    dest.branch(),
+                    project,
                     sourceChange,
                     sourcePsId,
                     sourceCommit,
+                    baseChange,
                     newTopic,
                     input,
                     workInProgress);
@@ -480,16 +483,23 @@ public class CherryPickChange {
       Repository git,
       ChangeNotes destNotes,
       CodeReviewCommit cherryPickCommit,
+      String refName,
+      Project.NameKey project,
       @Nullable Change sourceChange,
       @Nullable PatchSet.Id sourcePsId,
       @Nullable ObjectId sourceCommit,
+      @Nullable Change baseChange,
       String topic,
       CherryPickInput input,
       @Nullable Boolean workInProgress)
-      throws IOException {
+      throws IOException, InvalidChangeOperationException {
     Change destChange = destNotes.getChange();
     PatchSet.Id psId = ChangeUtil.nextPatchSetId(git, destChange.currentPatchSetId());
     PatchSetInserter inserter = patchSetInserterFactory.create(destNotes, psId, cherryPickCommit);
+    // A cherry-pick onto an open change joins that change's relation chain, whether it lands as a
+    // new change or as a new patch set of an existing one. Without this the new patch set inherits
+    // the previous patch set's groups and the git parent relationship is invisible in the UI.
+    groupsOfOpenBase(project, refName, baseChange, input).ifPresent(inserter::setGroups);
     BranchNameKey sourceBranch = sourceChange == null ? null : sourceChange.getDest();
     inserter.setMessage(
         messageForDestinationChange(
@@ -518,6 +528,42 @@ public class CherryPickChange {
       bu.addOp(destChange.getId(), cherryPickOfUpdater);
     }
     return destChange.getId();
+  }
+
+  /**
+   * Groups of the open change that {@code input.base} belongs to, so that the cherry-picked commit
+   * joins its relation chain.
+   *
+   * @return the base change's current patch set groups; empty if no base was given, or the base is
+   *     not a patch set of an open change on {@code refName} (e.g. it is merged, in which case the
+   *     cherry-pick simply sits on the branch).
+   * @throws InvalidChangeOperationException if several open changes on the branch own the base
+   *     commit.
+   */
+  private Optional<List<String>> groupsOfOpenBase(
+      Project.NameKey project, String refName, @Nullable Change baseChange, CherryPickInput input)
+      throws InvalidChangeOperationException {
+    if (Strings.isNullOrEmpty(input.base)) {
+      return Optional.empty();
+    }
+    if (baseChange != null) {
+      return Optional.of(
+          changeNotesFactory.createChecked(baseChange).getCurrentPatchSet().groups());
+    }
+    List<ChangeData> changes =
+        queryProvider.get().setLimit(2).byBranchCommitOpen(project.get(), refName, input.base);
+    if (changes.size() > 1) {
+      throw new InvalidChangeOperationException(
+          "Several changes with key "
+              + input.base
+              + " reside on the same branch. "
+              + "Cannot cherry-pick on target branch.");
+    }
+    if (changes.size() == 1) {
+      return Optional.of(
+          changeNotesFactory.createChecked(changes.get(0).change()).getCurrentPatchSet().groups());
+    }
+    return Optional.empty();
   }
 
   private Change.Id createNewChange(
@@ -573,25 +619,7 @@ public class CherryPickChange {
     // If there is a base, and the base is not merged, the groups will be overridden by the base's
     // groups.
     ins.setGroups(GroupCollector.getDefaultGroups(cherryPickCommit.getId()));
-    if (input.base != null) {
-      if (baseChange != null) {
-        ins.setGroups(changeNotesFactory.createChecked(baseChange).getCurrentPatchSet().groups());
-      } else {
-        List<ChangeData> changes =
-            queryProvider.get().setLimit(2).byBranchCommitOpen(project.get(), refName, input.base);
-        if (changes.size() > 1) {
-          throw new InvalidChangeOperationException(
-              "Several changes with key "
-                  + input.base
-                  + " reside on the same branch. "
-                  + "Cannot cherry-pick on target branch.");
-        }
-        if (changes.size() == 1) {
-          Change change = changes.get(0).change();
-          ins.setGroups(changeNotesFactory.createChecked(change).getCurrentPatchSet().groups());
-        }
-      }
-    }
+    groupsOfOpenBase(project, refName, baseChange, input).ifPresent(ins::setGroups);
     bu.insertChange(ins);
     return changeId;
   }
